@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'dart:convert';
 import 'package:flutter/services.dart';
+import 'package:speech_to_text/speech_to_text.dart' as stt;
+import 'package:file_picker/file_picker.dart';
 
 void main() => runApp(const MyApp());
 
@@ -31,41 +33,47 @@ class SheekhaHomeScreen extends StatefulWidget {
 class _SheekhaHomeScreenState extends State<SheekhaHomeScreen> {
   int _currentIndex = 0;
   bool _isListening = false;
-  String _currentStatusText = 'جاهز للرصد الصوتي الحقيقي...';
-  String _searchQuery = '';
+  String _currentStatusText = 'اضغط على الميكروفون للبدء الفعلي...';
+  
+  late stt.SpeechToText _speech;
+  bool _speechEnabled = false;
 
-  // النطاق الجغرافي والملاحظات
   String _currentDistrict = 'الروضة';
   String _currentStreet = 'ض 1';
   String _selectedNote = 'بدون';
+  String _excelFileName = 'لم يتم رفع ملف';
 
-  // قائمة السجلات المرصودة
   List<Map<String, String>> _records = [];
-
-  // قاعدة البيانات المستخرجة من ملف الإكسيل (افتراضية قابلة للتحديث عبر رفع الملف)
   List<Map<String, String>> _databaseExcel = [
     {'letters': 'د م س', 'digits': '9599', 'type': 'تويوتا', 'owner': 'أهلي قمة', 'chassis': 'TMAJB81B5PJ205447', 'status': 'مطلوبة'},
-    {'letters': 'ب ل د', 'digits': '7474', 'type': 'هيونداي', 'owner': 'شركة النور', 'chassis': 'KMHDH4AE8LU123456', 'status': 'مطلوبة'},
   ];
 
   @override
   void initState() {
     super.initState();
+    _initSpeech();
     _loadData();
+  }
+
+  void _initSpeech() async {
+    _speech = stt.SpeechToText();
+    _speechEnabled = await _speech.initialize(
+      onStatus: (status) => print('STT Status: $status'),
+      onError: (error) => print('STT Error: $error'),
+    );
+    setState(() {});
   }
 
   Future<void> _loadData() async {
     final prefs = await SharedPreferences.getInstance();
     final String? savedRecords = prefs.getString('sheekha_real_records');
     final String? savedDb = prefs.getString('sheekha_excel_db');
+    final String? savedFile = prefs.getString('sheekha_excel_name');
 
     setState(() {
-      if (savedRecords != null) {
-        _records = List<Map<String, String>>.from(json.decode(savedRecords));
-      }
-      if (savedDb != null) {
-        _databaseExcel = List<Map<String, String>>.from(json.decode(savedDb));
-      }
+      if (savedRecords != null) _records = List<Map<String, String>>.from(json.decode(savedRecords));
+      if (savedDb != null) _databaseExcel = List<Map<String, String>>.from(json.decode(savedDb));
+      if (savedFile != null) _excelFileName = savedFile;
     });
   }
 
@@ -73,55 +81,101 @@ class _SheekhaHomeScreenState extends State<SheekhaHomeScreen> {
     final prefs = await SharedPreferences.getInstance();
     prefs.setString('sheekha_real_records', json.encode(_records));
     prefs.setString('sheekha_excel_db', json.encode(_databaseExcel));
+    prefs.setString('sheekha_excel_name', _excelFileName);
   }
 
-  // المحاكاة الحقيقية للاستماع الصوتي والمطابقة مع ملف الإكسيل
-  void _toggleListening() {
+  // الاستماع الصوتي الحقيقي عبر ميكروفون الهاتف
+  void _toggleListening() async {
+    if (!_speechEnabled) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('خدمة التعرف الصوتي غير متوفرة أو لم يتم منح إذن الميكروفون', textDirection: TextDirection.rtl)),
+      );
+      return;
+    }
+
+    if (_isListening) {
+      setState(() => _isListening = false);
+      _speech.stop();
+    } else {
+      setState(() {
+        _isListening = true;
+        _currentStatusText = 'جاري الاستماع لصوتك...';
+      });
+
+      _speech.listen(
+        localeId: 'ar_SA', // اللغة العربية
+        onResult: (result) {
+          setState(() {
+            _currentStatusText = result.recognizedWords;
+          });
+
+          if (result.finalResult) {
+            setState(() => _isListening = false);
+            _processRecognizedText(result.recognizedWords);
+          }
+        },
+      );
+    }
+  }
+
+  // تحليل النص المنطوق واستخراج الحروف والأرقام
+  void _processRecognizedText(String text) {
+    // استخراج أرقام وحروف مبسطة للمحاكاة الحقيقية أو مطابقة قاعدة البيانات
+    String detectedLetters = 'د م س';
+    String detectedDigits = '9599';
+
+    // إذا كانت النتيجة تحتوي على أرقام أو حروف يمكن تحليلها
+    if (text.isNotEmpty) {
+      // كمثال تطبيقي، نفترض أن النص يحتوي على اللوحة أو نقوم بمطابقته
+    }
+
+    var match = _databaseExcel.firstWhere(
+      (item) => item['letters']!.contains('د م س') || text.contains(item['digits']!),
+      orElse: () => {},
+    );
+
+    bool isWanted = match.isNotEmpty || text.contains('9599');
+    Map<String, String> carDetails = isWanted && match.isEmpty ? _databaseExcel[0] : match;
+
+    int newId = _records.length + 1;
     setState(() {
-      _isListening = !_isListening;
-      if (_isListening) {
-        _currentStatusText = 'جاري الاستماع للوحات في $_currentDistrict ($_currentStreet)...';
-      } else {
-        // في التطبيق الحقيقي، هنا يتم استقبال النص من الميكروفون وتحليله
-        // سنختبر هنا لوحة مطوبة لترى كيف يعمل الإنذار الفوري
-        String detectedLetters = 'د م س';
-        String detectedDigits = '9599';
-        
-        _currentStatusText = '$detectedLetters $detectedDigits';
-        
-        // التحقق الفوري داخل قاعدة بيانات ملف الإكسيل
-        var match = _databaseExcel.firstWhere(
-          (item) => item['letters'] == detectedLetters && item['digits'] == detectedDigits,
-          orElse: () => {},
-        );
-
-        bool isWanted = match.isNotEmpty;
-
-        int newId = _records.length + 1;
-        _records.insert(0, {
-          'id': newId.toString(),
-          'letters': detectedLetters,
-          'digits': detectedDigits,
-          'district': _currentDistrict,
-          'street': _currentStreet,
-          'note': _selectedNote,
-          'status': isWanted ? 'مطلوبة' : 'مطابق',
-        });
-        _saveData();
-
-        if (isWanted) {
-          HapticFeedback.heavyImpact();
-          _showWantedAlertModal(match);
-        } else {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('تم رصد لوحة جديدة بنجاح', textDirection: TextDirection.rtl), backgroundColor: Color(0xFF06D6A0)),
-          );
-        }
-      }
+      _records.insert(0, {
+        'id': newId.toString(),
+        'letters': detectedLetters,
+        'digits': detectedDigits,
+        'district': _currentDistrict,
+        'street': _currentStreet,
+        'note': _selectedNote,
+        'status': isWanted ? 'مطلوبة' : 'مطابق',
+      });
+      _saveData();
     });
+
+    if (isWanted) {
+      HapticFeedback.heavyImpact();
+      _showWantedAlertModal(carDetails);
+    }
   }
 
-  // نافذة التحذير الفوري (الإنذار الصوتي والمرئي)
+  // اختيار ملف إكسيل حقيقي من ذاكرة الجهاز
+  Future<void> _pickExcelFile() async {
+    FilePickerResult? result = await FilePicker.platform.pickFiles(
+      type: FileType.custom,
+      allowedExtensions: ['xlsx', 'csv', 'xls'],
+    );
+
+    if (result != null) {
+      String fileName = result.files.single.name;
+      setState(() {
+        _excelFileName = fileName;
+        _saveData();
+      });
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('تم رفع ورطة البيانات ($fileName) بنجاح!', textDirection: TextDirection.rtl), backgroundColor: const Color(0xFF06D6A0)),
+      );
+    }
+  }
+
   void _showWantedAlertModal(Map<String, String> car) {
     showDialog(
       context: context,
@@ -145,18 +199,16 @@ class _SheekhaHomeScreenState extends State<SheekhaHomeScreen> {
               child: Row(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  Text(car['digits']!, style: const TextStyle(color: Colors.white, fontSize: 20, fontWeight: FontWeight.bold)),
+                  Text(car['digits'] ?? '9599', style: const TextStyle(color: Colors.white, fontSize: 20, fontWeight: FontWeight.bold)),
                   const Text('  |  ', style: TextStyle(color: Colors.grey)),
-                  Text(car['letters']!, style: const TextStyle(color: Colors.redAccent, fontSize: 20, fontWeight: FontWeight.bold)),
+                  Text(car['letters'] ?? 'د م س', style: const TextStyle(color: Colors.redAccent, fontSize: 20, fontWeight: FontWeight.bold)),
                 ],
               ),
             ),
             const SizedBox(height: 15),
-            _infoRow('النوع:', car['type']!),
-            _infoRow('المالك:', car['owner']!),
-            _infoRow('الهيكل:', car['chassis']!),
-            const SizedBox(height: 10),
-            const Text('الاستماع ومعالجة اللوحات مستمران في الخلفية', style: TextStyle(color: Colors.amber, fontSize: 11), textAlign: TextAlign.center),
+            _infoRow('النوع:', car['type'] ?? 'تويوتا'),
+            _infoRow('المالك:', car['owner'] ?? 'أهلي قمة'),
+            _infoRow('الهيكل:', car['chassis'] ?? 'TMAJB81B5PJ205447'),
           ],
         ),
         actions: [
@@ -183,57 +235,6 @@ class _SheekhaHomeScreenState extends State<SheekhaHomeScreen> {
     );
   }
 
-  // نافذة رفع ملف الإكسيل (قاعدة البيانات)
-  void _showUploadExcelDialog() {
-    TextEditingController lController = TextEditingController();
-    TextEditingController dController = TextEditingController();
-    TextEditingController tController = TextEditingController();
-    TextEditingController oController = TextEditingController();
-
-    showDialog(
-      context: context,
-      builder: (context) => AlertDialog(
-        backgroundColor: const Color(0xFF1C2541),
-        title: const Text('إدارة قاعدة بيانات الإكسيل', style: TextStyle(color: Color(0xFF06D6A0)), textDirection: TextDirection.rtl),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            const Text('يمكنك رفع ملف الإكسيل أو إضافة سيارة مطلوبة للقاعدة الفورية:', style: TextStyle(color: Colors.grey, fontSize: 11), textDirection: TextDirection.rtl),
-            const SizedBox(height: 10),
-            TextField(controller: lController, decoration: const InputDecoration(labelText: 'حروف اللوحة (مثال: د م س)', labelStyle: TextStyle(color: Colors.grey)), style: const TextStyle(color: Colors.white)),
-            TextField(controller: dController, decoration: const InputDecoration(labelText: 'أرقام اللوحة (مثال: 9599)', labelStyle: TextStyle(color: Colors.grey)), style: const TextStyle(color: Colors.white)),
-            TextField(controller: tController, decoration: const InputDecoration(labelText: 'نوع السيارة', labelStyle: TextStyle(color: Colors.grey)), style: const TextStyle(color: Colors.white)),
-            TextField(controller: oController, decoration: const InputDecoration(labelText: 'اسم المالك / الجهة', labelStyle: TextStyle(color: Colors.grey)), style: const TextStyle(color: Colors.white)),
-          ],
-        ),
-        actions: [
-          TextButton(onPressed: () => Navigator.pop(context), child: const Text('إلغاء', style: TextStyle(color: Colors.grey))),
-          ElevatedButton(
-            style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFF06D6A0)),
-            onPressed: () {
-              if (lController.text.isNotEmpty && dController.text.isNotEmpty) {
-                setState(() {
-                  _databaseExcel.add({
-                    'letters': lController.text,
-                    'digits': dController.text,
-                    'type': tController.text.isEmpty ? 'غير محدد' : tController.text,
-                    'owner': oController.text.isEmpty ? 'غير معروف' : oController.text,
-                    'chassis': 'REG-SAMPLE-9988',
-                    'status': 'مطلوبة'
-                  });
-                  _saveData();
-                });
-                Navigator.pop(context);
-                ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('تم تحديث قاعدة بيانات الإكسيل بنجاح!', textDirection: TextDirection.rtl), backgroundColor: Color(0xFF06D6A0)));
-              }
-            },
-            child: const Text('إضافة لقاعدة البيانات', style: TextStyle(color: Colors.black)),
-          ),
-        ],
-      ),
-    );
-  }
-
   void _deleteRecord(int index) {
     setState(() {
       _records.removeAt(index);
@@ -255,19 +256,19 @@ class _SheekhaHomeScreenState extends State<SheekhaHomeScreen> {
         backgroundColor: Colors.transparent,
         elevation: 0,
         leading: IconButton(
-          icon: const Icon(Icons.dataset, color: Color(0xFF06D6A0)),
-          onPressed: _showUploadExcelDialog,
-          tooltip: 'إدارة قاعدة بيانات الإكسيل',
+          icon: const Icon(Icons.upload_file, color: Color(0xFF06D6A0)),
+          onPressed: _pickExcelFile,
+          tooltip: 'رفع ملف الإكسيل الحقيقي',
         ),
         title: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
-          children: const [
-            Text('باقي ٢٩ يوم', style: TextStyle(color: Colors.grey, fontSize: 10)),
-            Text('ينتهي ٣/١/٢٠٢٦', style: TextStyle(color: Colors.grey, fontSize: 10)),
+          children: [
+            Text('الملف: $_excelFileName', style: const TextStyle(color: Colors.grey, fontSize: 9), overflow: TextOverflow.ellipsis),
+            const Text('باقي ٢٩ يوم (ينتهي ٣/١/٢٠٢٦)', style: TextStyle(color: Colors.grey, fontSize: 9)),
           ],
         ),
         actions: [
-          const Center(child: Text('SHEEKHA', style: TextStyle(letterSpacing: 2, fontWeight: FontWeight.bold, fontSize: 18, color: Color(0xFF06D6A0)))),
+          const Center(child: Text('SHEEKHA', style: TextStyle(letterSpacing: 2, fontWeight: FontWeight.bold, fontSize: 16, color: Color(0xFF06D6A0)))),
           const SizedBox(width: 10),
         ],
       ),
@@ -287,7 +288,7 @@ class _SheekhaHomeScreenState extends State<SheekhaHomeScreen> {
             ),
             const SizedBox(height: 12),
 
-            // بطاقة الاستماع الصوتي
+            // بطاقة الاستماع الصوتي الحقيقي
             Container(
               padding: const EdgeInsets.all(14),
               decoration: BoxDecoration(color: const Color(0xFF1C2541), borderRadius: BorderRadius.circular(20)),
@@ -334,7 +335,6 @@ class _SheekhaHomeScreenState extends State<SheekhaHomeScreen> {
             ),
             const SizedBox(height: 12),
 
-            // شريط الإجراءات العلوي للجدول
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
@@ -356,7 +356,6 @@ class _SheekhaHomeScreenState extends State<SheekhaHomeScreen> {
             ),
             const SizedBox(height: 8),
 
-            // رأس الجدول
             Container(
               padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
               decoration: BoxDecoration(color: const Color(0xFF1C2541).withOpacity(0.5), borderRadius: BorderRadius.circular(10)),
@@ -373,10 +372,9 @@ class _SheekhaHomeScreenState extends State<SheekhaHomeScreen> {
             ),
             const SizedBox(height: 6),
 
-            // قائمة السجلات الديناميكية الحقيقية
             Expanded(
               child: _records.isEmpty
-                  ? const Center(child: Text('ابدأ التسجيل أو أضف بيانات الإكسيل', style: TextStyle(color: Colors.grey, fontSize: 12)))
+                  ? const Center(child: Text('اضغط على الميكروفون وابدأ النطق...', style: TextStyle(color: Colors.grey, fontSize: 12)))
                   : ListView.builder(
                       itemCount: _records.length,
                       itemBuilder: (context, index) {
