@@ -91,10 +91,15 @@ class SheekhaHomeScreen extends StatelessWidget {
                   Row(
                     mainAxisAlignment: MainAxisAlignment.spaceEvenly,
                     children: List.generate(28, (index) {
-                      double heights = [10, 25, 15, 30, 40, 20, 35, 12, 28, 45, 18, 30, 22, 38, 15, 25, 30, 10, 20, 35, 40, 25, 15, 30, 18, 22, 12, 28][index % 28];
+                      List<double> heights = [
+                        10.0, 25.0, 15.0, 30.0, 40.0, 20.0, 35.0, 12.0, 
+                        28.0, 45.0, 18.0, 30.0, 22.0, 38.0, 15.0, 25.0, 
+                        30.0, 10.0, 20.0, 35.0, 40.0, 25.0, 15.0, 30.0, 
+                        18.0, 22.0, 12.0, 28.0
+                      ];
                       return Container(
                         width: 3,
-                        height: heights.toDouble(),
+                        height: heights[index % 28],
                         decoration: BoxDecoration(
                           color: const Color(0xFF06D6A0),
                           borderRadius: BorderRadius.circular(2),
