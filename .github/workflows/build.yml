@@ -15,6 +15,12 @@ jobs:
           flutter-version: '3.16.x'
           channel: 'stable'
           
+      # حذف مجلد أندرويد القديم وإنشاء مجلد حديث كلياً يتوافق مع إصدار فلاتر والـ Gradle
+      - name: Recreate Modern Android Project
+        run: |
+          rm -rf android
+          flutter create . --platforms=android --project-name=sheekha_app --org=com.sheekha
+
       - name: Add Microphone Permissions to AndroidManifest
         run: |
           MANIFEST="android/app/src/main/AndroidManifest.xml"
