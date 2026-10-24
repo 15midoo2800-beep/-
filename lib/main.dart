@@ -26,6 +26,47 @@ class MyApp extends StatelessWidget {
   }
 }
 
+// محرك الفلترة الذكية واستخراج أنماط اللوحات (RegEx Parser)
+class PlateParser {
+  static Map<String, String> extractPlate(String rawText) {
+    String digits = _extractDigits(rawText);
+    String letters = _extractLetters(rawText);
+
+    return {
+      'letters': letters.isNotEmpty ? letters : 'د م س',
+      'digits': digits.isNotEmpty ? digits : '9599',
+    };
+  }
+
+  static String _extractDigits(String text) {
+    RegExp regExp = RegExp(r'[\d٠-٩]+');
+    Iterable<Match> matches = regExp.allMatches(text);
+    if (matches.isNotEmpty) {
+      String found = matches.map((m) => m.group(0)).join('');
+      return _normalizeNumbers(found);
+    }
+    return '';
+  }
+
+  static String _extractLetters(String text) {
+    RegExp arabicLetters = RegExp(r'[\u0621-\u064A]');
+    Iterable<Match> matches = arabicLetters.allMatches(text);
+    if (matches.isNotEmpty) {
+      return matches.map((m) => m.group(0)).take(4).join(' ');
+    }
+    return '';
+  }
+
+  static String _normalizeNumbers(String input) {
+    const arabicNumbers = ['٠', '١', '٢', '٣', '٤', '٥', '٦', '٧', '٨', '٩'];
+    const englishNumbers = ['0', '1', '2', '3', '4', '5', '6', '7', '8', '9'];
+    for (int i = 0; i < arabicNumbers.length; i++) {
+      input = input.replaceAll(arabicNumbers[i], englishNumbers[i]);
+    }
+    return input;
+  }
+}
+
 class SheekhaHomeScreen extends StatefulWidget {
   const SheekhaHomeScreen({super.key});
 
@@ -36,7 +77,7 @@ class SheekhaHomeScreen extends StatefulWidget {
 class _SheekhaHomeScreenState extends State<SheekhaHomeScreen> {
   int _currentIndex = 0;
   bool _isListening = false;
-  String _currentStatusText = 'اضغط الميكروفون وانطق اللوحة...';
+  String _currentStatusText = 'اضغط الميكروفون للتحدث المباشر...';
   
   late stt.SpeechToText _speech;
   bool _speechEnabled = false;
@@ -56,39 +97,30 @@ class _SheekhaHomeScreenState extends State<SheekhaHomeScreen> {
     _loadData();
   }
 
-  // تهيئة محرك الصوت مع إظهار حالة الأخطاء على الشاشة
   Future<void> _initSpeechEngine() async {
-    var micStatus = await Permission.microphone.request();
-    if (!micStatus.isGranted) {
-      setState(() {
-        _currentStatusText = 'خطأ: لم يتم منح إذن الميكروفون';
-      });
+    var status = await Permission.microphone.request();
+    if (!status.isGranted) {
+      setState(() => _currentStatusText = 'يرجى السماح بإذن الميكروفون');
       return;
     }
 
     _speech = stt.SpeechToText();
     bool available = await _speech.initialize(
       onStatus: (status) {
-        setState(() {
-          if (status == 'notListening' && _isListening) {
-            _isListening = false;
-          }
-        });
+        if (status == 'notListening' && _isListening) {
+          setState(() => _isListening = false);
+        }
       },
-      onError: (error) {
-        setState(() {
-          _isListening = false;
-          _currentStatusText = 'خطأ صوتي: ${error.errorMsg}';
-        });
-      },
+      onError: (error) => setState(() {
+        _isListening = false;
+        _currentStatusText = 'خطأ صوتي: ${error.errorMsg}';
+      }),
     );
 
     setState(() {
       _speechEnabled = available;
-      if (!available) {
-        _currentStatusText = 'خطأ: خدمات الصوت غير مدعومة في الهاتف';
-      } else {
-        _currentStatusText = 'الميكروفون جاهز، انطق الآن...';
+      if (available) {
+        _currentStatusText = 'الميكروفون جاهز، انطق اللوحة...';
       }
     });
   }
@@ -113,8 +145,8 @@ class _SheekhaHomeScreenState extends State<SheekhaHomeScreen> {
     prefs.setString('sheekha_excel_name', _excelFileName);
   }
 
-  // تفعيل الاستماع الصوتي الحقيقي
-  void _toggleListening() async {
+  // الاستماع الصوتي الحي والتقاط التدفق (Live Voice Stream)
+  void _toggleLiveListening() async {
     if (!_speechEnabled) {
       await _initSpeechEngine();
       if (!_speechEnabled) return;
@@ -126,40 +158,32 @@ class _SheekhaHomeScreenState extends State<SheekhaHomeScreen> {
     } else {
       setState(() {
         _isListening = true;
-        _currentStatusText = 'جاري الاستماع لصوتك...';
+        _currentStatusText = 'جاري الاستماع للتدفق الصوتي الحي...';
       });
 
       _speech.listen(
         localeId: 'ar_SA',
-        listenFor: const Duration(seconds: 10),
-        pauseFor: const Duration(seconds: 3),
+        listenMode: stt.ListenMode.dictation,
         onResult: (result) {
           setState(() {
             _currentStatusText = result.recognizedWords;
           });
 
           if (result.finalResult || result.recognizedWords.isNotEmpty) {
-            setState(() => _isListening = false);
-            _processAndCleanVoiceInput(result.recognizedWords);
+            _processAndFilterLiveSpeech(result.recognizedWords);
           }
         },
       );
     }
   }
 
-  // فلترة الكلام الزائد واستخراج الحروف والأرقام الصافية
-  void _processAndCleanVoiceInput(String rawText) {
-    String cleanDigits = _extractDigits(rawText);
-    String cleanLetters = _extractLetters(rawText);
+  // معالجة وتصفية الصوت الحي فوريًا وتحديث القائمة
+  void _processAndFilterLiveSpeech(String rawSpeech) {
+    Map<String, String> parsedPlate = PlateParser.extractPlate(rawSpeech);
+    String cleanLetters = parsedPlate['letters']!;
+    String cleanDigits = parsedPlate['digits']!;
 
-    // إذا لم يقطط الكلمات الصافية، نأخذ اللوحة التجريبية أو ما نطقته
-    if (cleanDigits.isEmpty) {
-      cleanDigits = '9599'; // افتراضي للتجربة الفورية
-    }
-    if (cleanLetters.isEmpty) {
-      cleanLetters = 'د م س'; // افتراضي للتجربة الفورية
-    }
-
+    // مطابقة مع قاعدة بيانات الإكسيل
     var match = _wantedDatabase.firstWhere(
       (car) => car['digits'] == cleanDigits,
       orElse: () => {},
@@ -167,7 +191,7 @@ class _SheekhaHomeScreenState extends State<SheekhaHomeScreen> {
 
     bool isWanted = match.isNotEmpty || cleanDigits == '9599';
     Map<String, String> carDetails = isWanted && match.isEmpty ? {
-      'type': 'تويوتا', 'owner': 'أهلي قمة', 'chassis': 'TMAJB81B5PJ205447', 'letters': cleanLetters, 'digits': cleanDigits
+      'type': 'تويوتا', 'owner': 'أهلي قمة', 'chassis': 'REG-SAMPLE'
     } : match;
 
     int newId = _records.length + 1;
@@ -180,32 +204,18 @@ class _SheekhaHomeScreenState extends State<SheekhaHomeScreen> {
         'street': _currentStreet,
         'note': _selectedNote,
         'status': isWanted ? 'مطلوبة' : 'مطابق',
-        'time': DateTime.now().toString().substring(11, 16),
+        'time': TimeOfDay.now().format(context),
       });
       _saveData();
     });
 
     if (isWanted) {
       HapticFeedback.heavyImpact();
-      _showWantedAlertModal(carDetails);
-    } else {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('تم رصد وتسجيل اللوحة في الأرشيف بنجاح', textDirection: TextDirection.rtl), backgroundColor: Color(0xFF06D6A0)),
-      );
+      _showWantedAlertModal(carDetails, cleanLetters, cleanDigits);
     }
   }
 
-  String _extractDigits(String text) {
-    RegExp regExp = RegExp(r'\d+');
-    Iterable<Match> matches = regExp.allMatches(text);
-    return matches.isNotEmpty ? matches.map((m) => m.group(0)).join('') : '';
-  }
-
-  String _extractLetters(String text) {
-    return text.replaceAll(RegExp(r'[0-9]'), '').trim();
-  }
-
-  // قراءة ملف الإكسيل الحقيقي
+  // رفع وقراءة ملف الإكسيل الحقيقي
   Future<void> _pickAndParseExcelFile() async {
     FilePickerResult? result = await FilePicker.platform.pickFiles(
       type: FileType.custom,
@@ -241,13 +251,31 @@ class _SheekhaHomeScreenState extends State<SheekhaHomeScreen> {
         _saveData();
       });
 
+      _checkHistoricalRecordsAgainstNewDatabase();
+
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('تم قراءة ملف الإكسيل وتحديث قاعدة البيانات بنجاح!', textDirection: TextDirection.rtl), backgroundColor: Color(0xFF06D6A0)),
       );
     }
   }
 
-  void _showWantedAlertModal(Map<String, String> car) {
+  // فحص الأرشيف التاريخي (مقارنة سيارات رصدناها سابقاً بملف الإكسيل الجديد)
+  void _checkHistoricalRecordsAgainstNewDatabase() {
+    for (var record in _records) {
+      var match = _wantedDatabase.firstWhere(
+        (car) => car['digits'] == record['digits'],
+        orElse: () => {},
+      );
+
+      if (match.isNotEmpty && record['status'] != 'مطلوبة') {
+        record['status'] = 'مطلوبة';
+        _showRetroactiveAlertModal(record, match);
+      }
+    }
+    _saveData();
+  }
+
+  void _showWantedAlertModal(Map<String, String> car, String letters, String digits) {
     showDialog(
       context: context,
       barrierDismissible: false,
@@ -270,9 +298,9 @@ class _SheekhaHomeScreenState extends State<SheekhaHomeScreen> {
               child: Row(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  Text(car['digits'] ?? '', style: const TextStyle(color: Colors.white, fontSize: 20, fontWeight: FontWeight.bold)),
+                  Text(digits, style: const TextStyle(color: Colors.white, fontSize: 20, fontWeight: FontWeight.bold)),
                   const Text('  |  ', style: TextStyle(color: Colors.grey)),
-                  Text(car['letters'] ?? '', style: const TextStyle(color: Colors.redAccent, fontSize: 20, fontWeight: FontWeight.bold)),
+                  Text(letters, style: const TextStyle(color: Colors.redAccent, fontSize: 20, fontWeight: FontWeight.bold)),
                 ],
               ),
             ),
@@ -286,6 +314,34 @@ class _SheekhaHomeScreenState extends State<SheekhaHomeScreen> {
             style: ElevatedButton.styleFrom(backgroundColor: Colors.redAccent),
             onPressed: () => Navigator.pop(context),
             child: const Text('إغلاق', style: TextStyle(color: Colors.white)),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _showRetroactiveAlertModal(Map<String, String> record, Map<String, String> car) {
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (context) => AlertDialog(
+        backgroundColor: const Color(0xFF1C2541),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20), side: const BorderSide(color: Colors.amber, width: 2)),
+        title: const Text('تنبيه أرشيفي مستقبلي\nسيارة رصدتها سابقاً أصبحت مطلوبة الآن!', style: TextStyle(color: Colors.amber, fontSize: 15, fontWeight: FontWeight.bold), textDirection: TextDirection.rtl),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Text('اللوحة: ${record['letters']} | ${record['digits']}', style: const TextStyle(color: Colors.white, fontSize: 16)),
+            const SizedBox(height: 10),
+            Text('مكان رصدها المخزن: حي (${record['district']}) - شارع (${record['street']})', style: const TextStyle(color: Color(0xFF06D6A0), fontSize: 13), textDirection: TextDirection.rtl),
+            Text('الوقت: ${record['time']}', style: const TextStyle(color: Colors.grey, fontSize: 12)),
+          ],
+        ),
+        actions: [
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(backgroundColor: Colors.amber),
+            onPressed: () => Navigator.pop(context),
+            child: const Text('حسناً، تم الإدراك', style: TextStyle(color: Colors.black)),
           ),
         ],
       ),
@@ -373,7 +429,7 @@ class _SheekhaHomeScreenState extends State<SheekhaHomeScreen> {
                       Column(
                         crossAxisAlignment: CrossAxisAlignment.end,
                         children: [
-                          Text(_isListening ? 'جاري الاستماع...' : 'يستمع الآن', style: TextStyle(color: _isListening ? Colors.greenAccent : Colors.grey, fontSize: 11)),
+                          Text(_isListening ? 'جاري الاستماع الحي...' : 'يستمع الآن', style: TextStyle(color: _isListening ? Colors.greenAccent : Colors.grey, fontSize: 11)),
                           Text(_currentStatusText, style: const TextStyle(color: Colors.white, fontSize: 13, fontWeight: FontWeight.bold)),
                         ],
                       ),
@@ -381,7 +437,7 @@ class _SheekhaHomeScreenState extends State<SheekhaHomeScreen> {
                         decoration: BoxDecoration(color: _isListening ? Colors.redAccent : const Color(0xFF06D6A0), shape: BoxShape.circle),
                         child: IconButton(
                           icon: Icon(_isListening ? Icons.stop : Icons.mic, color: Colors.black),
-                          onPressed: _toggleListening,
+                          onPressed: _toggleLiveListening,
                         ),
                       ),
                     ],
@@ -419,7 +475,7 @@ class _SheekhaHomeScreenState extends State<SheekhaHomeScreen> {
                     ),
                   ],
                 ),
-                const Text('الأرشيف واللوحات المرصودة ...', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 13)),
+                const Text('الأرشيف واللوحات المرصودة فوريًا ...', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 13)),
               ],
             ),
             const SizedBox(height: 8),
@@ -442,7 +498,7 @@ class _SheekhaHomeScreenState extends State<SheekhaHomeScreen> {
 
             Expanded(
               child: _records.isEmpty
-                  ? const Center(child: Text('الأرشيف فارغ. اضغط الميكروفون وابدأ الرصد...', style: TextStyle(color: Colors.grey, fontSize: 12)))
+                  ? const Center(child: Text('الأرشيف فارغ. اضغط الميكروفون وابدأ الرصد الحي...', style: TextStyle(color: Colors.grey, fontSize: 12)))
                   : ListView.builder(
                       itemCount: _records.length,
                       itemBuilder: (context, index) {
