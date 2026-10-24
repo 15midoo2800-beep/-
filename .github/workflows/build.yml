@@ -15,10 +15,6 @@ jobs:
           flutter-version: '3.16.x'
           channel: 'stable'
           
-      # هذا الأمر يقوم بتحديث ملفات أندرويد والـ Gradle تلقائياً لتتوافق مع فلاتر الحديث
-      - name: Refresh Android Project & Gradle
-        run: flutter create . --platforms=android
-        
       - name: Add Microphone Permissions to AndroidManifest
         run: |
           MANIFEST="android/app/src/main/AndroidManifest.xml"
