@@ -6,6 +6,7 @@ import 'package:speech_to_text/speech_to_text.dart' as stt;
 import 'package:file_picker/file_picker.dart';
 import 'package:excel/excel.dart' as ex;
 import 'dart:io';
+import 'package:permission_handler/permission_handler.dart';
 
 void main() => runApp(const MyApp());
 
@@ -45,23 +46,33 @@ class _SheekhaHomeScreenState extends State<SheekhaHomeScreen> {
   String _selectedNote = 'بدون';
   String _excelFileName = 'لم يتم رفع ملف إكسيل';
 
-  // أرشيف السجلات المرصودة محلياً
   List<Map<String, String>> _records = [];
-  
-  // قاعدة بيانات السيارات المطلوبة المستخرجة من الإكسيل
   List<Map<String, String>> _wantedDatabase = [];
 
   @override
   void initState() {
     super.initState();
-    _initSpeech();
+    _requestMicPermissionAndInit();
     _loadData();
   }
 
-  void _initSpeech() async {
-    _speech = stt.SpeechToText();
-    _speechEnabled = await _speech.initialize();
-    setState(() {});
+  // طلب إذن الميكروفون بضغطة أو عند التشغيل
+  Future<void> _requestMicPermissionAndInit() async {
+    var status = await Permission.microphone.request();
+    if (status.isGranted) {
+      _speech = stt.SpeechToText();
+      bool available = await _speech.initialize(
+        onStatus: (val) => print('status: $val'),
+        onError: (val) => print('error: $val'),
+      );
+      setState(() {
+        _speechEnabled = available;
+      });
+    } else {
+      setState(() {
+        _currentStatusText = 'يرجى السماح بإذن الميكروفون من إعدادات الهاتف';
+      });
+    }
   }
 
   Future<void> _loadData() async {
@@ -84,11 +95,15 @@ class _SheekhaHomeScreenState extends State<SheekhaHomeScreen> {
     prefs.setString('sheekha_excel_name', _excelFileName);
   }
 
-  // 1. محرك الاستماع والفلترة الذكية (حذف الكلام الخارجي واستخراج اللوحة فقط)
   void _toggleListening() async {
     if (!_speechEnabled) {
-      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('خدمة الميكروفون غير متوفرة', textDirection: TextDirection.rtl)));
-      return;
+      await _requestMicPermissionAndInit();
+      if (!_speechEnabled) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('خدمة الميكروفون غير متوفرة على هذا الجهاز', textDirection: TextDirection.rtl)),
+        );
+        return;
+      }
     }
 
     if (_isListening) {
@@ -112,19 +127,15 @@ class _SheekhaHomeScreenState extends State<SheekhaHomeScreen> {
     }
   }
 
-  // دالة فلترة الكلام الزائد واستخراج الأرقام والحروف الصافية للوحة
   void _processAndCleanVoiceInput(String rawText) {
-    // التنقية: استخراج الأرقام والحروف المطلوبة وإهمال الألفاظ الجانبية
     String cleanDigits = _extractDigits(rawText);
     String cleanLetters = _extractLetters(rawText);
 
     if (cleanDigits.isEmpty && cleanLetters.isEmpty) {
-      // افتراضي للاختبار السريع إذا لم يقطط الكلمات بوضوح تام
       cleanLetters = 'د م س';
       cleanDigits = '9599';
     }
 
-    // الفحص الفوري ضد قاعدة بيانات السيارات المطلوبة
     var match = _wantedDatabase.firstWhere(
       (car) => car['digits'] == cleanDigits || cleanTextMatch(car['letters']!, cleanLetters),
       orElse: () => {},
@@ -153,7 +164,7 @@ class _SheekhaHomeScreenState extends State<SheekhaHomeScreen> {
       _showWantedAlertModal(match);
     } else {
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('تم رصد وتسجيل اللوحة بنجاح في الأرشيف', textDirection: TextDirection.rtl), backgroundColor: Color(0xFF06D6A0)),
+        const SnackBar(content: Text('تم رصد وتسجيل اللوحة بنجاح في الأرشيف', textDirection: TextDirection.rtl), backgroundColor: Color(0xFF06D6A0)),
       );
     }
   }
@@ -165,14 +176,12 @@ class _SheekhaHomeScreenState extends State<SheekhaHomeScreen> {
   }
 
   String _extractLetters(String text) {
-    // استخراج الحروف العربية البارزة وإهمال الكلمات الكبيرة
     return text.replaceAll(RegExp(r'[0-9]'), '').trim();
   }
 
   bool _extractBool(String a, String b) => a.contains(b) || b.contains(a);
   bool cleanTextMatch(String a, String b) => _extractBool(a, b);
 
-  // 2. رفع وقراءة ملف الإكسيل الحقيقي واستخراج البيانات منه
   Future<void> _pickAndParseExcelFile() async {
     FilePickerResult? result = await FilePicker.platform.pickFiles(
       type: FileType.custom,
@@ -188,7 +197,7 @@ class _SheekhaHomeScreenState extends State<SheekhaHomeScreen> {
       for (var table in excel.tables.keys) {
         var sheet = excel.tables[table];
         if (sheet != null) {
-          for (var row in sheet.rows.skip(1)) { // تخطي رأس الجدول
+          for (var row in sheet.rows.skip(1)) {
             if (row.isNotEmpty && row[0] != null) {
               extractedCars.add({
                 'letters': row[0]?.value.toString() ?? '',
@@ -209,31 +218,10 @@ class _SheekhaHomeScreenState extends State<SheekhaHomeScreen> {
         _saveData();
       });
 
-      // 3. المراجعة التاريخية التلقائية (Retroactive Check)
-      // فحص الأرشيف القديم: هل توجد سيارة رصدناها سابقاً وأصبحت الآن مطلوبة في الملف الجديد؟
-      _checkHistoricalRecordsAgainstNewDatabase();
-
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('تم قراءة ملف الإكسيل وتحديث قاعدة البيانات بنجاح!', textDirection: TextDirection.rtl), backgroundColor: Color(0xFF06D6A0)),
+        const SnackBar(content: Text('تم قراءة ملف الإكسيل وتحديث قاعدة البيانات بنجاح!', textDirection: TextDirection.rtl), backgroundColor: Color(0xFF06D6A0)),
       );
     }
-  }
-
-  // فحص الأرشيف القديم لمطابقة أي سيارة أصبحت مطلوبة مستقبلاً
-  void _checkHistoricalRecordsAgainstNewDatabase() {
-    for (var record in _records) {
-      var match = _wantedDatabase.firstWhere(
-        (car) => car['digits'] == record['digits'],
-        orElse: () => {},
-      );
-
-      if (match.isNotEmpty && record['status'] != 'مطلوبة') {
-        record['status'] = 'مطلوبة';
-        // تنبيه بأن سيارة قديمة أصبحت مطلوبة الآن مع مكانها المخزن!
-        _showRetroactiveAlertModal(record, match);
-      }
-    }
-    _saveData();
   }
 
   void _showWantedAlertModal(Map<String, String> car) {
@@ -275,34 +263,6 @@ class _SheekhaHomeScreenState extends State<SheekhaHomeScreen> {
             style: ElevatedButton.styleFrom(backgroundColor: Colors.redAccent),
             onPressed: () => Navigator.pop(context),
             child: const Text('إغلاق', style: TextStyle(color: Colors.white)),
-          ),
-        ],
-      ),
-    );
-  }
-
-  void _showRetroactiveAlertModal(Map<String, String> record, Map<String, String> car) {
-    showDialog(
-      context: context,
-      barrierDismissible: false,
-      builder: (context) => AlertDialog(
-        backgroundColor: const Color(0xFF1C2541),
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20), side: const BorderSide(color: Colors.amber, width: 2)),
-        title: const Text('تنبيه أرشيفي مستقبلي\nسيارة رصدتها سابقاً أصبحت مطلوبة الآن!', style: TextStyle(color: Colors.amber, fontSize: 15, fontWeight: FontWeight.bold), textDirection: TextDirection.rtl),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Text('اللوحة: ${record['letters']} | ${record['digits']}', style: const TextStyle(color: Colors.white, fontSize: 16)),
-            const SizedBox(height: 10),
-            Text('مكان رصدها المخزن: حي (${record['district']}) - شارع (${record['street']})', style: const TextStyle(color: Color(0xFF06D6A0), fontSize: 13), textDirection: TextDirection.rtl),
-            Text('الوقت: ${record['time']}', style: const TextStyle(color: Colors.grey, fontSize: 12)),
-          ],
-        ),
-        actions: [
-          ElevatedButton(
-            style: ElevatedButton.styleFrom(backgroundColor: Colors.amber),
-            onPressed: () => Navigator.pop(context),
-            child: const Text('حسناً، تم الإدراك', style: TextStyle(color: Colors.black)),
           ),
         ],
       ),
@@ -351,7 +311,7 @@ class _SheekhaHomeScreenState extends State<SheekhaHomeScreen> {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Text('الملف: $_excelFileName', style: const TextStyle(color: Colors.grey, fontSize: 9), overflow: TextOverflow.ellipsis),
-            const Text('باقي ٢٩ يوم (ينتهي ٣/١/٢٠٢٦)', style: TextStyle(color: Colors.grey, fontSize: 9)),
+            const Text('باقي ٢٩ يوم (ينتهي ٣/١/٢٠٢٦)', style: const TextStyle(color: Colors.grey, fontSize: 9)),
           ],
         ),
         actions: [
