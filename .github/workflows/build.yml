@@ -15,9 +15,6 @@ jobs:
           flutter-version: '3.16.x'
           channel: 'stable'
           
-      - name: Generate Android project files
-        run: flutter create . --project-name=sheekha_app --platforms=android --org=com.sheekha
-        
       - run: flutter pub get
       
       - run: flutter build apk --release
