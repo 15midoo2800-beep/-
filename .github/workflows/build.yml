@@ -1,5 +1,5 @@
-- name: Generate Android project files
-  run: flutter create . --platforms=android --org com.sheekha_app
+name: Build Flutter APK
+
 on:
   push:
     branches: [ main, master ]
@@ -16,7 +16,7 @@ jobs:
           channel: 'stable'
           
       - name: Generate Android project files
-        run: flutter create . --platforms=android --org com.sheekha.app
+        run: flutter create . --platforms=android --org com.sheekha_app
         
       - run: flutter pub get
       
