@@ -15,19 +15,11 @@ jobs:
           flutter-version: '3.16.x'
           channel: 'stable'
           
-      - name: Generate Android project files
-        run: flutter create . --project-name=sheekha_app --platforms=android --org=com.sheekha
-        
-      - name: Add Microphone Permissions to AndroidManifest
-        run: |
-          MANIFEST="android/app/src/main/AndroidManifest.xml"
-          if [ -f "$MANIFEST" ]; then
-            sed -i '/<application/i \    <uses-permission android:name="android.permission.RECORD_AUDIO"/>\n    <uses-permission android:name="android.permission.INTERNET"/>\n    <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE"/>' "$MANIFEST"
-          fi
-
       - name: Update minSdkVersion to 21
         run: |
-          sed -i 's/minSdkVersion flutter.minSdkVersion/minSdkVersion 21/g' android/app/build.gradle
+          if [ -f "android/app/build.gradle" ]; then
+            sed -i 's/minSdkVersion flutter.minSdkVersion/minSdkVersion 21/g' android/app/build.gradle
+          fi
           
       - run: flutter pub get
       
