@@ -16,7 +16,7 @@ jobs:
           channel: 'stable'
           
       - name: Generate Android project files
-        run: flutter create . --platforms=android --org com.sheekha_app
+        run: flutter create . --project-name=sheekha_app --platforms=android --org=com.sheekha
         
       - run: flutter pub get
       
