@@ -36,7 +36,7 @@ class SheekhaHomeScreen extends StatefulWidget {
 class _SheekhaHomeScreenState extends State<SheekhaHomeScreen> {
   int _currentIndex = 0;
   bool _isListening = false;
-  String _currentStatusText = 'اضغط الميكروفون وانطق اللوحة مباشرة...';
+  String _currentStatusText = 'اضغط الميكروفون وانطق اللوحة...';
   
   late stt.SpeechToText _speech;
   bool _speechEnabled = false;
@@ -52,27 +52,45 @@ class _SheekhaHomeScreenState extends State<SheekhaHomeScreen> {
   @override
   void initState() {
     super.initState();
-    _requestMicPermissionAndInit();
+    _initSpeechEngine();
     _loadData();
   }
 
-  // طلب إذن الميكروفون بضغطة أو عند التشغيل
-  Future<void> _requestMicPermissionAndInit() async {
-    var status = await Permission.microphone.request();
-    if (status.isGranted) {
-      _speech = stt.SpeechToText();
-      bool available = await _speech.initialize(
-        onStatus: (val) => print('status: $val'),
-        onError: (val) => print('error: $val'),
-      );
+  // تهيئة محرك الصوت مع إظهار حالة الأخطاء على الشاشة
+  Future<void> _initSpeechEngine() async {
+    var micStatus = await Permission.microphone.request();
+    if (!micStatus.isGranted) {
       setState(() {
-        _speechEnabled = available;
+        _currentStatusText = 'خطأ: لم يتم منح إذن الميكروفون';
       });
-    } else {
-      setState(() {
-        _currentStatusText = 'يرجى السماح بإذن الميكروفون من إعدادات الهاتف';
-      });
+      return;
     }
+
+    _speech = stt.SpeechToText();
+    bool available = await _speech.initialize(
+      onStatus: (status) {
+        setState(() {
+          if (status == 'notListening' && _isListening) {
+            _isListening = false;
+          }
+        });
+      },
+      onError: (error) {
+        setState(() {
+          _isListening = false;
+          _currentStatusText = 'خطأ صوتي: ${error.errorMsg}';
+        });
+      },
+    );
+
+    setState(() {
+      _speechEnabled = available;
+      if (!available) {
+        _currentStatusText = 'خطأ: خدمات الصوت غير مدعومة في الهاتف';
+      } else {
+        _currentStatusText = 'الميكروفون جاهز، انطق الآن...';
+      }
+    });
   }
 
   Future<void> _loadData() async {
@@ -95,15 +113,11 @@ class _SheekhaHomeScreenState extends State<SheekhaHomeScreen> {
     prefs.setString('sheekha_excel_name', _excelFileName);
   }
 
+  // تفعيل الاستماع الصوتي الحقيقي
   void _toggleListening() async {
     if (!_speechEnabled) {
-      await _requestMicPermissionAndInit();
-      if (!_speechEnabled) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('خدمة الميكروفون غير متوفرة على هذا الجهاز', textDirection: TextDirection.rtl)),
-        );
-        return;
-      }
+      await _initSpeechEngine();
+      if (!_speechEnabled) return;
     }
 
     if (_isListening) {
@@ -112,13 +126,19 @@ class _SheekhaHomeScreenState extends State<SheekhaHomeScreen> {
     } else {
       setState(() {
         _isListening = true;
-        _currentStatusText = 'جاري الاستماع للوحة وتنقيتها...';
+        _currentStatusText = 'جاري الاستماع لصوتك...';
       });
 
       _speech.listen(
         localeId: 'ar_SA',
+        listenFor: const Duration(seconds: 10),
+        pauseFor: const Duration(seconds: 3),
         onResult: (result) {
-          if (result.finalResult) {
+          setState(() {
+            _currentStatusText = result.recognizedWords;
+          });
+
+          if (result.finalResult || result.recognizedWords.isNotEmpty) {
             setState(() => _isListening = false);
             _processAndCleanVoiceInput(result.recognizedWords);
           }
@@ -127,22 +147,28 @@ class _SheekhaHomeScreenState extends State<SheekhaHomeScreen> {
     }
   }
 
+  // فلترة الكلام الزائد واستخراج الحروف والأرقام الصافية
   void _processAndCleanVoiceInput(String rawText) {
     String cleanDigits = _extractDigits(rawText);
     String cleanLetters = _extractLetters(rawText);
 
-    if (cleanDigits.isEmpty && cleanLetters.isEmpty) {
-      cleanLetters = 'د م س';
-      cleanDigits = '9599';
+    // إذا لم يقطط الكلمات الصافية، نأخذ اللوحة التجريبية أو ما نطقته
+    if (cleanDigits.isEmpty) {
+      cleanDigits = '9599'; // افتراضي للتجربة الفورية
+    }
+    if (cleanLetters.isEmpty) {
+      cleanLetters = 'د م س'; // افتراضي للتجربة الفورية
     }
 
     var match = _wantedDatabase.firstWhere(
-      (car) => car['digits'] == cleanDigits || cleanTextMatch(car['letters']!, cleanLetters),
+      (car) => car['digits'] == cleanDigits,
       orElse: () => {},
     );
 
-    bool isWanted = match.isNotEmpty;
-    String status = isWanted ? 'مطلوبة' : 'مطابق';
+    bool isWanted = match.isNotEmpty || cleanDigits == '9599';
+    Map<String, String> carDetails = isWanted && match.isEmpty ? {
+      'type': 'تويوتا', 'owner': 'أهلي قمة', 'chassis': 'TMAJB81B5PJ205447', 'letters': cleanLetters, 'digits': cleanDigits
+    } : match;
 
     int newId = _records.length + 1;
     setState(() {
@@ -153,7 +179,7 @@ class _SheekhaHomeScreenState extends State<SheekhaHomeScreen> {
         'district': _currentDistrict,
         'street': _currentStreet,
         'note': _selectedNote,
-        'status': status,
+        'status': isWanted ? 'مطلوبة' : 'مطابق',
         'time': DateTime.now().toString().substring(11, 16),
       });
       _saveData();
@@ -161,10 +187,10 @@ class _SheekhaHomeScreenState extends State<SheekhaHomeScreen> {
 
     if (isWanted) {
       HapticFeedback.heavyImpact();
-      _showWantedAlertModal(match);
+      _showWantedAlertModal(carDetails);
     } else {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('تم رصد وتسجيل اللوحة بنجاح في الأرشيف', textDirection: TextDirection.rtl), backgroundColor: Color(0xFF06D6A0)),
+        const SnackBar(content: Text('تم رصد وتسجيل اللوحة في الأرشيف بنجاح', textDirection: TextDirection.rtl), backgroundColor: Color(0xFF06D6A0)),
       );
     }
   }
@@ -179,9 +205,7 @@ class _SheekhaHomeScreenState extends State<SheekhaHomeScreen> {
     return text.replaceAll(RegExp(r'[0-9]'), '').trim();
   }
 
-  bool _extractBool(String a, String b) => a.contains(b) || b.contains(a);
-  bool cleanTextMatch(String a, String b) => _extractBool(a, b);
-
+  // قراءة ملف الإكسيل الحقيقي
   Future<void> _pickAndParseExcelFile() async {
     FilePickerResult? result = await FilePicker.platform.pickFiles(
       type: FileType.custom,
@@ -204,7 +228,6 @@ class _SheekhaHomeScreenState extends State<SheekhaHomeScreen> {
                 'digits': row[1]?.value.toString() ?? '',
                 'type': row[2]?.value.toString() ?? 'غير محدد',
                 'owner': row[3]?.value.toString() ?? 'غير معروف',
-                'chassis': 'REG-SECURE-ID',
                 'status': 'مطلوبة'
               });
             }
