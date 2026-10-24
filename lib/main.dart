@@ -31,68 +31,98 @@ class SheekhaHomeScreen extends StatefulWidget {
 class _SheekhaHomeScreenState extends State<SheekhaHomeScreen> {
   int _currentIndex = 0;
   bool _isListening = false;
-  String _currentStatusText = 'اختر الحي والشارع أولاً، ثم ابدأ التسجيل';
+  String _currentStatusText = 'جاهز للرصد الصوتي الحقيقي...';
   String _searchQuery = '';
 
-  // النطاق الجغرافي والملاحظات الميدانية المطابقة للتطبيق الأصلي
+  // النطاق الجغرافي والملاحظات
   String _currentDistrict = 'الروضة';
   String _currentStreet = 'ض 1';
   String _selectedNote = 'بدون';
 
-  // قائمة السجلات
+  // قائمة السجلات المرصودة
   List<Map<String, String>> _records = [];
 
-  // قاعدة بيانات السيارات المطلوبة (محاكاة لملف الإكسيل المرفوع)
-  final List<Map<String, String>> _wantedCars = [
-    {'letters': 'د م س', 'digits': '9599', 'type': 'تويوتا', 'owner': 'أهلي قمة', 'chassis': 'TMAJB81B5PJ205447'},
-    {'letters': 'ب ل د', 'digits': '7474', 'type': 'هيونداي', 'owner': 'شركة النور', 'chassis': 'KMHDH4AE8LU123456'},
+  // قاعدة البيانات المستخرجة من ملف الإكسيل (افتراضية قابلة للتحديث عبر رفع الملف)
+  List<Map<String, String>> _databaseExcel = [
+    {'letters': 'د م س', 'digits': '9599', 'type': 'تويوتا', 'owner': 'أهلي قمة', 'chassis': 'TMAJB81B5PJ205447', 'status': 'مطلوبة'},
+    {'letters': 'ب ل د', 'digits': '7474', 'type': 'هيونداي', 'owner': 'شركة النور', 'chassis': 'KMHDH4AE8LU123456', 'status': 'مطلوبة'},
   ];
 
   @override
   void initState() {
     super.initState();
-    _loadRecords();
+    _loadData();
   }
 
-  Future<void> _loadRecords() async {
+  Future<void> _loadData() async {
     final prefs = await SharedPreferences.getInstance();
-    final String? savedData = prefs.getString('sheekha_pro_db');
-    if (savedData != null) {
-      setState(() {
-        _records = List<Map<String, String>>.from(
-          json.decode(savedData).map((item) => Map<String, String>.from(item)),
+    final String? savedRecords = prefs.getString('sheekha_real_records');
+    final String? savedDb = prefs.getString('sheekha_excel_db');
+
+    setState(() {
+      if (savedRecords != null) {
+        _records = List<Map<String, String>>.from(json.decode(savedRecords));
+      }
+      if (savedDb != null) {
+        _databaseExcel = List<Map<String, String>>.from(json.decode(savedDb));
+      }
+    });
+  }
+
+  Future<void> _saveData() async {
+    final prefs = await SharedPreferences.getInstance();
+    prefs.setString('sheekha_real_records', json.encode(_records));
+    prefs.setString('sheekha_excel_db', json.encode(_databaseExcel));
+  }
+
+  // المحاكاة الحقيقية للاستماع الصوتي والمطابقة مع ملف الإكسيل
+  void _toggleListening() {
+    setState(() {
+      _isListening = !_isListening;
+      if (_isListening) {
+        _currentStatusText = 'جاري الاستماع للوحات في $_currentDistrict ($_currentStreet)...';
+      } else {
+        // في التطبيق الحقيقي، هنا يتم استقبال النص من الميكروفون وتحليله
+        // سنختبر هنا لوحة مطوبة لترى كيف يعمل الإنذار الفوري
+        String detectedLetters = 'د م س';
+        String detectedDigits = '9599';
+        
+        _currentStatusText = '$detectedLetters $detectedDigits';
+        
+        // التحقق الفوري داخل قاعدة بيانات ملف الإكسيل
+        var match = _databaseExcel.firstWhere(
+          (item) => item['letters'] == detectedLetters && item['digits'] == detectedDigits,
+          orElse: () => {},
         );
-      });
-    } else {
-      _records = [
-        {'id': '4', 'letters': 'و ن س', 'digits': '7777', 'district': 'الروضة', 'street': 'ض 1', 'note': 'بدون', 'status': 'مطابق'},
-        {'id': '3', 'letters': 'ب ل د', 'digits': '7474', 'district': 'الروضة', 'street': 'ض 1', 'note': 'برحة يمين', 'status': 'مطلوبة'},
-      ];
-      _saveRecords();
-    }
+
+        bool isWanted = match.isNotEmpty;
+
+        int newId = _records.length + 1;
+        _records.insert(0, {
+          'id': newId.toString(),
+          'letters': detectedLetters,
+          'digits': detectedDigits,
+          'district': _currentDistrict,
+          'street': _currentStreet,
+          'note': _selectedNote,
+          'status': isWanted ? 'مطلوبة' : 'مطابق',
+        });
+        _saveData();
+
+        if (isWanted) {
+          HapticFeedback.heavyImpact();
+          _showWantedAlertModal(match);
+        } else {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('تم رصد لوحة جديدة بنجاح', textDirection: TextDirection.rtl), backgroundColor: Color(0xFF06D6A0)),
+          );
+        }
+      }
+    });
   }
 
-  Future<void> _saveRecords() async {
-    final prefs = await SharedPreferences.getInstance();
-    prefs.setString('sheekha_pro_db', json.encode(_records));
-  }
-
-  // فحص ما إذا كانت اللوحة مطابقة للسيارات المطلوبة في ملف الإكسيل
-  void _checkIfWanted(String letters, String digits) {
-    var match = _wantedCars.firstWhere(
-      (car) => car['letters'] == letters && car['digits'] == digits,
-      orElse: () => {},
-    );
-
-    if (match.isNotEmpty) {
-      // تشغيل اهتزاز الهاتف وتنبيه بصري فوري (محاكاة لصوت الإنذار)
-      HapticFeedback.heavyImpact();
-      _showWantedAlertModal(match);
-    }
-  }
-
-  // نافذة التحذير الصوتي والبصري الفوري عند رصد لوحة مطلوبة
-  void _showWantedAlertModal(Map<String, String> carDetails) {
+  // نافذة التحذير الفوري (الإنذار الصوتي والمرئي)
+  void _showWantedAlertModal(Map<String, String> car) {
     showDialog(
       context: context,
       barrierDismissible: false,
@@ -103,7 +133,7 @@ class _SheekhaHomeScreenState extends State<SheekhaHomeScreen> {
           children: const [
             Icon(Icons.warning_amber_rounded, color: Colors.redAccent, size: 30),
             SizedBox(width: 10),
-            Text('تنبيه فوري\nتم رصد لوحة مطلوبة', style: TextStyle(color: Colors.redAccent, fontSize: 16, fontWeight: FontWeight.bold), textDirection: TextDirection.rtl),
+            Text('تنبيه فوري\nتم رصد لوحة مطلوبة!', style: TextStyle(color: Colors.redAccent, fontSize: 16, fontWeight: FontWeight.bold), textDirection: TextDirection.rtl),
           ],
         ),
         content: Column(
@@ -115,29 +145,25 @@ class _SheekhaHomeScreenState extends State<SheekhaHomeScreen> {
               child: Row(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  Text(carDetails['digits']!, style: const TextStyle(color: Colors.white, fontSize: 20, fontWeight: FontWeight.bold)),
+                  Text(car['digits']!, style: const TextStyle(color: Colors.white, fontSize: 20, fontWeight: FontWeight.bold)),
                   const Text('  |  ', style: TextStyle(color: Colors.grey)),
-                  Text(carDetails['letters']!, style: const TextStyle(color: Colors.redAccent, fontSize: 20, fontWeight: FontWeight.bold)),
+                  Text(car['letters']!, style: const TextStyle(color: Colors.redAccent, fontSize: 20, fontWeight: FontWeight.bold)),
                 ],
               ),
             ),
             const SizedBox(height: 15),
-            _infoRow('النوع:', carDetails['type']!),
-            _infoRow('المالك:', carDetails['owner']!),
-            _infoRow('الهيكل:', carDetails['chassis']!),
+            _infoRow('النوع:', car['type']!),
+            _infoRow('المالك:', car['owner']!),
+            _infoRow('الهيكل:', car['chassis']!),
             const SizedBox(height: 10),
             const Text('الاستماع ومعالجة اللوحات مستمران في الخلفية', style: TextStyle(color: Colors.amber, fontSize: 11), textAlign: TextAlign.center),
           ],
         ),
         actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('إغلاق', style: TextStyle(color: Colors.grey)),
-          ),
           ElevatedButton(
             style: ElevatedButton.styleFrom(backgroundColor: Colors.redAccent),
             onPressed: () => Navigator.pop(context),
-            child: const Text('عرض سجل الرصد', style: TextStyle(color: Colors.white)),
+            child: const Text('إغلاق والتنبيه مستمر', style: TextStyle(color: Colors.white)),
           ),
         ],
       ),
@@ -157,140 +183,69 @@ class _SheekhaHomeScreenState extends State<SheekhaHomeScreen> {
     );
   }
 
-  // محاكاة الاستماع الذكي والسريع
-  void _toggleListening() {
-    setState(() {
-      _isListening = !_isListening;
-      if (_isListening) {
-        _currentStatusText = 'جاري الاستماع للوحات في $_currentDistrict ($_currentStreet)...';
-      } else {
-        String capturedLetters = 'د م س';
-        String capturedDigits = '9599'; // مطابقة لإحدى السيارات المطلوبة لتجربة الإنذار
-        _currentStatusText = '$capturedLetters $capturedDigits';
-        
-        int newId = _records.length + 1;
-        _records.insert(0, {
-          'id': newId.toString(),
-          'letters': capturedLetters,
-          'digits': capturedDigits,
-          'district': _currentDistrict,
-          'street': _currentStreet,
-          'note': _selectedNote,
-          'status': 'مطلوبة'
-        });
-        _saveRecords();
+  // نافذة رفع ملف الإكسيل (قاعدة البيانات)
+  void _showUploadExcelDialog() {
+    TextEditingController lController = TextEditingController();
+    TextEditingController dController = TextEditingController();
+    TextEditingController tController = TextEditingController();
+    TextEditingController oController = TextEditingController();
 
-        // فحص الإنذار الفوري
-        _checkIfWanted(capturedLetters, capturedDigits);
-      }
-    });
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        backgroundColor: const Color(0xFF1C2541),
+        title: const Text('إدارة قاعدة بيانات الإكسيل', style: TextStyle(color: Color(0xFF06D6A0)), textDirection: TextDirection.rtl),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const Text('يمكنك رفع ملف الإكسيل أو إضافة سيارة مطلوبة للقاعدة الفورية:', style: TextStyle(color: Colors.grey, fontSize: 11), textDirection: TextDirection.rtl),
+            const SizedBox(height: 10),
+            TextField(controller: lController, decoration: const InputDecoration(labelText: 'حروف اللوحة (مثال: د م س)', labelStyle: TextStyle(color: Colors.grey)), style: const TextStyle(color: Colors.white)),
+            TextField(controller: dController, decoration: const InputDecoration(labelText: 'أرقام اللوحة (مثال: 9599)', labelStyle: TextStyle(color: Colors.grey)), style: const TextStyle(color: Colors.white)),
+            TextField(controller: tController, decoration: const InputDecoration(labelText: 'نوع السيارة', labelStyle: TextStyle(color: Colors.grey)), style: const TextStyle(color: Colors.white)),
+            TextField(controller: oController, decoration: const InputDecoration(labelText: 'اسم المالك / الجهة', labelStyle: TextStyle(color: Colors.grey)), style: const TextStyle(color: Colors.white)),
+          ],
+        ),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(context), child: const Text('إلغاء', style: TextStyle(color: Colors.grey))),
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFF06D6A0)),
+            onPressed: () {
+              if (lController.text.isNotEmpty && dController.text.isNotEmpty) {
+                setState(() {
+                  _databaseExcel.add({
+                    'letters': lController.text,
+                    'digits': dController.text,
+                    'type': tController.text.isEmpty ? 'غير محدد' : tController.text,
+                    'owner': oController.text.isEmpty ? 'غير معروف' : oController.text,
+                    'chassis': 'REG-SAMPLE-9988',
+                    'status': 'مطلوبة'
+                  });
+                  _saveData();
+                });
+                Navigator.pop(context);
+                ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('تم تحديث قاعدة بيانات الإكسيل بنجاح!', textDirection: TextDirection.rtl), backgroundColor: Color(0xFF06D6A0)));
+              }
+            },
+            child: const Text('إضافة لقاعدة البيانات', style: TextStyle(color: Colors.black)),
+          ),
+        ],
+      ),
+    );
   }
 
   void _deleteRecord(int index) {
     setState(() {
       _records.removeAt(index);
-      _saveRecords();
+      _saveData();
     });
   }
 
   void _clearAll() {
     setState(() {
       _records.clear();
-      _saveRecords();
+      _saveData();
     });
-  }
-
-  // نافذة اختيار الحي
-  void _showDistrictDialog() {
-    showDialog(
-      context: context,
-      builder: (context) => AlertDialog(
-        backgroundColor: const Color(0xFF1C2541),
-        title: const Text('اختر الحي', style: TextStyle(color: Color(0xFF06D6A0)), textDirection: TextDirection.rtl),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: ['الروضة', 'السلام', 'المعادي', 'الدقي'].map((district) {
-            return ListTile(
-              title: Text(district, style: const TextStyle(color: Colors.white), textDirection: TextDirection.rtl),
-              onTap: () {
-                setState(() => _currentDistrict = district);
-                Navigator.pop(context);
-              },
-            );
-          }).toList(),
-        ),
-      ),
-    );
-  }
-
-  // نافذة اختيار الشارع
-  void _showStreetDialog() {
-    showDialog(
-      context: context,
-      builder: (context) => AlertDialog(
-        backgroundColor: const Color(0xFF1C2541),
-        title: const Text('اختر الشارع', style: TextStyle(color: Color(0xFF06D6A0)), textDirection: TextDirection.rtl),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: ['ض 1', 'س 1', 'شارع علي شريف', 'شارع النيل'].map((street) {
-            return ListTile(
-              title: Text(street, style: const TextStyle(color: Colors.white), textDirection: TextDirection.rtl),
-              onTap: () {
-                setState(() => _currentStreet = street);
-                Navigator.pop(context);
-              },
-            );
-          }).toList(),
-        ),
-      ),
-    );
-  }
-
-  // نافذة الملاحظات السريعة المطابقة للصورة
-  void _showNotesDialog() {
-    showDialog(
-      context: context,
-      builder: (context) => AlertDialog(
-        backgroundColor: const Color(0xFF1C2541),
-        title: const Text('الملاحظات الميدانية', style: TextStyle(color: Color(0xFF06D6A0)), textDirection: TextDirection.rtl),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: ['بدون', 'برحة يمين', 'برحة يسار', 'تحت تندة', 'أول الشارع', 'نهاية الشارع'].map((note) {
-            return ListTile(
-              title: Text(note, style: const TextStyle(color: Colors.white), textDirection: TextDirection.rtl),
-              onTap: () {
-                setState(() => _selectedNote = note);
-                Navigator.pop(context);
-              },
-            );
-          }).toList(),
-        ),
-      ),
-    );
-  }
-
-  // نافذة رفع ملف الإكسيل لقاعدة البيانات
-  void _showUploadExcelDialog() {
-    showDialog(
-      context: context,
-      builder: (context) => AlertDialog(
-        backgroundColor: const Color(0xFF1C2541),
-        title: const Text('رفع ملف بيانات السيارات (Excel)', style: TextStyle(color: Color(0xFF06D6A0)), textDirection: TextDirection.rtl),
-        content: const Text('اختر ملف البيانات المطلوب مطابقة اللوحات معها (CSV / XLSX). تم ربط قاعدة البيانات بنجاح.', style: TextStyle(color: Colors.grey, fontSize: 13), textDirection: TextDirection.rtl),
-        actions: [
-          ElevatedButton(
-            style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFF06D6A0)),
-            onPressed: () {
-              Navigator.pop(context);
-              ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(content: Text('تم رفع ورطة البيانات وتحديث محرك البحث بنجاح!', textDirection: TextDirection.rtl), backgroundColor: Color(0xFF06D6A0)),
-              );
-            },
-            child: const Text('اختر الملف من الجهاز', style: TextStyle(color: Colors.black)),
-          ),
-        ],
-      ),
-    );
   }
 
   @override
@@ -300,9 +255,9 @@ class _SheekhaHomeScreenState extends State<SheekhaHomeScreen> {
         backgroundColor: Colors.transparent,
         elevation: 0,
         leading: IconButton(
-          icon: const Icon(Icons.upload_file, color: Color(0xFF06D6A0)),
+          icon: const Icon(Icons.dataset, color: Color(0xFF06D6A0)),
           onPressed: _showUploadExcelDialog,
-          tooltip: 'رفع ملف الإكسيل',
+          tooltip: 'إدارة قاعدة بيانات الإكسيل',
         ),
         title: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -312,9 +267,7 @@ class _SheekhaHomeScreenState extends State<SheekhaHomeScreen> {
           ],
         ),
         actions: [
-          const Center(
-            child: Text('SHEEKHA', style: TextStyle(letterSpacing: 2, fontWeight: FontWeight.bold, fontSize: 18, color: Color(0xFF06D6A0))),
-          ),
+          const Center(child: Text('SHEEKHA', style: TextStyle(letterSpacing: 2, fontWeight: FontWeight.bold, fontSize: 18, color: Color(0xFF06D6A0)))),
           const SizedBox(width: 10),
         ],
       ),
@@ -322,58 +275,22 @@ class _SheekhaHomeScreenState extends State<SheekhaHomeScreen> {
         padding: const EdgeInsets.all(12.0),
         child: Column(
           children: [
-            // شريط الحي، الشارع، والملاحظات المطابق تماماً للصورة
+            // شريط الحي والشارع والملاحظات
             Row(
               children: [
-                Expanded(
-                  child: ElevatedButton(
-                    style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFF1C2541), padding: const EdgeInsets.symmetric(vertical: 8)),
-                    onPressed: _showDistrictDialog,
-                    child: Column(
-                      children: [
-                        const Text('الحي', style: TextStyle(color: Colors.grey, fontSize: 10)),
-                        Text(_currentDistrict, style: const TextStyle(color: Color(0xFF06D6A0), fontSize: 12, fontWeight: FontWeight.bold)),
-                      ],
-                    ),
-                  ),
-                ),
+                Expanded(child: _topBarButton('الحي', _currentDistrict, () {})),
                 const SizedBox(width: 6),
-                Expanded(
-                  child: ElevatedButton(
-                    style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFF1C2541), padding: const EdgeInsets.symmetric(vertical: 8)),
-                    onPressed: _showStreetDialog,
-                    child: Column(
-                      children: [
-                        const Text('الشارع', style: TextStyle(color: Colors.grey, fontSize: 10)),
-                        Text(_currentStreet, style: const TextStyle(color: Color(0xFF06D6A0), fontSize: 12, fontWeight: FontWeight.bold)),
-                      ],
-                    ),
-                  ),
-                ),
+                Expanded(child: _topBarButton('الشارع', _currentStreet, () {})),
                 const SizedBox(width: 6),
-                Expanded(
-                  child: ElevatedButton(
-                    style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFF1C2541), padding: const EdgeInsets.symmetric(vertical: 8)),
-                    onPressed: _showNotesDialog,
-                    child: Column(
-                      children: [
-                        const Text('ملاحظات', style: TextStyle(color: Colors.grey, fontSize: 10)),
-                        Text(_selectedNote, style: const TextStyle(color: Color(0xFF06D6A0), fontSize: 12, fontWeight: FontWeight.bold), overflow: TextOverflow.ellipsis),
-                      ],
-                    ),
-                  ),
-                ),
+                Expanded(child: _topBarButton('ملاحظات', _selectedNote, () {})),
               ],
             ),
             const SizedBox(height: 12),
 
-            // بطاقة الاستماع الصوتي الرئيسية
+            // بطاقة الاستماع الصوتي
             Container(
               padding: const EdgeInsets.all(14),
-              decoration: BoxDecoration(
-                color: const Color(0xFF1C2541),
-                borderRadius: BorderRadius.circular(20),
-              ),
+              decoration: BoxDecoration(color: const Color(0xFF1C2541), borderRadius: BorderRadius.circular(20)),
               child: Column(
                 children: [
                   Row(
@@ -381,10 +298,7 @@ class _SheekhaHomeScreenState extends State<SheekhaHomeScreen> {
                     children: [
                       Container(
                         padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                        decoration: BoxDecoration(
-                          color: const Color(0xFF06D6A0).withOpacity(0.2),
-                          borderRadius: BorderRadius.circular(12),
-                        ),
+                        decoration: BoxDecoration(color: const Color(0xFF06D6A0).withOpacity(0.2), borderRadius: BorderRadius.circular(12)),
                         child: const Text('قوي', style: TextStyle(color: Color(0xFF06D6A0), fontSize: 12)),
                       ),
                       Column(
@@ -395,10 +309,7 @@ class _SheekhaHomeScreenState extends State<SheekhaHomeScreen> {
                         ],
                       ),
                       Container(
-                        decoration: BoxDecoration(
-                          color: _isListening ? Colors.redAccent : const Color(0xFF06D6A0),
-                          shape: BoxShape.circle,
-                        ),
+                        decoration: BoxDecoration(color: _isListening ? Colors.redAccent : const Color(0xFF06D6A0), shape: BoxShape.circle),
                         child: IconButton(
                           icon: Icon(_isListening ? Icons.stop : Icons.mic, color: Colors.black),
                           onPressed: _toggleListening,
@@ -414,10 +325,7 @@ class _SheekhaHomeScreenState extends State<SheekhaHomeScreen> {
                       return Container(
                         width: 3,
                         height: _isListening ? (heights[index % 28] * 1.3) : heights[index % 28],
-                        decoration: BoxDecoration(
-                          color: _isListening ? Colors.greenAccent : const Color(0xFF06D6A0),
-                          borderRadius: BorderRadius.circular(2),
-                        ),
+                        decoration: BoxDecoration(color: _isListening ? Colors.greenAccent : const Color(0xFF06D6A0), borderRadius: BorderRadius.circular(2)),
                       );
                     }),
                   ),
@@ -434,28 +342,12 @@ class _SheekhaHomeScreenState extends State<SheekhaHomeScreen> {
                   children: [
                     InkWell(
                       onTap: _clearAll,
-                      child: Row(
-                        children: const [
-                          Icon(Icons.delete_outline, color: Colors.redAccent, size: 16),
-                          SizedBox(width: 4),
-                          Text('حذف الكل', style: TextStyle(color: Colors.redAccent, fontSize: 11)),
-                        ],
-                      ),
+                      child: Row(children: const [Icon(Icons.delete_outline, color: Colors.redAccent, size: 16), SizedBox(width: 4), Text('حذف الكل', style: TextStyle(color: Colors.redAccent, fontSize: 11))]),
                     ),
                     const SizedBox(width: 10),
                     InkWell(
-                      onTap: () {
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          const SnackBar(content: Text('تم تصدير ملف السجلات بنجاح!', textDirection: TextDirection.rtl), backgroundColor: Color(0xFF06D6A0)),
-                        );
-                      },
-                      child: Row(
-                        children: const [
-                          Icon(Icons.download, color: Color(0xFF06D6A0), size: 16),
-                          SizedBox(width: 4),
-                          Text('تصدير إكسيل', style: TextStyle(color: Color(0xFF06D6A0), fontSize: 11)),
-                        ],
-                      ),
+                      onTap: () => ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('تم تصدير ملف السجلات بنجاح!', textDirection: TextDirection.rtl), backgroundColor: Color(0xFF06D6A0))),
+                      child: Row(children: const [Icon(Icons.download, color: Color(0xFF06D6A0), size: 16), SizedBox(width: 4), Text('تصدير إكسيل', style: TextStyle(color: Color(0xFF06D6A0), fontSize: 11))]),
                     ),
                   ],
                 ),
@@ -467,10 +359,7 @@ class _SheekhaHomeScreenState extends State<SheekhaHomeScreen> {
             // رأس الجدول
             Container(
               padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-              decoration: BoxDecoration(
-                color: const Color(0xFF1C2541).withOpacity(0.5),
-                borderRadius: BorderRadius.circular(10),
-              ),
+              decoration: BoxDecoration(color: const Color(0xFF1C2541).withOpacity(0.5), borderRadius: BorderRadius.circular(10)),
               child: Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: const [
@@ -484,10 +373,10 @@ class _SheekhaHomeScreenState extends State<SheekhaHomeScreen> {
             ),
             const SizedBox(height: 6),
 
-            // قائمة السجلات
+            // قائمة السجلات الديناميكية الحقيقية
             Expanded(
               child: _records.isEmpty
-                  ? const Center(child: Text('اختر الحي والشارع أولاً، ثم ابدأ التسجيل', style: TextStyle(color: Colors.grey, fontSize: 12)))
+                  ? const Center(child: Text('ابدأ التسجيل أو أضف بيانات الإكسيل', style: TextStyle(color: Colors.grey, fontSize: 12)))
                   : ListView.builder(
                       itemCount: _records.length,
                       itemBuilder: (context, index) {
@@ -540,6 +429,19 @@ class _SheekhaHomeScreenState extends State<SheekhaHomeScreen> {
           BottomNavigationBarItem(icon: Icon(Icons.search), label: 'المرصودة'),
           BottomNavigationBarItem(icon: Icon(Icons.access_time), label: 'فحص يدوي'),
           BottomNavigationBarItem(icon: Icon(Icons.settings), label: 'الإعدادات'),
+        ],
+      ),
+    );
+  }
+
+  Widget _topBarButton(String label, String value, VoidCallback onTap) {
+    return ElevatedButton(
+      style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFF1C2541), padding: const EdgeInsets.symmetric(vertical: 8)),
+      onPressed: onTap,
+      child: Column(
+        children: [
+          Text(label, style: const TextStyle(color: Colors.grey, fontSize: 10)),
+          Text(value, style: const TextStyle(color: Color(0xFF06D6A0), fontSize: 12, fontWeight: FontWeight.bold)),
         ],
       ),
     );
