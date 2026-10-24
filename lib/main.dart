@@ -18,8 +18,76 @@ class MyApp extends StatelessWidget {
   }
 }
 
-class SheekhaHomeScreen extends StatelessWidget {
+class SheekhaHomeScreen extends StatefulWidget {
   const SheekhaHomeScreen({super.key});
+
+  @override
+  State<SheekhaHomeScreen> createState() => _SheekhaHomeScreenState();
+}
+
+class _SheekhaHomeScreenState extends State<SheekhaHomeScreen> {
+  int _currentIndex = 0;
+  bool _isListening = false;
+  String _currentStatusText = 'واو نون سين أربع';
+
+  // قائمة السجلات الديناميكية القابلة للتعديل والحذف
+  final List<Map<String, String>> _records = [
+    {'id': '4', 'letters': 'و ن س', 'digits': '7777'},
+    {'id': '3', 'letters': 'ب ل د', 'digits': '7474'},
+    {'id': '2', 'letters': 'ا ع ك', 'digits': '2828'},
+    {'id': '1', 'letters': 'ا ر د', 'digits': '2121'},
+  ];
+
+  void _toggleListening() {
+    setState(() {
+      _isListening = !_isListening;
+      if (_isListening) {
+        _currentStatusText = 'جاري الاستماع للوحات...';
+      } else {
+        _currentStatusText = 'تم التقاط لوحة جديدة بنجاح!';
+        // محاكاة إضافة لوحة جديدة عند انتهاء التسجيل الصوتي
+        int newId = _records.length + 1;
+        _records.insert(0, {
+          'id': newId.toString(),
+          'letters': 'س ر م',
+          'digits': '9988',
+        });
+      }
+    });
+  }
+
+  void _deleteRecord(int index) {
+    setState(() {
+      _records.removeAt(index);
+    });
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(
+        content: Text('تم حذف اللوحة بنجاح', textDirection: TextDirection.rtl),
+        duration: Duration(milliseconds: 800),
+      ),
+    );
+  }
+
+  void _clearAll() {
+    setState(() {
+      _records.clear();
+    });
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(
+        content: Text('تم حذف جميع السجلات', textDirection: TextDirection.rtl),
+        duration: Duration(milliseconds: 800),
+      ),
+    );
+  }
+
+  void _exportExcel() {
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(
+        content: Text('تم تصدير البيانات إلى ملف Excel بنجاح!', textDirection: TextDirection.rtl),
+        backgroundColor: Color(0xFF06D6A0),
+      ),
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -47,7 +115,7 @@ class SheekhaHomeScreen extends StatelessWidget {
         padding: const EdgeInsets.all(12.0),
         child: Column(
           children: [
-            // بطاقة التسجيل الصوتي والموجات
+            // بطاقة التسجيل الصوتي والموجات التفاعلية
             Container(
               padding: const EdgeInsets.all(16),
               decoration: BoxDecoration(
@@ -69,25 +137,25 @@ class SheekhaHomeScreen extends StatelessWidget {
                       ),
                       Column(
                         crossAxisAlignment: CrossAxisAlignment.end,
-                        children: const [
-                          Text('يستمع الآن', style: TextStyle(color: Colors.grey, fontSize: 11)),
-                          Text('واو نون سين أربع', style: TextStyle(color: Colors.white, fontSize: 14, fontWeight: FontWeight.bold)),
+                        children: [
+                          Text(_isListening ? 'جاري الاستماع...' : 'يستمع الآن', style: TextStyle(color: _isListening ? Colors.greenAccent : Colors.grey, fontSize: 11)),
+                          Text(_currentStatusText, style: const TextStyle(color: Colors.white, fontSize: 14, fontWeight: FontWeight.bold)),
                         ],
                       ),
                       Container(
-                        decoration: const BoxDecoration(
-                          color: Color(0xFF06D6A0),
+                        decoration: BoxDecoration(
+                          color: _isListening ? Colors.redAccent : const Color(0xFF06D6A0),
                           shape: BoxShape.circle,
                         ),
                         child: IconButton(
-                          icon: const Icon(Icons.mic, color: Colors.black),
-                          onPressed: () {},
+                          icon: Icon(_isListening ? Icons.stop : Icons.mic, color: Colors.black),
+                          onPressed: _toggleListening,
                         ),
                       ),
                     ],
                   ),
                   const SizedBox(height: 12),
-                  // رسم الموجات الصوتية
+                  // رسم الموجات الصوتية التفاعلية
                   Row(
                     mainAxisAlignment: MainAxisAlignment.spaceEvenly,
                     children: List.generate(28, (index) {
@@ -99,9 +167,9 @@ class SheekhaHomeScreen extends StatelessWidget {
                       ];
                       return Container(
                         width: 3,
-                        height: heights[index % 28],
+                        height: _isListening ? (heights[index % 28] * 1.3) : heights[index % 28],
                         decoration: BoxDecoration(
-                          color: const Color(0xFF06D6A0),
+                          color: _isListening ? Colors.greenAccent : const Color(0xFF06D6A0),
                           borderRadius: BorderRadius.circular(2),
                         ),
                       );
@@ -111,19 +179,33 @@ class SheekhaHomeScreen extends StatelessWidget {
               ),
             ),
             const SizedBox(height: 15),
-            // شريط الإجراءات العلوي (حذف الكل والتصدير)
+            // شريط الإجراءات العلوي الفعال
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
                 Row(
-                  children: const [
-                    Icon(Icons.delete_outline, color: Colors.redAccent, size: 18),
-                    SizedBox(width: 4),
-                    Text('حذف الكل', style: TextStyle(color: Colors.redAccent, fontSize: 12)),
-                    SizedBox(width: 12),
-                    Icon(Icons.download, color: Color(0xFF06D6A0), size: 18),
-                    SizedBox(width: 4),
-                    Text('تصدير إكسيل', style: TextStyle(color: Color(0xFF06D6A0), fontSize: 12)),
+                  children: [
+                    InkWell(
+                      onTap: _clearAll,
+                      child: Row(
+                        children: const [
+                          Icon(Icons.delete_outline, color: Colors.redAccent, size: 18),
+                          SizedBox(width: 4),
+                          Text('حذف الكل', style: TextStyle(color: Colors.redAccent, fontSize: 12)),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    InkWell(
+                      onTap: _exportExcel,
+                      child: Row(
+                        children: const [
+                          Icon(Icons.download, color: Color(0xFF06D6A0), size: 18),
+                          SizedBox(width: 4),
+                          Text('تصدير إكسيل', style: TextStyle(color: Color(0xFF06D6A0), fontSize: 12)),
+                        ],
+                      ),
+                    ),
                   ],
                 ),
                 const Text('اللوحات المسجلة ...', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 14)),
@@ -149,16 +231,39 @@ class SheekhaHomeScreen extends StatelessWidget {
               ),
             ),
             const SizedBox(height: 8),
-            // قائمة السجلات المطابقة للصورة
+            // قائمة السجلات الديناميكية
             Expanded(
-              child: ListView(
-                children: [
-                  _buildRecordRow('4', 'و ن س', '7777'),
-                  _buildRecordRow('3', 'ب ل د', '7474'),
-                  _buildRecordRow('2', 'ا ع ك', '2828'),
-                  _buildRecordRow('1', 'ا ر د', '2121'),
-                ],
-              ),
+              child: _records.isEmpty
+                  ? const Center(
+                      child: Text('لا توجد لوحات مسجلة حالياً', style: TextStyle(color: Colors.grey)),
+                    )
+                  : ListView.builder(
+                      itemCount: _records.length,
+                      itemBuilder: (context, index) {
+                        final record = _records[index];
+                        return Container(
+                          margin: const EdgeInsets.only(bottom: 8),
+                          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                          decoration: BoxDecoration(
+                            color: const Color(0xFF1C2541),
+                            borderRadius: BorderRadius.circular(15),
+                          ),
+                          child: Row(
+                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                            children: [
+                              Text(record['id']!, style: const TextStyle(color: Colors.grey, fontWeight: FontWeight.bold)),
+                              Text(record['letters']!, style: const TextStyle(color: Colors.white, fontSize: 15, fontWeight: FontWeight.bold)),
+                              Text(record['digits']!, style: const TextStyle(color: Color(0xFF06D6A0), fontSize: 16, fontWeight: FontWeight.bold)),
+                              const Icon(Icons.check_circle, color: Color(0xFF06D6A0), size: 20),
+                              IconButton(
+                                icon: const Icon(Icons.delete_outline, color: Colors.redAccent, size: 20),
+                                onPressed: () => _deleteRecord(index),
+                              ),
+                            ],
+                          ),
+                        );
+                      },
+                    ),
             ),
           ],
         ),
@@ -167,34 +272,26 @@ class SheekhaHomeScreen extends StatelessWidget {
         backgroundColor: const Color(0xFF0B132B),
         selectedItemColor: const Color(0xFF06D6A0),
         unselectedItemColor: Colors.grey,
+        currentIndex: _currentIndex,
         type: BottomNavigationBarType.fixed,
+        onTap: (index) {
+          setState(() {
+            _currentIndex = index;
+          });
+          String tabName = ['التشيك', 'التسجيل', 'المرصودة', 'فحص يدوي', 'الإعدادات'][index];
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('الانتقال إلى: $tabName', textDirection: TextDirection.rtl),
+              duration: const Duration(milliseconds: 500),
+            ),
+          );
+        },
         items: const [
           BottomNavigationBarItem(icon: Icon(Icons.check_box), label: 'التشيك'),
           BottomNavigationBarItem(icon: Icon(Icons.mic), label: 'التسجيل'),
           BottomNavigationBarItem(icon: Icon(Icons.search), label: 'المرصودة'),
           BottomNavigationBarItem(icon: Icon(Icons.access_time), label: 'فحص يدوي'),
           BottomNavigationBarItem(icon: Icon(Icons.settings), label: 'الإعدادات'),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildRecordRow(String number, String letters, String digits) {
-    return Container(
-      margin: const EdgeInsets.only(bottom: 8),
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-      decoration: BoxDecoration(
-        color: const Color(0xFF1C2541),
-        borderRadius: BorderRadius.circular(15),
-      ),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-        children: [
-          Text(number, style: const TextStyle(color: Colors.grey, fontWeight: FontWeight.bold)),
-          Text(letters, style: const TextStyle(color: Colors.white, fontSize: 15, fontWeight: FontWeight.bold)),
-          Text(digits, style: const TextStyle(color: Color(0xFF06D6A0), fontSize: 16, fontWeight: FontWeight.bold)),
-          const Icon(Icons.check_circle, color: Color(0xFF06D6A0), size: 20),
-          const Icon(Icons.delete_outline, color: Colors.redAccent, size: 20),
         ],
       ),
     );
