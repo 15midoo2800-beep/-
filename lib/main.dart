@@ -28,42 +28,42 @@ class MyApp extends StatelessWidget {
   }
 }
 
-// محرك فرز الحروف المنفردة والأرقام فقط
-class PlateFilterEngine {
+// محرك فرز الحروف والأرقام فائق الحساسية مع التدفق الصوتي المستمر
+class ContinuousPlateEngine {
   static final Map<String, String> singleLetterMap = {
-    'الف': 'أ', 'ألف': 'أ', 'ا': 'أ', 'أ': 'أ', 'إ': 'أ', 'ء': 'أ',
-    'ب': 'ب', 'به': 'ب', 'باء': 'ب', 'با': 'ب', 'بي': 'ب',
-    'ت': 'ت', 'ته': 'ت', 'تاء': 'ت', 'تا': 'ت',
-    'ث': 'ث', 'ثه': 'ث', 'ثاء': 'ث',
-    'ج': 'ج', 'جيم': 'ج', 'جي': 'ج',
-    'ح': 'ح', 'حه': 'ح', 'حاء': 'ح', 'حا': 'ح',
-    'خ': 'خ', 'خه': 'خ', 'خاء': 'خ',
-    'د': 'د', 'دال': 'د', 'دا': 'د',
-    'ذ': 'ذ', 'ذال': 'ذ',
-    'ر': 'ر', 'ره': 'ر', 'راء': 'ر', 'را': 'ر',
-    'ز': 'ز', 'زين': 'ز', 'زا': 'ز',
-    'س': 'س', 'سين': 'س', 'سا': 'س',
-    'ش': 'ش', 'شين': 'ش',
-    'ص': 'ص', 'صاد': 'ص', 'صا': 'ص',
-    'ض': 'ض', 'ضاد': 'ض',
-    'ط': 'ط', 'طه': 'ط', 'طاء': 'ط', 'طا': 'ط',
-    'ظ': 'ظ', 'ظاء': 'ظ',
-    'ع': 'ع', 'عين': 'ع', 'عا': 'ع',
-    'غ': 'غ', 'غين': 'غ',
-    'ف': 'ف', 'فه': 'ف', 'فاء': 'ف', 'فا': 'ف',
-    'ق': 'ق', 'قاف': 'ق', 'قا': 'ق',
-    'ك': 'ك', 'كاف': 'ك', 'كا': 'ك',
-    'ل': 'ل', 'لام': 'ل', 'لا': 'ل',
-    'م': 'م', 'ميم': 'م', 'ما': 'م',
-    'ن': 'ن', 'نون': 'ن', 'نا': 'ن',
-    'ه': 'ه', 'هه': 'ه', 'هاء': 'ه', 'ها': 'ه',
-    'و': 'و', 'واو': 'و',
-    'ي': 'ي', 'يه': 'ي', 'ياء': 'ي', 'يا': 'ي', 'ى': 'ي',
+    'الف': 'أ', 'ألف': 'أ', 'الأف': 'أ', 'ا': 'أ', 'أ': 'أ', 'إ': 'أ', 'آ': 'أ', 'ء': 'أ', 'اه': 'أ',
+    'ب': 'ب', 'به': 'ب', 'باء': 'ب', 'با': 'ب', 'بي': 'ب', 'بت': 'ب', 'الباء': 'ب', 'اب': 'ب',
+    'ت': 'ت', 'ته': 'ت', 'تاء': 'ت', 'تا': 'ت', 'تي': 'ت', 'التاء': 'ت', 'ات': 'ت',
+    'ث': 'ث', 'ثه': 'ث', 'ثاء': 'ث', 'ثا': 'ث', 'الثاء': 'ث',
+    'ج': 'ج', 'جيم': 'ج', 'جي': 'ج', 'جا': 'ج', 'جه': 'ج', 'الجيم': 'ج', 'اج': 'ج',
+    'ح': 'ح', 'حه': 'ح', 'حاء': 'ح', 'حا': 'ح', 'حي': 'ح', 'الحاء': 'ح', 'اح': 'ح',
+    'خ': 'خ', 'خه': 'خ', 'خاء': 'خ', 'خا': 'خ', 'الخاء': 'خ', 'اخ': 'خ',
+    'د': 'د', 'دال': 'د', 'دا': 'د', 'ده': 'د', 'دي': 'د', 'الدال': 'د', 'اد': 'د',
+    'ذ': 'ذ', 'ذال': 'ذ', 'ذا': 'ذ', 'الذال': 'ذ',
+    'ر': 'ر', 'ره': 'ر', 'راء': 'ر', 'را': 'ر', 'ري': 'ر', 'الراء': 'ر', 'ار': 'ر',
+    'ز': 'ز', 'زين': 'ز', 'زا': 'ز', 'زه': 'ز', 'زي': 'ز', 'الزين': 'ز', 'از': 'ز',
+    'س': 'س', 'سين': 'س', 'سا': 'س', 'سه': 'س', 'سي': 'س', 'السين': 'س', 'اس': 'س',
+    'ش': 'ش', 'شين': 'ش', 'شا': 'ش', 'شه': 'ش', 'الشين': 'ش', 'اش': 'ش',
+    'ص': 'ص', 'صاد': 'ص', 'صا': 'ص', 'صه': 'ص', 'الصاد': 'ص', 'اص': 'ص',
+    'ض': 'ض', 'ضاد': 'ض', 'ضا': 'ض', 'ضه': 'ض', 'الضاد': 'ض', 'اض': 'ض',
+    'ط': 'ط', 'طه': 'ط', 'طاء': 'ط', 'طا': 'ط', 'طي': 'ط', 'الطاء': 'ط', 'اط': 'ط',
+    'ظ': 'ظ', 'ظاء': 'ظ', 'ظا': 'ظ', 'الظاء': 'ظ',
+    'ع': 'ع', 'عين': 'ع', 'عا': 'ع', 'عه': 'ع', 'عي': 'ع', 'العين': 'ع', 'اع': 'ع',
+    'غ': 'غ', 'غين': 'غ', 'غا': 'غ', 'الغين': 'غ', 'اغ': 'غ',
+    'ف': 'ف', 'فه': 'ف', 'فاء': 'ف', 'فا': 'ف', 'في': 'ف', 'الفاء': 'ف', 'اف': 'ف',
+    'ق': 'ق', 'قاف': 'ق', 'قا': 'ق', 'قه': 'ق', 'قي': 'ق', 'القاف': 'ق', 'اق': 'ق',
+    'ك': 'ك', 'كاف': 'ك', 'كا': 'ك', 'كه': 'ك', 'كي': 'ك', 'الكاف': 'ك', 'اك': 'ك',
+    'ل': 'ل', 'لام': 'ل', 'لا': 'ل', 'له': 'ل', 'لي': 'ل', 'اللام': 'ل', 'ال': 'ل',
+    'م': 'م', 'ميم': 'م', 'ما': 'م', 'مه': 'م', 'مي': 'م', 'الميم': 'م', 'ام': 'م',
+    'ن': 'ن', 'نون': 'ن', 'نا': 'ن', 'نه': 'ن', 'ني': 'ن', 'النون': 'ن', 'ان': 'ن',
+    'ه': 'ه', 'هه': 'ه', 'هاء': 'ه', 'ها': 'ه', 'هي': 'ه', 'الهاء': 'ه', 'اهـ': 'ه',
+    'و': 'و', 'واو': 'و', 'وا': 'و', 'وه': 'و', 'الواو': 'و', 'او': 'و',
+    'ي': 'ي', 'يه': 'ي', 'ياء': 'ي', 'يا': 'ي', 'ى': 'ي', 'الياء': 'ي', 'اي': 'ي',
   };
 
   static final Map<String, String> digitsMap = {
     'صفر': '0', 'زيرو': '0',
-    'واحد': '1', 'واحده': '1',
+    'واحد': '1', 'واحده': '1', 'واحدـ': '1',
     'اتنين': '2', 'اثنين': '2', 'إثنين': '2', 'تنين': '2',
     'تلاته': '3', 'ثلاثة': '3', 'تلاتة': '3', 'تلات': '3', 'ثلاث': '3',
     'اربعة': '4', 'اربعه': '4', 'اربع': '4', 'أربع': '4',
@@ -77,7 +77,7 @@ class PlateFilterEngine {
   static List<Map<String, String>> extractPlatesOnly(String text) {
     if (text.trim().isEmpty) return [];
 
-    String normalized = _normalizeArabicDigits(text);
+    String normalized = _preprocessSpeech(text);
     List<String> words = normalized.split(RegExp(r'\s+'));
 
     List<Map<String, String>> results = [];
@@ -88,21 +88,18 @@ class PlateFilterEngine {
       String w = raw.replaceAll(RegExp(r'[^\u0621-\u064A0-9]'), '');
       if (w.isEmpty) continue;
 
-      // هل الكلمة رقم؟
       String? digit = digitsMap[w];
       if (digit != null || RegExp(r'^\d+$').hasMatch(w)) {
         currentDigits += digit ?? w;
         continue;
       }
 
-      // هل الكلمة اسم حرف صريح أو حرف منفرد؟
       String? letter = singleLetterMap[w];
       if (letter == null && w.length == 1 && RegExp(r'[\u0621-\u064A]').hasMatch(w)) {
         letter = w;
       }
 
       if (letter != null) {
-        // إذا جمعنا أرقام سابقة وجاء حرف جديد، هذا يعني اكتمال لوحة وبداية أخرى
         if (currentDigits.length >= 3 && currentLetters.length >= 2) {
           results.add({
             'letters': currentLetters.take(3).join(' '),
@@ -118,7 +115,6 @@ class PlateFilterEngine {
       }
     }
 
-    // فحص اللوحة الأخيرة
     if (currentLetters.length >= 2 && currentDigits.length >= 3) {
       results.add({
         'letters': currentLetters.take(3).join(' '),
@@ -129,12 +125,13 @@ class PlateFilterEngine {
     return results;
   }
 
-  static String _normalizeArabicDigits(String input) {
+  static String _preprocessSpeech(String input) {
     const ar = ['٠', '١', '٢', '٣', '٤', '٥', '٦', '٧', '٨', '٩'];
     const en = ['0', '1', '2', '3', '4', '5', '6', '7', '8', '9'];
     for (int i = 0; i < ar.length; i++) {
       input = input.replaceAll(ar[i], en[i]);
     }
+    input = input.replaceAll(RegExp(r'(.)\1{2,}'), r'\1');
     return input;
   }
 }
@@ -149,7 +146,7 @@ class SheekhaHomeScreen extends StatefulWidget {
 class _SheekhaHomeScreenState extends State<SheekhaHomeScreen> {
   int _currentIndex = 3;
   bool _isListening = false;
-  String _currentStatusText = 'اضغط الميكروفون وتحدث بحرية...';
+  String _currentStatusText = 'اضغط الميكروفون للاستماع المتواصل بدون تقطيع...';
   double _soundLevel = 0.0;
 
   Timer? _debounceTimer;
@@ -177,24 +174,21 @@ class _SheekhaHomeScreenState extends State<SheekhaHomeScreen> {
   Future<void> _initSpeechEngine() async {
     var status = await Permission.microphone.request();
     if (!status.isGranted) {
-      setState(() => _currentStatusText = 'يرجى منح إذن الميكروفون من الإعدادات');
+      setState(() => _currentStatusText = 'يرجى تفعيل إذن الميكروفون من الإعدادات');
       return;
     }
 
     try {
       bool available = await _speech.initialize(
         onStatus: (status) {
-          if ((status == 'done' || status == 'notListening') && _isListening) {
-            Future.delayed(const Duration(milliseconds: 20), () {
-              if (_isListening && mounted) _startListeningSession();
-            });
+          // منع إعادة التشغيل التلقائي العشوائي المسبب لصوت التكة المتكرر
+          if (status == 'done' && _isListening && mounted) {
+            _restartListeningSafely();
           }
         },
         onError: (error) {
           if (_isListening && mounted) {
-            Future.delayed(const Duration(milliseconds: 30), () {
-              if (_isListening && mounted) _startListeningSession();
-            });
+            _restartListeningSafely();
           }
         },
       );
@@ -202,12 +196,21 @@ class _SheekhaHomeScreenState extends State<SheekhaHomeScreen> {
       setState(() {
         _speechEnabled = available;
         _currentStatusText = available
-            ? 'الميكروفون جاهز - يكتب كل ما يسمعه ويرصد اللوح فقط'
-            : 'تأكد من تفعيل خدمات Google الصوتية بالهاتف';
+            ? 'الميكروفون متصل ومستعد - اضغط للتسجيل الدائم'
+            : 'تأكد من تفعيل خدمات التعرف الصوتي بالجهاز';
       });
     } catch (e) {
       setState(() => _currentStatusText = 'خطأ في الميكروفون: $e');
     }
+  }
+
+  void _restartListeningSafely() {
+    if (!_isListening) return;
+    Future.delayed(const Duration(milliseconds: 100), () {
+      if (_isListening && mounted && !_speech.isListening) {
+        _startListeningSession();
+      }
+    });
   }
 
   void _toggleLiveListening() async {
@@ -226,7 +229,7 @@ class _SheekhaHomeScreenState extends State<SheekhaHomeScreen> {
       }
       setState(() {
         _isListening = true;
-        _currentStatusText = 'يستمع الآن... انطق بطلاقة';
+        _currentStatusText = 'المايك مفتوح بشكل دائم بدون تقطيع... انطق بحرية';
       });
       _startListeningSession();
     }
@@ -239,8 +242,9 @@ class _SheekhaHomeScreenState extends State<SheekhaHomeScreen> {
       listenMode: stt.ListenMode.dictation,
       partialResults: true,
       cancelOnError: false,
-      listenFor: const Duration(minutes: 30),
-      pauseFor: const Duration(seconds: 15),
+      // مهلات قصوى لمنع أندرويد من إغلاق المايك عند الصمت المؤقت
+      listenFor: const Duration(hours: 1),
+      pauseFor: const Duration(seconds: 40),
       onSoundLevelChange: (level) {
         if (mounted) {
           setState(() => _soundLevel = level.clamp(0.0, 15.0));
@@ -251,15 +255,14 @@ class _SheekhaHomeScreenState extends State<SheekhaHomeScreen> {
         String spoken = result.recognizedWords.trim();
         if (spoken.isEmpty) return;
 
-        // إظهار كل كلمة تُنطق في المستطيل العلوي فوراً
         setState(() => _currentStatusText = spoken);
 
         _debounceTimer?.cancel();
 
-        // فحص سريع بعد 250 ميلي ثانية لتثبيت اللوحة الكاملة في الأسفل
-        _debounceTimer = Timer(const Duration(milliseconds: 250), () {
+        // التقاط فوري ذكي وتثبيت في الأسفل دون إغلاق المايك نهائياً
+        _debounceTimer = Timer(const Duration(milliseconds: 150), () {
           if (!mounted) return;
-          List<Map<String, String>> plates = PlateFilterEngine.extractPlatesOnly(spoken);
+          List<Map<String, String>> plates = ContinuousPlateEngine.extractPlatesOnly(spoken);
 
           for (var p in plates) {
             String letters = p['letters']!;
@@ -668,7 +671,7 @@ class _SheekhaHomeScreenState extends State<SheekhaHomeScreen> {
                           borderRadius: BorderRadius.circular(12),
                         ),
                         child: Text(
-                          _isListening ? 'قوي' : 'متوقف',
+                          _isListening ? 'مايك دائم' : 'متوقف',
                           style: TextStyle(color: _isListening ? const Color(0xFF06D6A0) : Colors.grey, fontSize: 12),
                         ),
                       ),
@@ -679,7 +682,7 @@ class _SheekhaHomeScreenState extends State<SheekhaHomeScreen> {
                             crossAxisAlignment: CrossAxisAlignment.end,
                             children: [
                               Text(
-                                _isListening ? 'يكتب كل ما يسمعه مباشرة:' : 'اضغط للتسجيل',
+                                _isListening ? 'استماع متواصل بلا انقطاع:' : 'اضغط للتسجيل',
                                 style: TextStyle(color: _isListening ? const Color(0xFF06D6A0) : Colors.grey, fontSize: 11),
                               ),
                               Text(
@@ -797,7 +800,7 @@ class _SheekhaHomeScreenState extends State<SheekhaHomeScreen> {
               child: _records.isEmpty
                   ? const Center(
                       child: Text(
-                        'انطق الحروف والأرقام مباشرة... ولن تُسجل إلا اللوحات المكتملة',
+                        'المايك يستمع دائماً بلا انقطاع... انطق اللوحات بحرية وسرعة',
                         textAlign: TextAlign.center,
                         style: TextStyle(color: Colors.grey, fontSize: 13),
                       ),
