@@ -27,7 +27,7 @@ class MyApp extends StatelessWidget {
   }
 }
 
-// محرك العزل الذكي للضوضاء والتدفق الحر السريع في الشارع
+// محرك فائق السرعة مصمم لعرض وسحب الحروف والأرقام بدقة دون تهنيج
 class FastPlateScanner {
   static final Map<String, String> spokenLettersMap = {
     'الف': 'أ', 'ألف': 'أ', 'الأف': 'أ', 'اء': 'أ', 'ا': 'أ', 'أ': 'أ', 'إ': 'أ',
@@ -82,7 +82,6 @@ class FastPlateScanner {
       String clean = word.replaceAll(RegExp(r'[^\u0621-\u064A0-9]'), '');
       if (clean.isEmpty || stopWords.contains(clean)) continue;
 
-      // التقاط الأرقام (سواء مكتوبة كأرقام 123 أو كلمات كـ سبعة)
       if (spokenDigitsMap.containsKey(clean)) {
         digits += spokenDigitsMap[clean]!;
         continue;
@@ -93,9 +92,7 @@ class FastPlateScanner {
         continue;
       }
 
-      // التقاط الحروف
       if (spokenLettersMap.containsKey(clean)) {
-        if (digits.length >= 3) continue; // إذا ظهرت حروف بعد اكتمال الأرقام، نتخطاها لتجنب التداخل
         if (letters.length < 3) {
           letters.add(spokenLettersMap[clean]!);
         }
@@ -103,14 +100,13 @@ class FastPlateScanner {
       }
 
       if (clean.length == 1 && RegExp(r'[\u0621-\u064A]').hasMatch(clean)) {
-        if (digits.length >= 3) continue;
         if (letters.length < 3) {
           letters.add(clean);
         }
       }
     }
 
-    // شرط الالتقاط الحر السريع: وجود حروف و3 أرقام صحيحة على الأقل
+    // شرط الالتقاط: وجود حرف واحد على الأقل و3 أرقام صحيحة لضمان عدم اقتطاع البيانات
     if (letters.isNotEmpty && digits.length >= 3) {
       if (digits.length > 4) {
         digits = digits.substring(digits.length - 4);
@@ -144,10 +140,9 @@ class SheekhaHomeScreen extends StatefulWidget {
 class _SheekhaHomeScreenState extends State<SheekhaHomeScreen> {
   int _currentIndex = 3;
   bool _isListening = false;
-  String _currentStatusText = 'اضغط الميكروفون وتحدث بحرية في الشارع...';
+  String _currentStatusText = 'اضغط الميكروفون وتحدث بحرية مطلقة...';
   double _soundLevel = 0.0;
 
-  // ذاكرة مؤقتة لمنع تكرار نفس اللوحة خلال ثانيتين
   String _lastDetectedKey = '';
   DateTime _lastDetectTime = DateTime.now();
 
@@ -181,14 +176,14 @@ class _SheekhaHomeScreenState extends State<SheekhaHomeScreen> {
       bool available = await _speech.initialize(
         onStatus: (status) {
           if ((status == 'done' || status == 'notListening') && _isListening) {
-            Future.delayed(const Duration(milliseconds: 50), () {
+            Future.delayed(const Duration(milliseconds: 30), () {
               if (_isListening && mounted) _startListeningSession();
             });
           }
         },
         onError: (error) {
           if (_isListening && mounted) {
-            Future.delayed(const Duration(milliseconds: 100), () {
+            Future.delayed(const Duration(milliseconds: 50), () {
               if (_isListening && mounted) _startListeningSession();
             });
           }
@@ -198,7 +193,7 @@ class _SheekhaHomeScreenState extends State<SheekhaHomeScreen> {
       setState(() {
         _speechEnabled = available;
         _currentStatusText = available
-            ? 'الميكروفون جاهز - تحدث بحرية مطلقة'
+            ? 'الميكروفون جاهز - تحدث بحرية تامة'
             : 'تأكد من تفعيل خدمات Google الصوتية بالهاتف';
       });
     } catch (e) {
@@ -221,7 +216,7 @@ class _SheekhaHomeScreenState extends State<SheekhaHomeScreen> {
       }
       setState(() {
         _isListening = true;
-        _currentStatusText = 'يستمع الآن وسط أصوات الشارع...';
+        _currentStatusText = 'يستمع الآن... انطق بطلاقة';
       });
       _startListeningSession();
     }
@@ -230,12 +225,13 @@ class _SheekhaHomeScreenState extends State<SheekhaHomeScreen> {
   void _startListeningSession() async {
     if (!_isListening) return;
 
+    // استماع متواصل فائق السرعة بدون أي ضغط على المعالج
     await _speech.listen(
       listenMode: stt.ListenMode.dictation,
       partialResults: true,
       cancelOnError: false,
-      listenFor: const Duration(seconds: 60),
-      pauseFor: const Duration(seconds: 5),
+      listenFor: const Duration(minutes: 5),
+      pauseFor: const Duration(seconds: 6),
       onSoundLevelChange: (level) {
         if (mounted) {
           setState(() => _soundLevel = level.clamp(0.0, 15.0));
@@ -246,6 +242,7 @@ class _SheekhaHomeScreenState extends State<SheekhaHomeScreen> {
         String spoken = result.recognizedWords.trim();
         if (spoken.isEmpty) return;
 
+        // تحديث النص الحي المعروض أمامك على الشاشة فوراً بكل ما يسمعه الهاتف
         setState(() => _currentStatusText = spoken);
 
         var extracted = FastPlateScanner.scanFastText(spoken);
@@ -256,7 +253,7 @@ class _SheekhaHomeScreenState extends State<SheekhaHomeScreen> {
           String plateKey = '$letters-$digits';
 
           bool isDuplicate = (plateKey == _lastDetectedKey) &&
-              DateTime.now().difference(_lastDetectTime).inMilliseconds < 2500;
+              DateTime.now().difference(_lastDetectTime).inMilliseconds < 2000;
 
           if (!isDuplicate) {
             _lastDetectedKey = plateKey;
