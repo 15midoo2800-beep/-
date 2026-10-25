@@ -9,6 +9,8 @@ import 'package:excel/excel.dart' as ex;
 import 'dart:io';
 import 'dart:math';
 import 'package:permission_handler/permission_handler.dart';
+import 'package:geolocator/geolocator.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 void main() => runApp(const MyApp());
 
@@ -28,145 +30,57 @@ class MyApp extends StatelessWidget {
   }
 }
 
-// المعجم الصوتي الشامل للهجات المصرية والصعيدية لرصد اللوحات
+// محرك المعجم الصوتي والتفكيك الميداني
 class EgyptianDialectPlateEngine {
-  // 1. قاموس الحروف بجميع لهجات النطق العامي والصعيدي والفصيح
   static final Map<String, String> phoneticsMap = {
-    // الألف
-    'ألف': 'أ', 'الف': 'أ', 'الأف': 'أ', 'الاف': 'أ', 'أليف': 'أ', 'اليف': 'أ',
-    'ا': 'أ', 'أ': 'أ', 'إ': 'أ', 'آ': 'أ', 'ء': 'أ', 'اه': 'أ', 'اي': 'أ',
-
-    // الباء
-    'باء': 'ب', 'با': 'ب', 'به': 'ب', 'بي': 'ب', 'بت': 'ب', 'الباء': 'ب',
-    'البا': 'ب', 'اب': 'ب', 'ب': 'ب',
-
-    // التاء
-    'تاء': 'ت', 'تا': 'ت', 'ته': 'ت', 'تي': 'ت', 'التاء': 'ت', 'التا': 'ت',
-    'ات': 'ت', 'ت': 'ت',
-
-    // الثاء (وكذلك نطقها الشائع كـ تاء أو سين)
-    'ثاء': 'ث', 'ثا': 'ث', 'ثه': 'ث', 'الثاء': 'ث', 'الثا': 'ث', 'اث': 'ث', 'ث': 'ث',
-
-    // الجيم (بالنطق القاهري المتعطش، والصعيدي الديم، والمعطش)
-    'جيم': 'ج', 'جا': 'ج', 'جه': 'ج', 'جي': 'ج', 'الجيم': 'ج', 'الجا': 'ج',
-    'ديم': 'ج', 'اج': 'ج', 'ج': 'ج',
-
-    // الحاء
-    'حاء': 'ح', 'حا': 'ح', 'حه': 'ح', 'حي': 'ح', 'الحاء': 'ح', 'الحا': 'ح',
-    'اح': 'ح', 'ح': 'ح',
-
-    // الخاء
-    'خاء': 'خ', 'خا': 'خ', 'خه': 'خ', 'خي': 'خ', 'الخاء': 'خ', 'الخا': 'خ',
-    'اخ': 'خ', 'خ': 'خ',
-
-    // الدال
-    'دال': 'د', 'دا': 'د', 'ده': 'د', 'دي': 'د', 'الدال': 'د', 'الدا': 'د',
-    'اد': 'د', 'د': 'د',
-
-    // الذال (ونطقها دال أو زاي)
-    'ذال': 'ذ', 'ذا': 'ذ', 'ذه': 'ذ', 'الذال': 'ذ', 'الذا': 'ذ', 'اذ': 'ذ', 'ذ': 'ذ',
-
-    // الراء
-    'راء': 'ر', 'را': 'ر', 'ره': 'ر', 'ري': 'ر', 'الراء': 'ر', 'الرا': 'ر',
-    'ار': 'ر', 'ر': 'ر',
-
-    // الزاي
-    'زين': 'ز', 'زا': 'ز', 'زه': 'ز', 'زي': 'ز', 'الزين': 'ز', 'الزا': 'ز',
-    'زاي': 'ز', 'از': 'ز', 'ز': 'ز',
-
-    // السين
-    'سين': 'س', 'سا': 'س', 'سه': 'س', 'سي': 'س', 'السين': 'س', 'السا': 'س',
-    'اس': 'س', 'س': 'س',
-
-    // الشين
-    'شين': 'ش', 'شا': 'ش', 'شه': 'ش', 'شي': 'ش', 'الشين': 'ش', 'الشا': 'ش',
-    'اش': 'ش', 'ش': 'ش',
-
-    // الصاد
-    'صاد': 'ص', 'صا': 'ص', 'صه': 'ص', 'صي': 'ص', 'الصاد': 'ص', 'الصا': 'ص',
-    'اص': 'ص', 'ص': 'ص',
-
-    // الضاد
-    'ضاد': 'ض', 'ضا': 'ض', 'ضه': 'ض', 'ضي': 'ض', 'الضاد': 'ض', 'الضا': 'ض',
-    'اض': 'ض', 'ض': 'ض',
-
-    // الطاء
-    'طاء': 'ط', 'طا': 'ط', 'طه': 'ط', 'طي': 'ط', 'الطاء': 'ط', 'الطا': 'ط',
-    'طين': 'ط', 'اط': 'ط', 'ط': 'ط',
-
-    // الظاء
-    'ظاء': 'ظ', 'ظا': 'ظ', 'ظه': 'ظ', 'الظاء': 'ظ', 'الظا': 'ظ', 'اظ': 'ظ', 'ظ': 'ظ',
-
-    // العين
-    'عين': 'ع', 'عا': 'ع', 'عه': 'ع', 'عي': 'ع', 'العين': 'ع', 'العا': 'ع',
-    'اع': 'ع', 'ع': 'ع',
-
-    // الغين
-    'غين': 'غ', 'غا': 'غ', 'غه': 'غ', 'غي': 'غ', 'الغين': 'غ', 'الغا': 'غ',
-    'اغ': 'غ', 'غ': 'غ',
-
-    // الفاء
-    'فاء': 'ف', 'فا': 'ف', 'فه': 'ف', 'في': 'ف', 'الفاء': 'ف', 'الفا': 'ف',
-    'اف': 'ف', 'ف': 'ف',
-
-    // القاف (ونطقها كـ همزة أو قاف صعيدية جافة)
-    'قاف': 'ق', 'قا': 'ق', 'قه': 'ق', 'قي': 'ق', 'القاف': 'ق', 'القا': 'ق',
-    'قف': 'ق', 'اق': 'ق', 'ق': 'ق',
-
-    // الكاف
-    'كاف': 'ك', 'كا': 'ك', 'كه': 'ك', 'كي': 'ك', 'الكاف': 'ك', 'الكا': 'ك',
-    'اك': 'ك', 'ك': 'ك',
-
-    // اللام
-    'لام': 'ل', 'لا': 'ل', 'له': 'ل', 'لي': 'ل', 'اللام': 'ل', 'اللا': 'ل',
-    'ال': 'ل', 'ل': 'ل',
-
-    // الميم
-    'ميم': 'م', 'مين': 'م', 'ما': 'م', 'مه': 'م', 'مي': 'م', 'الميم': 'م',
-    'الما': 'م', 'ام': 'م', 'م': 'م',
-
-    // النون
-    'نون': 'ن', 'نا': 'ن', 'نه': 'ن', 'ني': 'ن', 'النون': 'ن', 'النا': 'ن',
-    'ان': 'ن', 'ن': 'ن',
-
-    // الهاء
-    'هاء': 'ه', 'ها': 'ه', 'هه': 'ه', 'هي': 'ه', 'الهاء': 'ه', 'الها': 'ه',
-    'اهـ': 'ه', 'هـ': 'ه', 'ه': 'ه',
-
-    // الواو
-    'واو': 'و', 'وا': 'و', 'وه': 'و', 'وي': 'و', 'الواو': 'و', 'الوا': 'و',
-    'او': 'و', 'و': 'و',
-
-    // الياء
-    'ياء': 'ي', 'يا': 'ي', 'يه': 'ي', 'الياء': 'ي', 'اليا': 'ي', 'ى': 'ي',
-    'اي': 'ي', 'ي': 'ي',
+    'ألف': 'أ', 'الف': 'أ', 'الأف': 'أ', 'الاف': 'أ', 'أليف': 'أ', 'ا': 'أ', 'أ': 'أ', 'إ': 'أ', 'ء': 'أ',
+    'باء': 'ب', 'با': 'ب', 'به': 'ب', 'بي': 'ب', 'بت': 'ب', 'الباء': 'ب', 'اب': 'ب', 'ب': 'ب',
+    'تاء': 'ت', 'تا': 'ت', 'ته': 'ت', 'تي': 'ت', 'التاء': 'ت', 'ات': 'ت', 'ت': 'ت',
+    'ثاء': 'ث', 'ثا': 'ث', 'ثه': 'ث', 'الثاء': 'ث', 'اث': 'ث', 'ث': 'ث',
+    'جيم': 'ج', 'جا': 'ج', 'جه': 'ج', 'جي': 'ج', 'الجيم': 'ج', 'ديم': 'ج', 'ج': 'ج',
+    'حاء': 'ح', 'حا': 'ح', 'حه': 'ح', 'حي': 'ح', 'الحاء': 'ح', 'اح': 'ح', 'ح': 'ح',
+    'خاء': 'خ', 'خا': 'خ', 'خه': 'خ', 'خي': 'خ', 'الخاء': 'خ', 'اخ': 'خ', 'خ': 'خ',
+    'دال': 'د', 'دا': 'د', 'ده': 'د', 'دي': 'د', 'الدال': 'د', 'اد': 'د', 'د': 'د',
+    'ذال': 'ذ', 'ذا': 'ذ', 'ذه': 'ذ', 'الذال': 'ذ', 'ذ': 'ذ',
+    'راء': 'ر', 'را': 'ر', 'ره': 'ر', 'ري': 'ر', 'الراء': 'ر', 'ار': 'ر', 'ر': 'ر',
+    'زين': 'ز', 'زا': 'ز', 'زه': 'ز', 'زي': 'ز', 'الزين': 'ز', 'زاي': 'ز', 'ز': 'ز',
+    'سين': 'س', 'سا': 'س', 'سه': 'س', 'سي': 'س', 'السين': 'س', 'س': 'س',
+    'شين': 'ش', 'شا': 'ش', 'شه': 'ش', 'شي': 'ش', 'الشين': 'ش', 'ش': 'ش',
+    'صاد': 'ص', 'صا': 'ص', 'صه': 'ص', 'الصاد': 'ص', 'ص': 'ص',
+    'ضاد': 'ض', 'ضا': 'ض', 'ضه': 'ض', 'الضاد': 'ض', 'ض': 'ض',
+    'طاء': 'ط', 'طا': 'ط', 'طه': 'ط', 'طي': 'ط', 'الطاء': 'ط', 'ط': 'ط',
+    'ظاء': 'ظ', 'ظا': 'ظ', 'ظه': 'ظ', 'الظاء': 'ظ', 'ظ': 'ظ',
+    'عين': 'ع', 'عا': 'ع', 'عه': 'ع', 'عي': 'ع', 'العين': 'ع', 'ع': 'ع',
+    'غين': 'غ', 'غا': 'غ', 'غه': 'غ', 'الغين': 'غ', 'غ': 'غ',
+    'فاء': 'ف', 'فا': 'ف', 'فه': 'ف', 'في': 'ف', 'الفاء': 'ف', 'ف': 'ف',
+    'قاف': 'ق', 'قا': 'ق', 'قه': 'ق', 'قي': 'ق', 'القاف': 'ق', 'قف': 'ق', 'ق': 'ق',
+    'كاف': 'ك', 'كا': 'ك', 'كه': 'ك', 'كي': 'ك', 'الكاف': 'ك', 'ك': 'ك',
+    'لام': 'ل', 'لا': 'ل', 'له': 'ل', 'لي': 'ل', 'اللام': 'ل', 'ل': 'ل',
+    'ميم': 'م', 'مين': 'م', 'ما': 'م', 'مه': 'م', 'الميم': 'م', 'م': 'م',
+    'نون': 'ن', 'نا': 'ن', 'نه': 'ن', 'ني': 'ن', 'النون': 'ن', 'ن': 'ن',
+    'هاء': 'ه', 'ها': 'ه', 'هه': 'ه', 'الهاء': 'ه', 'هـ': 'ه', 'ه': 'ه',
+    'واو': 'و', 'وا': 'و', 'وه': 'و', 'الواو': 'و', 'و': 'و',
+    'ياء': 'ي', 'يا': 'ي', 'يه': 'ي', 'الياء': 'ي', 'ى': 'ي', 'ي': 'ي',
   };
 
-  // 2. قاموس التفكيك الصوتي للكلمات التي ينتجها دمج الحروف السريعة
   static final Map<String, List<String>> dialectClustersMap = {
-    'نوعين': ['ن', 'ع'], 'نوعان': ['ن', 'ع'], 'نوعي': ['ن', 'ع'], 'نوع': ['ن', 'ع'],
-    'نهاء': ['ن', 'ه'], 'نها': ['ن', 'ه'], 'منهاء': ['م', 'ن', 'ه'], 'منها': ['م', 'ن', 'ه'],
-    'واوساط': ['و', 'ص'], 'أوساط': ['و', 'ص'], 'اوساط': ['و', 'ص'], 'وساط': ['و', 'ص'], 'وسط': ['و', 'ص'],
-    'تقديم': ['ك', 'ه', 'ج'], 'كهج': ['ك', 'ه', 'ج'], 'خطه': ['خ', 'ط'], 'خطف': ['خ', 'ط', 'ف'],
-    'افلام': ['ل', 'ق'], 'أفلام': ['ل', 'ق'], 'فلام': ['ل', 'ق'], 'لقاف': ['ل', 'ق'],
-    'لمن': ['ل', 'م', 'ن'], 'لم': ['ل', 'م'], 'من': ['م', 'ن'], 'منع': ['م', 'ن', 'ع'],
-    'منوعين': ['م', 'ن', 'ع'], 'منوع': ['م', 'ن', 'ع'], 'وعج': ['و', 'ع', 'ج'], 'لفق': ['ل', 'ف', 'ق'],
-    'عقب': ['ع', 'ق', 'ب'], 'ابت': ['أ', 'ب', 'ت'], 'بهاء': ['ب', 'ه'], 'مها': ['م', 'ه'], 'سها': ['س', 'ه'],
-    'جم': ['ج', 'م'], 'جن': ['ج', 'ن'], 'سل': ['س', 'ل'], 'سم': ['س', 'م'], 'سن': ['س', 'ن'],
-    'بل': ['ب', 'ل'], 'بن': ['ب', 'ن'], 'فل': ['ف', 'ل'], 'فن': ['ف', 'ن'], 'قل': ['ق', 'ل'],
+    'نوعين': ['ن', 'ع'], 'نوعان': ['ن', 'ع'], 'نهاء': ['ن', 'ه'], 'نها': ['ن', 'ه'],
+    'منهاء': ['م', 'ن', 'ه'], 'منها': ['م', 'ن', 'ه'], 'واوساط': ['و', 'ص'], 'أوساط': ['و', 'ص'],
+    'اوساط': ['و', 'ص'], 'تقديم': ['ك', 'ه', 'ج'], 'كهج': ['ك', 'ه', 'ج'], 'خطه': ['خ', 'ط'],
+    'خطف': ['خ', 'ط', 'ف'], 'افلام': ['ل', 'ق'], 'أفلام': ['ل', 'ق'], 'لمن': ['ل', 'م', 'ن'],
+    'لم': ['ل', 'م'], 'من': ['م', 'ن'], 'منع': ['م', 'ن', 'ع'], 'منوعين': ['م', 'ن', 'ع'],
+    'وعج': ['و', 'ع', 'ج'], 'لفق': ['ل', 'ف', 'ق'], 'عقب': ['ع', 'ق', 'ب'], 'ابت': ['أ', 'ب', 'ت'],
   };
 
-  // 3. قاموس الأرقام بالعامية والصعيدية والفصحى
   static final Map<String, String> digitsMap = {
-    'صفر': '0', 'زيرو': '0',
-    'واحد': '1', 'واحده': '1', 'واحدـ': '1',
-    'اتنين': '2', 'اثنين': '2', 'إثنين': '2', 'تنين': '2', 'تنينـ': '2',
-    'تلاته': '3', 'ثلاثة': '3', 'تلاتة': '3', 'تلات': '3', 'ثلاث': '3', 'تلت': '3',
+    'صفر': '0', 'زيرو': '0', 'واحد': '1', 'واحده': '1',
+    'اتنين': '2', 'اثنين': '2', 'إثنين': '2', 'تنين': '2',
+    'تلاته': '3', 'ثلاثة': '3', 'تلاتة': '3', 'تلات': '3',
     'اربعة': '4', 'اربعه': '4', 'اربع': '4', 'أربع': '4',
     'خمسه': '5', 'خمسة': '5', 'خمس': '5',
     'سته': '6', 'ستة': '6', 'ست': '6',
     'سبعه': '7', 'سبعة': '7', 'سبع': '7',
-    'تمانيه': '8', 'ثمانية': '8', 'ثمانيه': '8', 'تمن': '8', 'تمان': '8',
+    'تمانيه': '8', 'ثمانية': '8', 'ثمانيه': '8', 'تمن': '8',
     'تسعه': '9', 'تسعة': '9', 'تسع': '9',
   };
 
@@ -184,14 +98,12 @@ class EgyptianDialectPlateEngine {
       String w = raw.replaceAll(RegExp(r'[^\u0621-\u064A0-9]'), '');
       if (w.isEmpty) continue;
 
-      // فحص الأرقام
       String? digit = digitsMap[w];
       if (digit != null || RegExp(r'^\d+$').hasMatch(w)) {
         currentDigits += digit ?? w;
         continue;
       }
 
-      // فحص الكلمات المركبة في اللهجة
       List<String>? cluster = dialectClustersMap[w];
       if (cluster != null) {
         for (String l in cluster) {
@@ -200,14 +112,12 @@ class EgyptianDialectPlateEngine {
         continue;
       }
 
-      // فحص الحروف المنفردة أو المنطوقة
       String? letter = phoneticsMap[w];
       if (letter != null) {
         _appendLetter(letter, currentLetters, currentDigits, results);
         continue;
       }
 
-      // التفكيك التلقائي لأي كلمة عربية عشوائية يفرزها أندرويد
       List<String> decomposed = _autoDecompose(w);
       for (String l in decomposed) {
         _appendLetter(l, currentLetters, currentDigits, results);
@@ -271,7 +181,7 @@ class SheekhaHomeScreen extends StatefulWidget {
 class _SheekhaHomeScreenState extends State<SheekhaHomeScreen> {
   int _currentIndex = 3;
   bool _isListening = false;
-  String _currentStatusText = 'اضغط الميكروفون وتحدث بالسرعة واللهجة التي تناسبك...';
+  String _currentStatusText = 'اضغط الميكروفون للبدء المباشر...';
   double _soundLevel = 0.0;
 
   Timer? _debounceTimer;
@@ -283,6 +193,7 @@ class _SheekhaHomeScreenState extends State<SheekhaHomeScreen> {
   final List<String> _districts = ['الروضة', 'السلام', 'المنيل', 'المعادي'];
   String _currentDistrict = 'الروضة';
   String _currentStreet = 'ض 1';
+  String _currentCoordinates = ''; // إحداثيات GPS الحالية
   String _selectedNote = 'بدون';
   String _excelFileName = 'لم يتم رفع ملف إكسيل';
 
@@ -297,8 +208,8 @@ class _SheekhaHomeScreenState extends State<SheekhaHomeScreen> {
   }
 
   Future<void> _initSpeechEngine() async {
-    var status = await Permission.microphone.request();
-    if (!status.isGranted) {
+    var micStatus = await Permission.microphone.request();
+    if (!micStatus.isGranted) {
       setState(() => _currentStatusText = 'يرجى تفعيل إذن الميكروفون من الإعدادات');
       return;
     }
@@ -320,7 +231,7 @@ class _SheekhaHomeScreenState extends State<SheekhaHomeScreen> {
       setState(() {
         _speechEnabled = available;
         _currentStatusText = available
-            ? 'الميكروفون مستعد للرصد الصوتي الحر'
+            ? 'الميكروفون متصل ومستعد - اضغط للرصد'
             : 'تأكد من تفعيل خدمات التعرف الصوتي بالجهاز';
       });
     } catch (e) {
@@ -353,7 +264,7 @@ class _SheekhaHomeScreenState extends State<SheekhaHomeScreen> {
       }
       setState(() {
         _isListening = true;
-        _currentStatusText = 'يستمع الآن بحرية وسرعة فائقة...';
+        _currentStatusText = 'يستمع الآن بطلاقة مستمرة... انطق اللوحات';
       });
       _startListeningSession();
     }
@@ -382,7 +293,6 @@ class _SheekhaHomeScreenState extends State<SheekhaHomeScreen> {
 
         _debounceTimer?.cancel();
 
-        // فحص سريع وتثبيت اللوحة في الجدول
         _debounceTimer = Timer(const Duration(milliseconds: 90), () {
           if (!mounted) return;
           List<Map<String, String>> plates = EgyptianDialectPlateEngine.extractPlates(spoken);
@@ -404,6 +314,45 @@ class _SheekhaHomeScreenState extends State<SheekhaHomeScreen> {
         });
       },
     );
+  }
+
+  // جلب موقع الـ GPS الفعلي بدقة
+  Future<void> _fetchGPSLocation() async {
+    bool serviceEnabled = await Geolocator.isLocationServiceEnabled();
+    if (!serviceEnabled) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('يرجى تفعيل خدمة الموقع (GPS) بالهاتف', textDirection: TextDirection.rtl)),
+      );
+      return;
+    }
+
+    LocationPermission permission = await Geolocator.checkPermission();
+    if (permission == LocationPermission.denied) {
+      permission = await Geolocator.requestPermission();
+      if (permission == LocationPermission.denied) return;
+    }
+
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(content: Text('جارٍ تحديد إحداثيات الـ GPS الدقيقة...', textDirection: TextDirection.rtl), duration: Duration(seconds: 1)),
+    );
+
+    Position pos = await Geolocator.getCurrentPosition(desiredAccuracy: LocationAccuracy.high);
+    setState(() {
+      _currentCoordinates = '${pos.latitude.toStringAsFixed(6)},${pos.longitude.toStringAsFixed(6)}';
+      _currentStreet = 'GPS ($_currentCoordinates)';
+    });
+
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text('تم تثبيت الإحداثيات: $_currentCoordinates', textDirection: TextDirection.rtl), backgroundColor: const Color(0xFF06D6A0)),
+    );
+  }
+
+  void _openGoogleMaps(String coords) async {
+    if (coords.isEmpty) return;
+    final Uri url = Uri.parse('https://www.google.com/maps/search/?api=1&query=$coords');
+    if (await canLaunchUrl(url)) {
+      await launchUrl(url, mode: LaunchMode.externalApplication);
+    }
   }
 
   void _registerDetectedPlate(String letters, String digits) {
@@ -429,6 +378,7 @@ class _SheekhaHomeScreenState extends State<SheekhaHomeScreen> {
         'type': isWanted ? (match['type'] ?? 'ملاكي') : 'ملاكي',
         'district': _currentDistrict,
         'street': _currentStreet,
+        'coords': _currentCoordinates,
         'note': _selectedNote == 'بدون' ? '+' : _selectedNote,
         'status': isWanted ? 'مطلوبة' : 'مطابق',
         'time': TimeOfDay.now().format(context),
@@ -863,7 +813,59 @@ class _SheekhaHomeScreenState extends State<SheekhaHomeScreen> {
               children: [
                 Expanded(child: _controlCard('ملاحظات', _selectedNote, Icons.edit, Colors.amber, _showNotesMenu)),
                 const SizedBox(width: 6),
-                Expanded(child: _controlCard('الشارع', _currentStreet, Icons.location_on, const Color(0xFF06D6A0), _showStreetDialog)),
+                // خانة الشارع مع زر الـ GPS المدمج
+                Expanded(
+                  child: InkWell(
+                    onTap: _showStreetDialog,
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 8),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFF1C2541),
+                        borderRadius: BorderRadius.circular(10),
+                        border: Border.all(color: const Color(0xFF06D6A0).withOpacity(0.6)),
+                      ),
+                      child: Column(
+                        children: [
+                          Row(
+                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                            children: [
+                              InkWell(
+                                onTap: _fetchGPSLocation,
+                                child: Container(
+                                  padding: const EdgeInsets.all(2),
+                                  decoration: BoxDecoration(color: const Color(0xFF06D6A0).withOpacity(0.2), borderRadius: BorderRadius.circular(4)),
+                                  child: const Row(
+                                    children: [
+                                      Icon(Icons.my_location, color: Color(0xFF06D6A0), size: 12),
+                                      SizedBox(width: 2),
+                                      Text('GPS', style: TextStyle(color: Color(0xFF06D6A0), fontSize: 9, fontWeight: FontWeight.bold)),
+                                    ],
+                                  ),
+                                ),
+                              ),
+                              const Text('الشارع', style: TextStyle(color: Colors.grey, fontSize: 10)),
+                            ],
+                          ),
+                          const SizedBox(height: 2),
+                          Row(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              Flexible(
+                                child: Text(
+                                  _currentStreet,
+                                  overflow: TextOverflow.ellipsis,
+                                  style: const TextStyle(color: Colors.white, fontSize: 12, fontWeight: FontWeight.bold),
+                                ),
+                              ),
+                              const SizedBox(width: 4),
+                              const Icon(Icons.location_on, color: Color(0xFF06D6A0), size: 14),
+                            ],
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                ),
                 const SizedBox(width: 6),
                 Expanded(child: _controlCard('الحي', _currentDistrict, Icons.folder, Colors.blueAccent, _showDistrictMenu)),
               ],
@@ -888,7 +890,7 @@ class _SheekhaHomeScreenState extends State<SheekhaHomeScreen> {
                       style: OutlinedButton.styleFrom(side: const BorderSide(color: Color(0xFF06D6A0))),
                       onPressed: () {
                         ScaffoldMessenger.of(context).showSnackBar(
-                          const SnackBar(content: Text('تم حفظ ملف الإكسيل في مجلد التنزيلات (Downloads)', textDirection: TextDirection.rtl)),
+                          const SnackBar(content: Text('تم حفظ ملف الإكسيل مع روابط خرائط Google في التنزيلات', textDirection: TextDirection.rtl)),
                         );
                       },
                       icon: const Icon(Icons.download, color: Color(0xFF06D6A0), size: 16),
@@ -909,6 +911,7 @@ class _SheekhaHomeScreenState extends State<SheekhaHomeScreen> {
               child: const Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
+                  Text('خريطة', style: TextStyle(color: Colors.grey, fontSize: 11)),
                   Text('حذف', style: TextStyle(color: Colors.grey, fontSize: 11)),
                   Text('ملاحظات', style: TextStyle(color: Colors.grey, fontSize: 11)),
                   Text('الشارع', style: TextStyle(color: Colors.grey, fontSize: 11)),
@@ -923,7 +926,7 @@ class _SheekhaHomeScreenState extends State<SheekhaHomeScreen> {
               child: _records.isEmpty
                   ? const Center(
                       child: Text(
-                        'المعجم الصوتي الشامل مفعل... انطق اللوحات بطلاقة وبأي لهجة',
+                        'اضغط زر GPS لتثبيت الموقع الدقيق ثم ابدأ الرصد...',
                         textAlign: TextAlign.center,
                         style: TextStyle(color: Colors.grey, fontSize: 13),
                       ),
@@ -933,6 +936,7 @@ class _SheekhaHomeScreenState extends State<SheekhaHomeScreen> {
                       itemBuilder: (context, index) {
                         final r = _records[index];
                         bool isWanted = r['status'] == 'مطلوبة';
+                        String coords = r['coords'] ?? '';
                         return Container(
                           margin: const EdgeInsets.only(bottom: 6),
                           padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 10),
@@ -944,6 +948,15 @@ class _SheekhaHomeScreenState extends State<SheekhaHomeScreen> {
                           child: Row(
                             mainAxisAlignment: MainAxisAlignment.spaceBetween,
                             children: [
+                              // زر فتح الخريطة المباشر
+                              InkWell(
+                                onTap: coords.isNotEmpty ? () => _openGoogleMaps(coords) : null,
+                                child: Icon(
+                                  Icons.map_outlined,
+                                  color: coords.isNotEmpty ? const Color(0xFF06D6A0) : Colors.grey,
+                                  size: 18,
+                                ),
+                              ),
                               InkWell(
                                 onTap: () {
                                   setState(() => _records.removeAt(index));
@@ -952,7 +965,13 @@ class _SheekhaHomeScreenState extends State<SheekhaHomeScreen> {
                                 child: const Icon(Icons.delete_outline, color: Colors.redAccent, size: 18),
                               ),
                               Text(r['note'] ?? '+', style: const TextStyle(color: Colors.amber, fontSize: 11)),
-                              Text(r['street'] ?? '', style: const TextStyle(color: Colors.white70, fontSize: 12)),
+                              Flexible(
+                                child: Text(
+                                  r['street'] ?? '',
+                                  overflow: TextOverflow.ellipsis,
+                                  style: const TextStyle(color: Colors.white70, fontSize: 11),
+                                ),
+                              ),
                               Text(r['type'] ?? '-', style: const TextStyle(color: Colors.white70, fontSize: 12)),
                               Icon(
                                 isWanted ? Icons.warning_amber_rounded : Icons.check_circle,
