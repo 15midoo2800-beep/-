@@ -27,9 +27,12 @@ class MyApp extends StatelessWidget {
   }
 }
 
+// محرك استخراج مزدوج يفهم العربية والإنجليزية والنسخ الصوتي للميكروفون
 class LivePlateExtractor {
+  // خريطة الحروف العربية وما يقابلها صوتياً بالإنجليزية لضمان الالتقاط الفوري
   static final Map<String, String> spokenLettersMap = {
-    'الف': 'ا', 'ألف': 'ا', 'اء': 'ا', 'ا': 'ا', 'أ': 'ا', 'إ': 'ا',
+    // عربى
+    'الف': 'أ', 'ألف': 'أ', 'اء': 'أ', 'ا': 'أ', 'أ': 'أ', 'إ': 'أ',
     'ب': 'ب', 'به': 'ب', 'باء': 'ب', 'با': 'ب', 'بي': 'ب',
     'ح': 'ح', 'حه': 'ح', 'حاء': 'ح', 'حا': 'ح',
     'د': 'د', 'دال': 'د', 'دل': 'د',
@@ -48,19 +51,24 @@ class LivePlateExtractor {
     'ى': 'ي', 'ي': 'ي', 'يه': 'ي', 'ياء': 'ي', 'يا': 'ي',
     'ج': 'ج', 'جيم': 'ج',
     'ف': 'ف', 'فه': 'ف', 'فاء': 'ف',
+    // إنجليزي / نسخ صوتي محتمل من الميكروفون
+    'a': 'أ', 'b': 'ب', 't': 'ت', 'j': 'ج', 'h': 'ح', 'd': 'د',
+    'r': 'ر', 's': 'س', 'sh': 'ش', 'ص': 'ص', 'd': 'ض', 't': 'ط',
+    'z': 'ظ', 'ع': 'ع', 'g': 'غ', 'f': 'ف', 'q': 'ق', 'k': 'ك',
+    'l': 'ل', 'm': 'م', 'n': 'ن', 'h': 'ه', 'w': 'و', 'y': 'ي'
   };
 
   static final Map<String, String> spokenDigitsMap = {
-    'صفر': '0', 'زيرو': '0',
-    'واحد': '1', 'واحده': '1',
-    'اثنين': '2', 'اتنين': '2', 'إثنين': '2', 'تنين': '2',
-    'ثلاثه': '3', 'ثلاثة': '3', 'تلاته': '3', 'تلاتة': '3', 'تلات': '3', 'ثلاث': '3',
-    'اربعه': '4', 'أربعة': '4', 'اربعة': '4', 'اربع': '4', 'أربع': '4',
-    'خمسه': '5', 'خمسة': '5', 'خمس': '5',
-    'سته': '6', 'ستة': '6', 'ست': '6',
-    'سبعه': '7', 'سبعة': '7', 'سبع': '7',
-    'ثمانيه': '8', 'ثمانية': '8', 'تمانيه': '8', 'تمانية': '8', 'تمن': '8', 'ثمان': '8',
-    'تسعه': '9', 'تسعة': '9', 'تسع': '9',
+    'صفر': '0', 'زيرو': '0', 'zero': '0',
+    'واحد': '1', 'واحده': '1', 'one': '1',
+    'اثنين': '2', 'اتنين': '2', 'إثنين': '2', 'تنين': '2', 'two': '2',
+    'ثلاثه': '3', 'ثلاثة': '3', 'تلاته': '3', 'تلاتة': '3', 'تلات': '3', 'three': '3',
+    'اربعه': '4', 'أربعة': '4', 'اربعة': '4', 'اربع': '4', 'four': '4',
+    'خمسه': '5', 'خمسة': '5', 'خمس': '5', 'five': '5',
+    'سته': '6', 'ستة': '6', 'ست': '6', 'six': '6',
+    'سبعه': '7', 'سبعة': '7', 'سبع': '7', 'seven': '7',
+    'ثمانيه': '8', 'ثمانية': '8', 'تمانيه': '8', 'تمانية': '8', 'eight': '8',
+    'تسعه': '9', 'تسعة': '9', 'تسع': '9', 'nine': '9',
   };
 
   static final List<String> carTypes = [
@@ -70,7 +78,7 @@ class LivePlateExtractor {
   static Map<String, dynamic>? extractFromLiveStream(String segment) {
     if (segment.trim().isEmpty) return null;
 
-    String normalized = _normalizeArabicNumbers(segment);
+    String normalized = _normalizeNumbers(segment);
     List<String> words = normalized.split(RegExp(r'\s+'));
 
     List<String> letters = [];
@@ -79,7 +87,8 @@ class LivePlateExtractor {
     int consumedWords = 0;
 
     for (int i = 0; i < words.length; i++) {
-      String clean = words[i].replaceAll(RegExp(r'[^\u0621-\u064A0-9]'), '');
+      String rawWord = words[i].toLowerCase();
+      String clean = rawWord.replaceAll(RegExp(r'[^a-zA-Z\u0621-\u064A0-9]'), '');
       if (clean.isEmpty) continue;
 
       if (carTypes.contains(clean)) {
@@ -109,16 +118,16 @@ class LivePlateExtractor {
         continue;
       }
 
-      if (clean.length == 1 && RegExp(r'[\u0621-\u064A]').hasMatch(clean)) {
+      if (clean.length == 1) {
         if (digits.isNotEmpty && letters.length >= 2) break;
         if (letters.length < 4) {
-          letters.add(clean);
+          letters.add(clean.toUpperCase());
           consumedWords = i + 1;
         }
       }
     }
 
-    if (letters.length >= 1 && digits.length >= 2) {
+    if (letters.isNotEmpty && digits.length >= 2) {
       if (digits.length > 4) {
         digits = digits.substring(digits.length - 4);
       }
@@ -126,13 +135,13 @@ class LivePlateExtractor {
         'letters': letters.take(3).join(' '),
         'digits': digits,
         'type': detectedType,
-        'consumedWords': consumedWords,
+        'consumedWords': consumedWords > 0 ? consumedWords : words.length,
       };
     }
     return null;
   }
 
-  static String _normalizeArabicNumbers(String input) {
+  static String _normalizeNumbers(String input) {
     const ar = ['٠', '١', '٢', '٣', '٤', '٥', '٦', '٧', '٨', '٩'];
     const en = ['0', '1', '2', '3', '4', '5', '6', '7', '8', '9'];
     for (int i = 0; i < ar.length; i++) {
@@ -152,7 +161,7 @@ class SheekhaHomeScreen extends StatefulWidget {
 class _SheekhaHomeScreenState extends State<SheekhaHomeScreen> {
   int _currentIndex = 3;
   bool _isListening = false;
-  String _currentStatusText = 'اضغط الميكروفون وابدأ نطق اللوحات بالعربية...';
+  String _currentStatusText = 'اضغط الميكروفون وابدأ نطق اللوحات...';
   double _soundLevel = 0.0;
   int _processedWordIndex = 0;
   String _lastAddedPlateKey = '';
@@ -204,7 +213,7 @@ class _SheekhaHomeScreenState extends State<SheekhaHomeScreen> {
       setState(() {
         _speechEnabled = available;
         _currentStatusText = available
-            ? 'الميكروفون جاهز (اللغة العربية) - اضغط للتسجيل'
+            ? 'الميكروفون جاهز - اضغط للتسجيل'
             : 'تأكد من تفعيل خدمات Google الصوتية بالهاتف';
       });
     } catch (e) {
@@ -228,7 +237,7 @@ class _SheekhaHomeScreenState extends State<SheekhaHomeScreen> {
       setState(() {
         _isListening = true;
         _processedWordIndex = 0;
-        _currentStatusText = 'يستمع باللغة العربية... انطق اللوحة';
+        _currentStatusText = 'يستمع الآن... انطق اللوحة';
       });
       _startListeningSession();
     }
@@ -239,7 +248,7 @@ class _SheekhaHomeScreenState extends State<SheekhaHomeScreen> {
     _processedWordIndex = 0;
 
     await _speech.listen(
-      localeId: 'ar_SA', 
+      localeId: 'ar_SA',
       listenMode: stt.ListenMode.dictation,
       partialResults: true,
       cancelOnError: false,
