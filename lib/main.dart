@@ -238,7 +238,6 @@ class _SheekhaHomeScreenState extends State<SheekhaHomeScreen> {
     if (!_isListening) return;
     _processedWordIndex = 0;
 
-    // تثبيت محرك التعرف الصوتي حصرياً على اللغة العربية (السعودية / مصر) لتجنب الإنجليزية
     await _speech.listen(
       localeId: 'ar_SA', 
       listenMode: stt.ListenMode.dictation,
@@ -882,7 +881,6 @@ class _SheekhaHomeScreenState extends State<SheekhaHomeScreen> {
           border: Border.all(color: borderColor.withOpacity(0.6)),
         ),
         child: Column(
-          codes: [],
           children: [
             Text(title, style: const TextStyle(color: Colors.grey, fontSize: 10)),
             const SizedBox(height: 2),
