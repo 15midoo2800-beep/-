@@ -31,7 +31,6 @@ class MyApp extends StatelessWidget {
 // محرك متطور يفك شفرة الحروف المدمجة ويدير التجميع الذكي للوحات في الكلام السريع
 class SmartStreamTokenizer {
   static final Map<String, List<String>> spokenLettersGroupMap = {
-    // الكلمات المدمجة التي يكتبها أندرويد أثناء النطق السريع في الشارع
     'لمن': ['ل', 'م', 'ن'],
     'لم': ['ل', 'م'],
     'من': ['م', 'ن'],
@@ -48,7 +47,6 @@ class SmartStreamTokenizer {
     'سل': ['س', 'ل'],
     'سم': ['س', 'م'],
     'سن': ['س', 'ن'],
-    // الحروف الفردية وأسمائها الصريحة
     'الف': ['أ'], 'ألف': ['أ'], 'الأف': ['أ'], 'اء': ['أ'], 'ا': ['أ'], 'أ': ['أ'], 'إ': ['أ'],
     'ب': ['ب'], 'به': ['ب'], 'باء': ['ب'], 'با': ['ب'], 'بي': ['ب'], 'بت': ['ب'], 'الباء': ['ب'],
     'ج': ['ج'], 'جيم': ['ج'], 'جى': ['ج'], 'الجيم': ['ج'],
@@ -780,7 +778,7 @@ class _SheekhaHomeScreenState extends State<SheekhaHomeScreen> {
                       style: OutlinedButton.styleFrom(side: const BorderSide(color: Color(0xFF06D6A0))),
                       onPressed: () {
                         ScaffoldMessenger.of(context).showSnackBar(
-                          const SnackBar(content: Text('تم حفظ ملف الإكسيل في مجلد التنزيلات (Downloads)', textDirection: TextDirection.rtl),
+                          const SnackBar(content: Text('تم حفظ ملف الإكسيل في مجلد التنزيلات (Downloads)', textDirection: TextDirection.rtl)),
                         );
                       },
                       icon: const Icon(Icons.download, color: Color(0xFF06D6A0), size: 16),
