@@ -27,8 +27,8 @@ class MyApp extends StatelessWidget {
   }
 }
 
-// محرك النافذة الانزلاقية فائق السرعة للرصد الحر المباشر
-class LightningPlateScanner {
+// محرك استخراج وتحليل متعدد اللوحات للتدفق الصوتي السريع والمتواصل
+class MultiPlateStreamTokenizer {
   static final Map<String, String> spokenLettersMap = {
     'الف': 'أ', 'ألف': 'أ', 'الأف': 'أ', 'اء': 'أ', 'ا': 'أ', 'أ': 'أ', 'إ': 'أ',
     'ب': 'ب', 'به': 'ب', 'باء': 'ب', 'با': 'ب', 'بي': 'ب', 'بت': 'ب',
@@ -69,55 +69,55 @@ class LightningPlateScanner {
     'دينا', 'ديانا', 'تويوتا', 'هيونداي', 'كيا', 'نيسان', 'مرسيدس', 'ربع', 'جامبو', 'ملاكي', 'نقل'
   ];
 
-  static Map<String, dynamic>? scanLightning(List<String> words) {
-    if (words.isEmpty) return null;
+  // دالة تستخرج *جميع* اللوحات الموجودة في جملة طويلة متصلة دفعة واحدة
+  static List<Map<String, String>> extractAllPlates(String text) {
+    if (text.trim().isEmpty) return [];
 
-    List<String> letters = [];
-    String digits = '';
+    String normalized = _normalizeNumbers(text);
+    List<String> words = normalized.split(RegExp(r'\s+'));
 
-    // مسح أحدث الكلمات فقط بأقصى سرعة
+    List<Map<String, String>> foundPlates = [];
+    List<String> tempLetters = [];
+    String tempDigits = '';
+
     for (String word in words) {
       String clean = word.replaceAll(RegExp(r'[^\u0621-\u064A0-9]'), '');
       if (clean.isEmpty || stopWords.contains(clean)) continue;
 
-      String normalizedWord = _normalizeNumbers(clean);
-
-      if (spokenDigitsMap.containsKey(normalizedWord)) {
-        digits += spokenDigitsMap[normalizedWord]!;
-        continue;
-      }
-
-      if (RegExp(r'^\d+$').hasMatch(normalizedWord)) {
-        digits += normalizedWord;
-        continue;
-      }
-
-      if (spokenLettersMap.containsKey(normalizedWord)) {
-        if (digits.length >= 3) continue;
-        if (letters.length < 3) {
-          letters.add(spokenLettersMap[normalizedWord]!);
-        }
-        continue;
-      }
-
-      if (normalizedWord.length == 1 && RegExp(r'[\u0621-\u064A]').hasMatch(normalizedWord)) {
-        if (digits.length >= 3) continue;
-        if (letters.length < 3) {
-          letters.add(normalizedWord);
+      String? digitVal = spokenDigitsMap[clean];
+      if (digitVal != null || RegExp(r'^\d+$').hasMatch(clean)) {
+        tempDigits += digitVal ?? clean;
+      } else {
+        String letterVal = spokenLettersMap[clean] ?? (clean.length == 1 ? clean : '');
+        if (letterVal.isNotEmpty) {
+          // إذا جمعنا 3 أو 4 أرقام مسبقاً، فهذا الحرف الجديد يعلن بداية لوحة جديدة!
+          if (tempDigits.length >= 3) {
+            if (tempLetters.isNotEmpty) {
+              foundPlates.add({
+                'letters': tempLetters.take(3).join(' '),
+                'digits': tempDigits.substring(0, tempDigits.length > 4 ? 4 : tempDigits.length),
+              });
+            }
+            tempLetters = [letterVal];
+            tempDigits = '';
+          } else {
+            if (tempLetters.length < 3) {
+              tempLetters.add(letterVal);
+            }
+          }
         }
       }
     }
 
-    if (letters.isNotEmpty && digits.length >= 3) {
-      if (digits.length > 4) {
-        digits = digits.substring(digits.length - 4);
-      }
-      return {
-        'letters': letters.take(3).join(' '),
-        'digits': digits,
-      };
+    // فحص الباقي في نهاية الجملة
+    if (tempLetters.isNotEmpty && tempDigits.length >= 3) {
+      foundPlates.add({
+        'letters': tempLetters.take(3).join(' '),
+        'digits': tempDigits.substring(0, tempDigits.length > 4 ? 4 : tempDigits.length),
+      });
     }
-    return null;
+
+    return foundPlates;
   }
 
   static String _normalizeNumbers(String input) {
@@ -140,12 +140,11 @@ class SheekhaHomeScreen extends StatefulWidget {
 class _SheekhaHomeScreenState extends State<SheekhaHomeScreen> {
   int _currentIndex = 3;
   bool _isListening = false;
-  String _currentStatusText = 'اضغط الميكروفون وتحدث بسرعة فائقة...';
+  String _currentStatusText = 'اضغط الميكروفون وتحدث بسلاسة وبسرعة...';
   double _soundLevel = 0.0;
 
-  int _lastProcessedWordCount = 0;
-  String _lastDetectedKey = '';
-  DateTime _lastDetectTime = DateTime.now();
+  // ذاكرة أزمنة لمنع تكرار تسجيل نفس اللوحة في خلال 5 ثوانٍ
+  final Map<String, DateTime> _recordedPlateCooldowns = {};
 
   final stt.SpeechToText _speech = stt.SpeechToText();
   bool _speechEnabled = false;
@@ -194,7 +193,7 @@ class _SheekhaHomeScreenState extends State<SheekhaHomeScreen> {
       setState(() {
         _speechEnabled = available;
         _currentStatusText = available
-            ? 'الميكروفون جاهز للسرعة الفائقة - انطق بحرية'
+            ? 'الميكروفون جاهز - تحدث وسجل ورا بعض براحتك'
             : 'تأكد من تفعيل خدمات Google الصوتية بالهاتف';
       });
     } catch (e) {
@@ -217,8 +216,7 @@ class _SheekhaHomeScreenState extends State<SheekhaHomeScreen> {
       }
       setState(() {
         _isListening = true;
-        _lastProcessedWordCount = 0;
-        _currentStatusText = 'يستمع بسرعة البرق... تكلم الآن';
+        _currentStatusText = 'يستمع الآن للتدفق المستمر... تكلم بسرعة';
       });
       _startListeningSession();
     }
@@ -231,8 +229,8 @@ class _SheekhaHomeScreenState extends State<SheekhaHomeScreen> {
       listenMode: stt.ListenMode.dictation,
       partialResults: true,
       cancelOnError: false,
-      listenFor: const Duration(minutes: 10),
-      pauseFor: const Duration(seconds: 8),
+      listenFor: const Duration(minutes: 15),
+      pauseFor: const Duration(seconds: 10),
       onSoundLevelChange: (level) {
         if (mounted) {
           setState(() => _soundLevel = level.clamp(0.0, 15.0));
@@ -243,26 +241,23 @@ class _SheekhaHomeScreenState extends State<SheekhaHomeScreen> {
         String spoken = result.recognizedWords.trim();
         if (spoken.isEmpty) return;
 
+        // عرض النص المسموع حالياً في الأعلى بكل وضوح
         setState(() => _currentStatusText = spoken);
 
-        List<String> allWords = spoken.split(RegExp(r'\s+'));
-        
-        // النافذة الانزلاقية: أخذ آخر 6 كلمات فقط للفحص السريع الفوري بدون ثقل أو تهنيج
-        int startIndex = allWords.length > 6 ? allWords.length - 6 : 0;
-        List<String> recentWords = allWords.sublist(startIndex);
+        // استخراج جميع اللوحات من النص المتدفق دفعة واحدة
+        List<Map<String, String>> extractedPlates = MultiPlateStreamTokenizer.extractAllPlates(spoken);
 
-        var extracted = LightningPlateScanner.scanLightning(recentWords);
-        if (extracted != null) {
-          String letters = extracted['letters'] as String;
-          String digits = extracted['digits'] as String;
+        for (var plate in extractedPlates) {
+          String letters = plate['letters']!;
+          String digits = plate['digits']!;
           String plateKey = '$letters-$digits';
 
-          bool isDuplicate = (plateKey == _lastDetectedKey) &&
-              DateTime.now().difference(_lastDetectTime).inMilliseconds < 1800;
+          DateTime now = DateTime.now();
+          bool isRecent = _recordedPlateCooldowns.containsKey(plateKey) &&
+              now.difference(_recordedPlateCooldowns[plateKey]!).inSeconds < 5;
 
-          if (!isDuplicate) {
-            _lastDetectedKey = plateKey;
-            _lastDetectTime = DateTime.now();
+          if (!isRecent) {
+            _recordedPlateCooldowns[plateKey] = now;
             _registerDetectedPlate(letters, digits);
           }
         }
@@ -274,6 +269,7 @@ class _SheekhaHomeScreenState extends State<SheekhaHomeScreen> {
     String cleanDigits = digits.trim();
     String cleanLetters = letters.replaceAll(' ', '');
 
+    // التشييك الفوري في الخلفية ضد شيت الإكسيل
     var match = _wantedDatabase.firstWhere(
       (car) {
         String dbDigits = (car['digits'] ?? '').trim();
@@ -669,7 +665,7 @@ class _SheekhaHomeScreenState extends State<SheekhaHomeScreen> {
                             crossAxisAlignment: CrossAxisAlignment.end,
                             children: [
                               Text(
-                                _isListening ? 'يستمع الآن (بث حي مباشر)' : 'اضغط للتسجيل',
+                                _isListening ? 'يستمع الآن (بث حي متعدد)' : 'اضغط للتسجيل',
                                 style: TextStyle(color: _isListening ? const Color(0xFF06D6A0) : Colors.grey, fontSize: 11),
                               ),
                               Text(
