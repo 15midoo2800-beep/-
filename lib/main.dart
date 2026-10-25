@@ -27,13 +27,12 @@ class MyApp extends StatelessWidget {
   }
 }
 
-// محرك استخراج متطور يدعم اللهجة المصرية وقرى صعيد مصر والتدفق الحر
-class LivePlateExtractor {
+// محرك العزل الذكي للضوضاء والتدفق الحر السريع في الشارع
+class FastPlateScanner {
   static final Map<String, String> spokenLettersMap = {
-    // فصحى وعامية مصرية وصعيدية
     'الف': 'أ', 'ألف': 'أ', 'الأف': 'أ', 'اء': 'أ', 'ا': 'أ', 'أ': 'أ', 'إ': 'أ',
     'ب': 'ب', 'به': 'ب', 'باء': 'ب', 'با': 'ب', 'بي': 'ب', 'بت': 'ب',
-    'ج': 'ج', 'جيم': 'ج', 'جى': 'ج', 'جها': 'ج',
+    'ج': 'ج', 'جيم': 'ج', 'جى': 'ج',
     'ح': 'ح', 'حه': 'ح', 'حاء': 'ح', 'حا': 'ح',
     'د': 'د', 'دال': 'د', 'دل': 'د', 'دا': 'د',
     'ر': 'ر', 'ره': 'ر', 'راء': 'ر', 'را': 'ر',
@@ -65,61 +64,53 @@ class LivePlateExtractor {
     'تسعه': '9', 'تسعة': '9', 'تسع': '9',
   };
 
-  static final List<String> carTypes = [
+  static final List<String> stopWords = [
+    'و', 'في', 'من', 'على', 'لا', 'نعم', 'تمام', 'خلاص', 'يا', 'هو', 'هي',
     'دينا', 'ديانا', 'تويوتا', 'هيونداي', 'كيا', 'نيسان', 'مرسيدس', 'ربع', 'جامبو', 'ملاكي', 'نقل'
   ];
 
-  static Map<String, dynamic>? extractFromStream(String segment) {
-    if (segment.trim().isEmpty) return null;
+  static Map<String, dynamic>? scanFastText(String text) {
+    if (text.trim().isEmpty) return null;
 
-    String normalized = _normalizeNumbers(segment);
-    List<String> words = normalized.split(RegExp(r'\s+'));
+    String normalized = _normalizeNumbers(text);
+    List<String> rawWords = normalized.split(RegExp(r'\s+'));
 
     List<String> letters = [];
     String digits = '';
-    String detectedType = '-';
-    int consumedWords = 0;
 
-    for (int i = 0; i < words.length; i++) {
-      String clean = words[i].replaceAll(RegExp(r'[^\u0621-\u064A0-9]'), '');
-      if (clean.isEmpty) continue;
+    for (String word in rawWords) {
+      String clean = word.replaceAll(RegExp(r'[^\u0621-\u064A0-9]'), '');
+      if (clean.isEmpty || stopWords.contains(clean)) continue;
 
-      if (carTypes.contains(clean)) {
-        detectedType = clean == 'ديانا' ? 'دينا' : clean;
-        consumedWords = i + 1;
-        continue;
-      }
-
+      // التقاط الأرقام (سواء مكتوبة كأرقام 123 أو كلمات كـ سبعة)
       if (spokenDigitsMap.containsKey(clean)) {
         digits += spokenDigitsMap[clean]!;
-        consumedWords = i + 1;
         continue;
       }
 
       if (RegExp(r'^\d+$').hasMatch(clean)) {
         digits += clean;
-        consumedWords = i + 1;
         continue;
       }
 
+      // التقاط الحروف
       if (spokenLettersMap.containsKey(clean)) {
-        if (digits.length >= 3) break;
+        if (digits.length >= 3) continue; // إذا ظهرت حروف بعد اكتمال الأرقام، نتخطاها لتجنب التداخل
         if (letters.length < 3) {
           letters.add(spokenLettersMap[clean]!);
-          consumedWords = i + 1;
         }
         continue;
       }
 
       if (clean.length == 1 && RegExp(r'[\u0621-\u064A]').hasMatch(clean)) {
-        if (digits.length >= 3) break;
+        if (digits.length >= 3) continue;
         if (letters.length < 3) {
           letters.add(clean);
-          consumedWords = i + 1;
         }
       }
     }
 
+    // شرط الالتقاط الحر السريع: وجود حروف و3 أرقام صحيحة على الأقل
     if (letters.isNotEmpty && digits.length >= 3) {
       if (digits.length > 4) {
         digits = digits.substring(digits.length - 4);
@@ -127,8 +118,7 @@ class LivePlateExtractor {
       return {
         'letters': letters.take(3).join(' '),
         'digits': digits,
-        'type': detectedType,
-        'consumedWords': consumedWords > 0 ? consumedWords : words.length,
+        'type': '-',
       };
     }
     return null;
@@ -154,10 +144,12 @@ class SheekhaHomeScreen extends StatefulWidget {
 class _SheekhaHomeScreenState extends State<SheekhaHomeScreen> {
   int _currentIndex = 3;
   bool _isListening = false;
-  String _currentStatusText = 'اضغط الميكروفون وتحدث باللهجة المصرية والصعيدية بحرية...';
+  String _currentStatusText = 'اضغط الميكروفون وتحدث بحرية في الشارع...';
   double _soundLevel = 0.0;
-  int _processedWordIndex = 0;
-  String _lastAddedPlateKey = '';
+
+  // ذاكرة مؤقتة لمنع تكرار نفس اللوحة خلال ثانيتين
+  String _lastDetectedKey = '';
+  DateTime _lastDetectTime = DateTime.now();
 
   final stt.SpeechToText _speech = stt.SpeechToText();
   bool _speechEnabled = false;
@@ -189,14 +181,14 @@ class _SheekhaHomeScreenState extends State<SheekhaHomeScreen> {
       bool available = await _speech.initialize(
         onStatus: (status) {
           if ((status == 'done' || status == 'notListening') && _isListening) {
-            Future.delayed(const Duration(milliseconds: 100), () {
+            Future.delayed(const Duration(milliseconds: 50), () {
               if (_isListening && mounted) _startListeningSession();
             });
           }
         },
         onError: (error) {
           if (_isListening && mounted) {
-            Future.delayed(const Duration(milliseconds: 200), () {
+            Future.delayed(const Duration(milliseconds: 100), () {
               if (_isListening && mounted) _startListeningSession();
             });
           }
@@ -206,7 +198,7 @@ class _SheekhaHomeScreenState extends State<SheekhaHomeScreen> {
       setState(() {
         _speechEnabled = available;
         _currentStatusText = available
-            ? 'الميكروفون جاهز للرصد الحر - اضغط للتسجيل'
+            ? 'الميكروفون جاهز - تحدث بحرية مطلقة'
             : 'تأكد من تفعيل خدمات Google الصوتية بالهاتف';
       });
     } catch (e) {
@@ -229,8 +221,7 @@ class _SheekhaHomeScreenState extends State<SheekhaHomeScreen> {
       }
       setState(() {
         _isListening = true;
-        _processedWordIndex = 0;
-        _currentStatusText = 'يستمع الآن بحرية مطلقة... انطق اللوحة';
+        _currentStatusText = 'يستمع الآن وسط أصوات الشارع...';
       });
       _startListeningSession();
     }
@@ -238,7 +229,6 @@ class _SheekhaHomeScreenState extends State<SheekhaHomeScreen> {
 
   void _startListeningSession() async {
     if (!_isListening) return;
-    _processedWordIndex = 0;
 
     await _speech.listen(
       listenMode: stt.ListenMode.dictation,
@@ -258,36 +248,30 @@ class _SheekhaHomeScreenState extends State<SheekhaHomeScreen> {
 
         setState(() => _currentStatusText = spoken);
 
-        List<String> allWords = spoken.split(RegExp(r'\s+'));
-        if (_processedWordIndex >= allWords.length) {
-          _processedWordIndex = 0;
-        }
-
-        String unprocessedSegment = allWords.sublist(_processedWordIndex).join(' ');
-        var extracted = LivePlateExtractor.extractFromStream(unprocessedSegment);
-
+        var extracted = FastPlateScanner.scanFastText(spoken);
         if (extracted != null) {
-          int consumed = extracted['consumedWords'] as int;
-          _processedWordIndex += consumed;
-          _registerDetectedPlate(
-            extracted['letters'] as String,
-            extracted['digits'] as String,
-            extracted['type'] as String,
-          );
+          String letters = extracted['letters'] as String;
+          String digits = extracted['digits'] as String;
+          String carType = extracted['type'] as String;
+          String plateKey = '$letters-$digits';
+
+          bool isDuplicate = (plateKey == _lastDetectedKey) &&
+              DateTime.now().difference(_lastDetectTime).inMilliseconds < 2500;
+
+          if (!isDuplicate) {
+            _lastDetectedKey = plateKey;
+            _lastDetectTime = DateTime.now();
+            _registerDetectedPlate(letters, digits, carType);
+          }
         }
       },
     );
   }
 
   void _registerDetectedPlate(String letters, String digits, String carType) {
-    String plateKey = '$letters-$digits';
-    if (plateKey == _lastAddedPlateKey) return;
-    _lastAddedPlateKey = plateKey;
-
     String cleanDigits = digits.trim();
     String cleanLetters = letters.replaceAll(' ', '');
 
-    // الفحص التلقائي في الخلفية ضد شيت السيارات المطلوبة
     var match = _wantedDatabase.firstWhere(
       (car) {
         String dbDigits = (car['digits'] ?? '').trim();
