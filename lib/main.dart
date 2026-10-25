@@ -28,11 +28,9 @@ class MyApp extends StatelessWidget {
   }
 }
 
-// محرك اللهجات التفكيكي المطور لحل مشكلة نهاء وأوساط وأفلام
+// محرك فرز وتفكيك اللهجات السريعة
 class AdvancedEgyptianPlateEngine {
-  // الكلمات المدمجة الناتجة عن نطق الحروف السريعة مع الهاء والواو وغيرها
   static final Map<String, List<String>> compoundWordsMap = {
-    // مشتقات النون والهاء والميم (حل مشكلة: نهاء 3 4 5)
     'نهاء': ['ن', 'ه'],
     'نها': ['ن', 'ه'],
     'منهاء': ['م', 'ن', 'ه'],
@@ -44,22 +42,18 @@ class AdvancedEgyptianPlateEngine {
     'مه': ['م', 'ه'],
     'به': ['ب', 'ه'],
     'طه': ['ط', 'ه'],
-    // مشتقات الواو والصاد (حل مشكلة: واوساط)
     'واوساط': ['و', 'ص'],
     'أوساط': ['و', 'ص'],
     'اوساط': ['و', 'ص'],
     'وساط': ['و', 'ص'],
     'وسائط': ['و', 'ص'],
     'وسط': ['و', 'ص'],
-    // مشتقات الكاف والهاء والجيم
     'تقديم': ['ك', 'ه', 'ج'],
     'كهج': ['ك', 'ه', 'ج'],
-    // مشتقات اللام والقاف
     'افلام': ['ل', 'ق'],
     'أفلام': ['ل', 'ق'],
     'فلام': ['ل', 'ق'],
     'لقاف': ['ل', 'ق'],
-    // الحروف المدمجة الشائعة
     'لمن': ['ل', 'م', 'ن'],
     'لم': ['ل', 'م'],
     'من': ['م', 'ن'],
@@ -77,61 +71,33 @@ class AdvancedEgyptianPlateEngine {
   };
 
   static final Map<String, String> singleLetterMap = {
-    // الألف
     'الف': 'أ', 'ألف': 'أ', 'الأف': 'أ', 'ا': 'أ', 'أ': 'أ', 'إ': 'أ', 'آ': 'أ', 'ء': 'أ',
-    // الباء
     'ب': 'ب', 'باء': 'ب', 'با': 'ب', 'بي': 'ب', 'بت': 'ب', 'الباء': 'ب',
-    // التاء
     'ت': 'ت', 'تاء': 'ت', 'تا': 'ت', 'تي': 'ت', 'التاء': 'ت',
-    // الثاء
     'ث': 'ث', 'ثاء': 'ث', 'ثا': 'ث', 'الثاء': 'ث',
-    // الجيم
     'ج': 'ج', 'جيم': 'ج', 'جي': 'ج', 'جا': 'ج', 'الجيم': 'ج',
-    // الحاء
     'ح': 'ح', 'حاء': 'ح', 'حا': 'ح', 'حي': 'ح', 'الحاء': 'ح',
-    // الخاء
     'خ': 'خ', 'خاء': 'خ', 'خا': 'خ', 'الخاء': 'خ',
-    // الدال
     'د': 'د', 'دال': 'د', 'دا': 'د', 'الدال': 'د',
-    // الذال
     'ذ': 'ذ', 'ذال': 'ذ', 'ذا': 'ذ', 'الذال': 'ذ',
-    // الراء
     'ر': 'ر', 'راء': 'ر', 'را': 'ر', 'الراء': 'ر',
-    // الزاي
     'ز': 'ز', 'زين': 'ز', 'زا': 'ز', 'الزين': 'ز',
-    // السين
     'س': 'س', 'سين': 'س', 'سا': 'س', 'السين': 'س',
-    // الشين
     'ش': 'ش', 'شين': 'ش', 'شا': 'ش', 'الشين': 'ش',
-    // الصاد
     'ص': 'ص', 'صاد': 'ص', 'صا': 'ص', 'الصاد': 'ص',
-    // الضاد
     'ض': 'ض', 'ضاد': 'ض', 'ضا': 'ض', 'الضاد': 'ض',
-    // الطاء
     'ط': 'ط', 'طاء': 'ط', 'طا': 'ط', 'الطاء': 'ط',
-    // الظاء
     'ظ': 'ظ', 'ظاء': 'ظ', 'ظا': 'ظ', 'الظاء': 'ظ',
-    // العين
     'ع': 'ع', 'عين': 'ع', 'عا': 'ع', 'العين': 'ع',
-    // الغين
     'غ': 'غ', 'غين': 'غ', 'غا': 'غ', 'الغين': 'غ',
-    // الفاء
     'ف': 'ف', 'فاء': 'ف', 'فا': 'ف', 'الفاء': 'ف',
-    // القاف
     'ق': 'ق', 'قاف': 'ق', 'قا': 'ق', 'القاف': 'ق',
-    // الكاف
     'ك': 'ك', 'كاف': 'ك', 'كا': 'ك', 'الكاف': 'ك',
-    // اللام
     'ل': 'ل', 'لام': 'ل', 'لا': 'ل', 'اللام': 'ل',
-    // الميم (بما فيها "مين" الناتجة عن خطأ السمع)
     'م': 'م', 'ميم': 'م', 'مين': 'م', 'ما': 'م', 'الميم': 'م',
-    // النون
     'ن': 'ن', 'نون': 'ن', 'نا': 'ن', 'النون': 'ن',
-    // الهاء
     'ه': 'ه', 'هه': 'ه', 'هاء': 'ه', 'ها': 'ه', 'الهاء': 'ه', 'هـ': 'ه',
-    // الواو
     'و': 'و', 'واو': 'و', 'وا': 'و', 'الواو': 'و',
-    // الياء
     'ي': 'ي', 'يه': 'ي', 'ياء': 'ي', 'يا': 'ي', 'ى': 'ي', 'الياء': 'ي',
   };
 
@@ -162,14 +128,12 @@ class AdvancedEgyptianPlateEngine {
       String w = raw.replaceAll(RegExp(r'[^\u0621-\u064A0-9]'), '');
       if (w.isEmpty) continue;
 
-      // فحص الأرقام
       String? digit = digitsMap[w];
       if (digit != null || RegExp(r'^\d+$').hasMatch(w)) {
         currentDigits += digit ?? w;
         continue;
       }
 
-      // فحص الكلمات المركبة في اللهجة (مثل: نهاء، واوساط)
       List<String>? compound = compoundWordsMap[w];
       if (compound != null) {
         if (currentDigits.length >= 3 && currentLetters.length >= 2) {
@@ -187,7 +151,6 @@ class AdvancedEgyptianPlateEngine {
         continue;
       }
 
-      // فحص الحروف المنفردة أو المنطوقة
       String? letter = singleLetterMap[w];
       if (letter == null && w.length == 1 && RegExp(r'[\u0621-\u064A]').hasMatch(w)) {
         letter = w;
@@ -240,7 +203,7 @@ class SheekhaHomeScreen extends StatefulWidget {
 class _SheekhaHomeScreenState extends State<SheekhaHomeScreen> {
   int _currentIndex = 3;
   bool _isListening = false;
-  String _currentStatusText = 'اضغط الميكروفون للبدء...';
+  String _currentStatusText = 'اضغط الميكروفون للبدء المباشر...';
   double _soundLevel = 0.0;
 
   Timer? _debounceTimer;
@@ -275,7 +238,8 @@ class _SheekhaHomeScreenState extends State<SheekhaHomeScreen> {
     try {
       bool available = await _speech.initialize(
         onStatus: (status) {
-          if (status == 'done' && _isListening && mounted) {
+          // منع الانقطاع التلقائي نهائياً
+          if ((status == 'done' || status == 'notListening') && _isListening && mounted) {
             _restartListeningSafely();
           }
         },
@@ -289,7 +253,7 @@ class _SheekhaHomeScreenState extends State<SheekhaHomeScreen> {
       setState(() {
         _speechEnabled = available;
         _currentStatusText = available
-            ? 'الميكروفون متصل ومستعد - اضغط للرصد'
+            ? 'الميكروفون متصل ومستعد - اضغط للرصد المباشر'
             : 'تأكد من تفعيل خدمات التعرف الصوتي بالجهاز';
       });
     } catch (e) {
@@ -299,7 +263,8 @@ class _SheekhaHomeScreenState extends State<SheekhaHomeScreen> {
 
   void _restartListeningSafely() {
     if (!_isListening) return;
-    Future.delayed(const Duration(milliseconds: 60), () {
+    // إعادة فتح فورية بدون أي تأخير ملحوظ
+    Future.microtask(() {
       if (_isListening && mounted && !_speech.isListening) {
         _startListeningSession();
       }
@@ -322,7 +287,7 @@ class _SheekhaHomeScreenState extends State<SheekhaHomeScreen> {
       }
       setState(() {
         _isListening = true;
-        _currentStatusText = 'يستمع الآن بطلاقة مستمرة... انطق اللوحات';
+        _currentStatusText = 'استماع متواصل بلا أي صفارة أو انقطاع...';
       });
       _startListeningSession();
     }
@@ -335,8 +300,9 @@ class _SheekhaHomeScreenState extends State<SheekhaHomeScreen> {
       listenMode: stt.ListenMode.dictation,
       partialResults: true,
       cancelOnError: false,
-      listenFor: const Duration(hours: 1),
-      pauseFor: const Duration(seconds: 40),
+      // مهلة زمنية قصوى تمنع أندرويد من غلق الجلسة وإصدار صوت الصفارة
+      listenFor: const Duration(hours: 2),
+      pauseFor: const Duration(minutes: 5),
       onSoundLevelChange: (level) {
         if (mounted) {
           setState(() => _soundLevel = level.clamp(0.0, 15.0));
@@ -351,7 +317,7 @@ class _SheekhaHomeScreenState extends State<SheekhaHomeScreen> {
 
         _debounceTimer?.cancel();
 
-        // فحص سريع وتفكيك الحروف والكلمات
+        // معالجة فورية وتفريغ اللوحة للجدول بدون إيقاف الصوت
         _debounceTimer = Timer(const Duration(milliseconds: 100), () {
           if (!mounted) return;
           List<Map<String, String>> plates = AdvancedEgyptianPlateEngine.extractPlates(spoken);
@@ -763,7 +729,7 @@ class _SheekhaHomeScreenState extends State<SheekhaHomeScreen> {
                           borderRadius: BorderRadius.circular(12),
                         ),
                         child: Text(
-                          _isListening ? 'مايك دائم' : 'متوقف',
+                          _isListening ? 'مباشر مستمر' : 'متوقف',
                           style: TextStyle(color: _isListening ? const Color(0xFF06D6A0) : Colors.grey, fontSize: 12),
                         ),
                       ),
@@ -774,7 +740,7 @@ class _SheekhaHomeScreenState extends State<SheekhaHomeScreen> {
                             crossAxisAlignment: CrossAxisAlignment.end,
                             children: [
                               Text(
-                                _isListening ? 'استماع متواصل بلا انقطاع:' : 'اضغط للتسجيل',
+                                _isListening ? 'استماع مباشر دائم (بدون صفارة):' : 'اضغط للتسجيل',
                                 style: TextStyle(color: _isListening ? const Color(0xFF06D6A0) : Colors.grey, fontSize: 11),
                               ),
                               Text(
@@ -892,7 +858,7 @@ class _SheekhaHomeScreenState extends State<SheekhaHomeScreen> {
               child: _records.isEmpty
                   ? const Center(
                       child: Text(
-                        'المايك يستمع دائماً بلا انقطاع... انطق اللوحات بحرية وسرعة',
+                        'المايك مفتوح دائمًا دون مقاطعة... انطق اللوحات بطلاقة',
                         textAlign: TextAlign.center,
                         style: TextStyle(color: Colors.grey, fontSize: 13),
                       ),
