@@ -28,108 +28,43 @@ class MyApp extends StatelessWidget {
   }
 }
 
-// محرك التفكيك الصوتي الشامل لجميع الحركات ومتشابهات الحروف
-class UniversalPhoneticPlateEngine {
-  // قاموس الكلمات التخمينية والتداخلات الصوتية لكل حروف الأبجدية
-  static final Map<String, List<String>> compoundWordsMap = {
-    // 1. تداخلات النون والميم
-    'نوعين': ['ن', 'ع'], 'نوعان': ['ن', 'ع'], 'نوعي': ['ن', 'ع'], 'نوع': ['ن', 'ع'],
-    'نهاء': ['ن', 'ه'], 'نها': ['ن', 'ه'], 'منهاء': ['م', 'ن', 'ه'], 'منها': ['م', 'ن', 'ه'],
-    'لمن': ['ل', 'م', 'ن'], 'لم': ['ل', 'م'], 'من': ['م', 'ن'], 'منع': ['م', 'ن', 'ع'],
-    'منوعين': ['م', 'ن', 'ع'], 'منوع': ['م', 'ن', 'ع'], 'منو': ['م', 'ن', 'و'],
-    'مها': ['م', 'ه'], 'مه': ['م', 'ه'], 'نه': ['ن', 'ه'], 'مين': ['م'],
-
-    // 2. تداخلات الواو مع حروف الصفير والمطبقة
-    'واوساط': ['و', 'ص'], 'أوساط': ['و', 'ص'], 'اوساط': ['و', 'ص'], 'وساط': ['و', 'ص'],
-    'وسائط': ['و', 'ص'], 'وسط': ['و', 'ص'], 'صوت': ['ص', 'و'], 'صوات': ['ص', 'و'],
-    'وعج': ['و', 'ع', 'ج'], 'وضاد': ['و', 'ض'], 'وطاء': ['و', 'ط'], 'وظاء': ['و', 'ظ'],
-    'ودال': ['و', 'د'], 'وذال': ['و', 'ذ'], 'وراء': ['و', 'ر'], 'وزاي': ['و', 'ز'],
-
-    // 3. تداخلات الكاف والهاء والجيم والقاف
-    'تقديم': ['ك', 'ه', 'ج'], 'كهج': ['ك', 'ه', 'ج'], 'تفهيم': ['ت', 'ف', 'ه'],
-    'تعليم': ['ت', 'ع', 'ل'], 'تسليم': ['ت', 'س', 'ل'], 'تكرير': ['ت', 'ك', 'ر'],
-    'افلام': ['ل', 'ق'], 'أفلام': ['ل', 'ق'], 'فلام': ['ل', 'ق'], 'لقاف': ['ل', 'ق'],
-    'لفق': ['ل', 'ف', 'ق'], 'عقب': ['ع', 'ق', 'ب'], 'ابت': ['أ', 'ب', 'ت'],
-
-    // 4. تداخلات الهاء مع باقي الحروف (بهاء، تهاء، ثهاء...)
-    'بهاء': ['ب', 'ه'], 'تهاء': ['ت', 'ه'], 'ثهاء': ['ث', 'ه'], 'جهاء': ['ج', 'ه'],
-    'حاء': ['ح'], 'حهاء': ['ح', 'ه'], 'خهاء': ['خ', 'ه'], 'دهاء': ['د', 'ه'],
-    'ذهاء': ['ذ', 'ه'], 'رهاء': ['ر', 'ه'], 'زهاء': ['ز', 'ه'], 'سهاء': ['س', 'ه'],
-    'سها': ['س', 'ه'], 'شهاء': ['ش', 'ه'], 'صهاء': ['ص', 'ه'], 'ضهاء': ['ض', 'ه'],
-    'طه': ['ط', 'ه'], 'طاء': ['ط'], 'ظهاء': ['ظ', 'ه'], 'عهاء': ['ع', 'ه'],
-    'عها': ['ع', 'ه'], 'غهاء': ['غ', 'ه'], 'فهاء': ['ف', 'ه'], 'قهاء': ['ق', 'ه'],
-    'كهاء': ['ك', 'ه'], 'لهاء': ['ل', 'ه'], 'وهاء': ['و', 'ه'], 'يهاء': ['ي', 'ه'],
-
-    // 5. تداخلات اللام والميم مع الحروف الأخرى
-    'جم': ['ج', 'م'], 'جن': ['ج', 'ن'], 'سل': ['س', 'ل'], 'سم': ['س', 'م'],
-    'سن': ['س', 'ن'], 'بل': ['ب', 'ل'], 'بن': ['ب', 'ن'], 'فل': ['ف', 'ل'],
-    'فن': ['ف', 'ن'], 'قل': ['ق', 'ل'], 'قم': ['ق', 'م'], 'كل': ['ك', 'ل'],
-    'كم': ['ك', 'م'], 'كن': ['ك', 'ن'], 'عل': ['ع', 'ل'], 'عم': ['ع', 'م'],
-  };
-
+// محرك التفكيك الحرفي الجذري لجميع الحروف والكلمات العربية
+class UniversalCharDecomposerEngine {
   static final Map<String, String> singleLetterMap = {
-    // الألف
     'الف': 'أ', 'ألف': 'أ', 'الأف': 'أ', 'ا': 'أ', 'أ': 'أ', 'إ': 'أ', 'آ': 'أ', 'ء': 'أ',
-    // الباء
     'ب': 'ب', 'به': 'ب', 'باء': 'ب', 'با': 'ب', 'بي': 'ب', 'بت': 'ب', 'الباء': 'ب', 'اب': 'ب',
-    // التاء
     'ت': 'ت', 'ته': 'ت', 'تاء': 'ت', 'تا': 'ت', 'تي': 'ت', 'التاء': 'ت', 'ات': 'ت',
-    // الثاء
     'ث': 'ث', 'ثه': 'ث', 'ثاء': 'ث', 'ثا': 'ث', 'الثاء': 'ث', 'اث': 'ث',
-    // الجيم
     'ج': 'ج', 'جيم': 'ج', 'جي': 'ج', 'جا': 'ج', 'الجيم': 'ج', 'اج': 'ج',
-    // الحاء
     'ح': 'ح', 'حه': 'ح', 'حاء': 'ح', 'حا': 'ح', 'حي': 'ح', 'الحاء': 'ح', 'اح': 'ح',
-    // الخاء
     'خ': 'خ', 'خه': 'خ', 'خاء': 'خ', 'خا': 'خ', 'الخاء': 'خ', 'اخ': 'خ',
-    // الدال
     'د': 'د', 'دال': 'د', 'دا': 'د', 'ده': 'د', 'دي': 'د', 'الدال': 'د', 'اد': 'د',
-    // الذال
     'ذ': 'ذ', 'ذال': 'ذ', 'ذا': 'ذ', 'الذال': 'ذ', 'اذ': 'ذ',
-    // الراء
     'ر': 'ر', 'ره': 'ر', 'راء': 'ر', 'را': 'ر', 'ري': 'ر', 'الراء': 'ر', 'ار': 'ر',
-    // الزاي
     'ز': 'ز', 'زين': 'ز', 'زا': 'ز', 'زه': 'ز', 'الزين': 'ز', 'از': 'ز',
-    // السين
     'س': 'س', 'سين': 'س', 'سا': 'س', 'سه': 'س', 'السين': 'س', 'اس': 'س',
-    // الشين
     'ش': 'ش', 'شين': 'ش', 'شا': 'ش', 'شه': 'ش', 'الشين': 'ش', 'اش': 'ش',
-    // الصاد
     'ص': 'ص', 'صاد': 'ص', 'صا': 'ص', 'صه': 'ص', 'الصاد': 'ص', 'اص': 'ص',
-    // الضاد
     'ض': 'ض', 'ضاد': 'ض', 'ضا': 'ض', 'ضه': 'ض', 'الضاد': 'ض', 'اض': 'ض',
-    // الطاء
     'ط': 'ط', 'طين': 'ط', 'طاء': 'ط', 'طا': 'ط', 'الطاء': 'ط', 'اط': 'ط',
-    // الظاء
     'ظ': 'ظ', 'ظاء': 'ظ', 'ظا': 'ظ', 'الظاء': 'ظ', 'اظ': 'ظ',
-    // العين
     'ع': 'ع', 'عين': 'ع', 'عا': 'ع', 'عه': 'ع', 'العين': 'ع', 'اع': 'ع',
-    // الغين
     'غ': 'غ', 'غين': 'غ', 'غا': 'غ', 'الغين': 'غ', 'اغ': 'غ',
-    // الفاء
     'ف': 'ف', 'فه': 'ف', 'فاء': 'ف', 'فا': 'ف', 'في': 'ف', 'الفاء': 'ف', 'اف': 'ف',
-    // القاف
     'ق': 'ق', 'قاف': 'ق', 'قا': 'ق', 'قه': 'ق', 'القاف': 'ق', 'اق': 'ق',
-    // الكاف
     'ك': 'ك', 'كاف': 'ك', 'كا': 'ك', 'كه': 'ك', 'الكاف': 'ك', 'اك': 'ك',
-    // اللام
     'ل': 'ل', 'لام': 'ل', 'لا': 'ل', 'له': 'ل', 'اللام': 'ل', 'ال': 'ل',
-    // الميم
     'م': 'م', 'ميم': 'م', 'مين': 'م', 'ما': 'م', 'مه': 'م', 'الميم': 'م', 'ام': 'م',
-    // النون
     'ن': 'ن', 'نون': 'ن', 'نا': 'ن', 'نه': 'ن', 'النون': 'ن', 'ان': 'ن',
-    // الهاء
     'ه': 'ه', 'هه': 'ه', 'هاء': 'ه', 'ها': 'ه', 'الهاء': 'ه', 'هـ': 'ه',
-    // الواو
     'و': 'و', 'واو': 'و', 'وا': 'و', 'وه': 'و', 'الواو': 'و', 'او': 'و',
-    // الياء
     'ي': 'ي', 'يه': 'ي', 'ياء': 'ي', 'يا': 'ي', 'ى': 'ي', 'الياء': 'ي', 'اي': 'ي',
   };
 
   static final Map<String, String> digitsMap = {
     'صفر': '0', 'زيرو': '0',
     'واحد': '1', 'واحده': '1', 'واحدـ': '1',
-    'اتنين': '2', 'اثنين': '2', 'إثنين': '2', 'تنين': '2', 'تنينـ': '2',
+    'اتنين': '2', 'اثنين': '2', 'إثنين': '2', 'تنين': '2',
     'تلاته': '3', 'ثلاثة': '3', 'تلاتة': '3', 'تلات': '3', 'ثلاث': '3',
     'اربعة': '4', 'اربعه': '4', 'اربع': '4', 'أربع': '4',
     'خمسه': '5', 'خمسة': '5', 'خمس': '5',
@@ -142,7 +77,7 @@ class UniversalPhoneticPlateEngine {
   static List<Map<String, String>> extractPlates(String text) {
     if (text.trim().isEmpty) return [];
 
-    String normalized = _cleanText(text);
+    String normalized = _cleanDigits(text);
     List<String> words = normalized.split(RegExp(r'\s+'));
 
     List<Map<String, String>> results = [];
@@ -153,53 +88,29 @@ class UniversalPhoneticPlateEngine {
       String w = raw.replaceAll(RegExp(r'[^\u0621-\u064A0-9]'), '');
       if (w.isEmpty) continue;
 
-      // 1. فحص الأرقام
+      // 1. هل الكلمة رقم؟
       String? digit = digitsMap[w];
       if (digit != null || RegExp(r'^\d+$').hasMatch(w)) {
         currentDigits += digit ?? w;
         continue;
       }
 
-      // 2. فحص المتشابهات والتداخلات اللغوية المركبة
-      List<String>? compound = compoundWordsMap[w];
-      if (compound != null) {
-        if (currentDigits.length >= 3 && currentLetters.length >= 2) {
-          results.add({
-            'letters': currentLetters.take(3).join(' '),
-            'digits': currentDigits.substring(0, currentDigits.length > 4 ? 4 : currentDigits.length),
-          });
-          currentLetters = List.from(compound);
-          currentDigits = '';
-        } else {
-          for (var l in compound) {
-            if (currentLetters.length < 3) currentLetters.add(l);
-          }
-        }
+      // 2. هل الكلمة اسم صريح لحرف (مثل "عين", "طاء", "قاف")؟
+      String? mappedLetter = singleLetterMap[w];
+      if (mappedLetter != null) {
+        _appendLetter(mappedLetter, currentLetters, currentDigits, results);
         continue;
       }
 
-      // 3. فحص الحروف المفردة
-      String? letter = singleLetterMap[w];
-      if (letter == null && w.length == 1 && RegExp(r'[\u0621-\u064A]').hasMatch(w)) {
-        letter = w;
-      }
-
-      if (letter != null) {
-        if (currentDigits.length >= 3 && currentLetters.length >= 2) {
-          results.add({
-            'letters': currentLetters.take(3).join(' '),
-            'digits': currentDigits.substring(0, currentDigits.length > 4 ? 4 : currentDigits.length),
-          });
-          currentLetters = [letter];
-          currentDigits = '';
-        } else {
-          if (currentLetters.length < 3) {
-            currentLetters.add(letter);
-          }
-        }
+      // 3. الحل الجذري: تفكيك الكلمات المركبة أو التخمينية (مثل "خطه", "نوعين", "تقديم")
+      // استخراج الحروف الصامتة الأصلية من الكلمة مباشرة
+      List<String> decomposedLetters = _decomposeWordToLetters(w);
+      for (String l in decomposedLetters) {
+        _appendLetter(l, currentLetters, currentDigits, results);
       }
     }
 
+    // اعتماد اللوحة الأخيرة
     if (currentLetters.length >= 2 && currentDigits.length >= 3) {
       results.add({
         'letters': currentLetters.take(3).join(' '),
@@ -210,13 +121,51 @@ class UniversalPhoneticPlateEngine {
     return results;
   }
 
-  static String _cleanText(String input) {
+  static void _appendLetter(String letter, List<String> currentLetters, String currentDigits, List<Map<String, String>> results) {
+    if (currentDigits.length >= 3 && currentLetters.length >= 2) {
+      results.add({
+        'letters': currentLetters.take(3).join(' '),
+        'digits': currentDigits.substring(0, currentDigits.length > 4 ? 4 : currentDigits.length),
+      });
+      currentLetters.clear();
+      currentLetters.add(letter);
+    } else {
+      if (currentLetters.length < 3) {
+        currentLetters.add(letter);
+      }
+    }
+  }
+
+  // خوارزمية تفكيك الكلمة العربية إلى حروف لوحة
+  static List<String> _decomposeWordToLetters(String word) {
+    // استثناءات الحروف المدمجة الشائعة
+    if (word == 'نوعين' || word == 'نوعان') return ['ن', 'ع'];
+    if (word == 'واوساط' || word == 'أوساط') return ['و', 'ص'];
+    if (word == 'تقديم' || word == 'كهج') return ['ك', 'ه', 'ج'];
+    if (word == 'افلام' || word == 'أفلام') return ['ل', 'ق'];
+    if (word == 'نهاء') return ['ن', 'ه'];
+
+    // تفكيك تلقائي: استخراج كل حرف عربي وحذف الزوائد والتاء المربوطة
+    List<String> result = [];
+    for (int i = 0; i < word.length; i++) {
+      String ch = word[i];
+      if (ch == 'ة' || ch == 'ه' && i == word.length - 1) {
+        // إذا انتهت الكلمة بتاء مربوطة أو هاء ناتجة عن التخمين (مثل: خطه)
+        continue;
+      }
+      if (RegExp(r'[\u0621-\u064A]').hasMatch(ch)) {
+        result.add(ch == 'أ' || ch == 'إ' || ch == 'آ' ? 'أ' : ch);
+      }
+    }
+    return result;
+  }
+
+  static String _cleanDigits(String input) {
     const ar = ['٠', '١', '٢', '٣', '٤', '٥', '٦', '٧', '٨', '٩'];
     const en = ['0', '1', '2', '3', '4', '5', '6', '7', '8', '9'];
     for (int i = 0; i < ar.length; i++) {
       input = input.replaceAll(ar[i], en[i]);
     }
-    input = input.replaceAll(RegExp(r'(.)\1{2,}'), r'\1');
     return input;
   }
 }
@@ -231,7 +180,7 @@ class SheekhaHomeScreen extends StatefulWidget {
 class _SheekhaHomeScreenState extends State<SheekhaHomeScreen> {
   int _currentIndex = 3;
   bool _isListening = false;
-  String _currentStatusText = 'الميكروفون مهيأ للاستماع المباشر...';
+  String _currentStatusText = 'اضغط الميكروفون للبدء المباشر...';
   double _soundLevel = 0.0;
 
   Timer? _debounceTimer;
@@ -313,7 +262,7 @@ class _SheekhaHomeScreenState extends State<SheekhaHomeScreen> {
       }
       setState(() {
         _isListening = true;
-        _currentStatusText = 'يستمع الآن بطلاقة مستمرة... انطق اللوحات';
+        _currentStatusText = 'يستمع الآن بشكل مستمر... انطق اللوحات';
       });
       _startListeningSession();
     }
@@ -344,7 +293,7 @@ class _SheekhaHomeScreenState extends State<SheekhaHomeScreen> {
 
         _debounceTimer = Timer(const Duration(milliseconds: 100), () {
           if (!mounted) return;
-          List<Map<String, String>> plates = UniversalPhoneticPlateEngine.extractPlates(spoken);
+          List<Map<String, String>> plates = UniversalCharDecomposerEngine.extractPlates(spoken);
 
           for (var p in plates) {
             String letters = p['letters']!;
