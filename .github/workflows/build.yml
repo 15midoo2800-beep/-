@@ -12,26 +12,43 @@ jobs:
       
       - uses: subosito/flutter-action@v2
         with:
-          flutter-version: '3.16.x'
+          flutter-version: '3.19.x'
           channel: 'stable'
           
-      # حذف مجلد أندرويد القديم وإنشاء مجلد حديث كلياً يتوافق مع إصدار فلاتر والـ Gradle
       - name: Recreate Modern Android Project
         run: |
           rm -rf android
           flutter create . --platforms=android --project-name=sheekha_app --org=com.sheekha
 
-      - name: Add Microphone Permissions to AndroidManifest
+      - name: Inject Permissions and Speech Queries into AndroidManifest
         run: |
-          MANIFEST="android/app/src/main/AndroidManifest.xml"
-          if [ -f "$MANIFEST" ]; then
-            sed -i '/<application/i \    <uses-permission android:name="android.permission.RECORD_AUDIO"/>\n    <uses-permission android:name="android.permission.INTERNET"/>\n    <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE"/>' "$MANIFEST"
-          fi
+          python3 -c '
+          path = "android/app/src/main/AndroidManifest.xml"
+          with open(path, "r") as f:
+              content = f.read()
+          permissions = """
+              <uses-permission android:name="android.permission.RECORD_AUDIO"/>
+              <uses-permission android:name="android.permission.INTERNET"/>
+              <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE"/>
+              <uses-permission android:name="android.permission.BLUETOOTH"/>
+              <uses-permission android:name="android.permission.BLUETOOTH_ADMIN"/>
+              <uses-permission android:name="android.permission.BLUETOOTH_CONNECT"/>
+              <queries>
+                  <intent>
+                      <action android:name="android.speech.RecognitionService" />
+                  </intent>
+              </queries>
+          """
+          content = content.replace("<application", permissions + "\n    <application", 1)
+          with open(path, "w") as f:
+              f.write(content)
+          '
 
       - name: Update minSdkVersion to 21
         run: |
           if [ -f "android/app/build.gradle" ]; then
             sed -i 's/minSdkVersion flutter.minSdkVersion/minSdkVersion 21/g' android/app/build.gradle
+            sed -i 's/minSdk = flutter.minSdkVersion/minSdk = 21/g' android/app/build.gradle
           fi
           
       - run: flutter pub get
