@@ -28,9 +28,15 @@ class MyApp extends StatelessWidget {
   }
 }
 
-// محرك متطور يفك شفرة الحروف المدمجة ويدير التجميع الذكي للوحات في الكلام السريع
+// محرك متطور يفكك الكلمات الشائعة المتداخلة صوتياً مع أحرف اللوحات
 class SmartStreamTokenizer {
   static final Map<String, List<String>> spokenLettersGroupMap = {
+    // الكلمات التي ينتجها محرك الصوت بالخطأ عند نطق حرفين متتاليين
+    'افلام': ['ل', 'ق'],
+    'أفلام': ['ل', 'ق'],
+    'فلام': ['ل', 'ق'],
+    'لقاف': ['ل', 'ق'],
+    'لامقاف': ['ل', 'ق'],
     'لمن': ['ل', 'م', 'ن'],
     'لم': ['ل', 'م'],
     'من': ['م', 'ن'],
@@ -47,6 +53,7 @@ class SmartStreamTokenizer {
     'سل': ['س', 'ل'],
     'سم': ['س', 'م'],
     'سن': ['س', 'ن'],
+    // الحروف الفردية وأسماؤها الصريحة
     'الف': ['أ'], 'ألف': ['أ'], 'الأف': ['أ'], 'اء': ['أ'], 'ا': ['أ'], 'أ': ['أ'], 'إ': ['أ'],
     'ب': ['ب'], 'به': ['ب'], 'باء': ['ب'], 'با': ['ب'], 'بي': ['ب'], 'بت': ['ب'], 'الباء': ['ب'],
     'ج': ['ج'], 'جيم': ['ج'], 'جى': ['ج'], 'الجيم': ['ج'],
@@ -273,7 +280,7 @@ class _SheekhaHomeScreenState extends State<SheekhaHomeScreen> {
 
         _debounceTimer?.cancel();
 
-        _debounceTimer = Timer(const Duration(milliseconds: 400), () {
+        _debounceTimer = Timer(const Duration(milliseconds: 350), () {
           if (!mounted) return;
           List<Map<String, String>> extractedPlates = SmartStreamTokenizer.extractAllPlates(spoken);
 
