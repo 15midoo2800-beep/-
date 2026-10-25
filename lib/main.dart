@@ -26,15 +26,16 @@ class MyApp extends StatelessWidget {
   }
 }
 
-// محرك الفلترة الذكية واستخراج أنماط اللوحات (RegEx Parser)
+// محرك التنقية الفورية للصوت الحي دون قيم وهمية
 class PlateParser {
   static Map<String, String> extractPlate(String rawText) {
+    // تنظيف النص المنطوق واستخراج الأرقام والحروف الحقيقية فقط
     String digits = _extractDigits(rawText);
     String letters = _extractLetters(rawText);
 
     return {
-      'letters': letters.isNotEmpty ? letters : 'د م س',
-      'digits': digits.isNotEmpty ? digits : '9599',
+      'letters': letters.isNotEmpty ? letters : rawText, // إذا لم تُعزل، يعرض النص المنطوق بوضوح
+      'digits': digits.isNotEmpty ? digits : '',
     };
   }
 
@@ -49,12 +50,9 @@ class PlateParser {
   }
 
   static String _extractLetters(String text) {
-    RegExp arabicLetters = RegExp(r'[\u0621-\u064A]');
-    Iterable<Match> matches = arabicLetters.allMatches(text);
-    if (matches.isNotEmpty) {
-      return matches.map((m) => m.group(0)).take(4).join(' ');
-    }
-    return '';
+    // استبعاد الأرقام وإبقاء الحروف المنطوقة
+    String cleaned = text.replaceAll(RegExp(r'[\d٠-٩]'), '').trim();
+    return cleaned;
   }
 
   static String _normalizeNumbers(String input) {
@@ -120,7 +118,7 @@ class _SheekhaHomeScreenState extends State<SheekhaHomeScreen> {
     setState(() {
       _speechEnabled = available;
       if (available) {
-        _currentStatusText = 'الميكروفون جاهز، انطق اللوحة...';
+        _currentStatusText = 'الميكروفون جاهز، انطق اللوحة الآن...';
       }
     });
   }
@@ -145,7 +143,7 @@ class _SheekhaHomeScreenState extends State<SheekhaHomeScreen> {
     prefs.setString('sheekha_excel_name', _excelFileName);
   }
 
-  // الاستماع الصوتي الحي والتقاط التدفق (Live Voice Stream)
+  // التقاط الصوت الحي الحقيقي
   void _toggleLiveListening() async {
     if (!_speechEnabled) {
       await _initSpeechEngine();
@@ -177,29 +175,27 @@ class _SheekhaHomeScreenState extends State<SheekhaHomeScreen> {
     }
   }
 
-  // معالجة وتصفية الصوت الحي فوريًا وتحديث القائمة
+  // معالجة الصوت الحقيقي وإضافته للأرشيف دون قيم وهمية
   void _processAndFilterLiveSpeech(String rawSpeech) {
     Map<String, String> parsedPlate = PlateParser.extractPlate(rawSpeech);
     String cleanLetters = parsedPlate['letters']!;
     String cleanDigits = parsedPlate['digits']!;
 
-    // مطابقة مع قاعدة بيانات الإكسيل
+    // مطابقة حقيقية مع قاعدة بيانات الإكسيل المرفوعة
     var match = _wantedDatabase.firstWhere(
-      (car) => car['digits'] == cleanDigits,
+      (car) => car['digits'] == cleanDigits && cleanDigits.isNotEmpty,
       orElse: () => {},
     );
 
-    bool isWanted = match.isNotEmpty || cleanDigits == '9599';
-    Map<String, String> carDetails = isWanted && match.isEmpty ? {
-      'type': 'تويوتا', 'owner': 'أهلي قمة', 'chassis': 'REG-SAMPLE'
-    } : match;
+    bool isWanted = match.isNotEmpty;
+    Map<String, String> carDetails = isWanted ? match : {};
 
     int newId = _records.length + 1;
     setState(() {
       _records.insert(0, {
         'id': newId.toString(),
         'letters': cleanLetters,
-        'digits': cleanDigits,
+        'digits': cleanDigits.isNotEmpty ? cleanDigits : '---',
         'district': _currentDistrict,
         'street': _currentStreet,
         'note': _selectedNote,
@@ -212,10 +208,13 @@ class _SheekhaHomeScreenState extends State<SheekhaHomeScreen> {
     if (isWanted) {
       HapticFeedback.heavyImpact();
       _showWantedAlertModal(carDetails, cleanLetters, cleanDigits);
+    } else {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('تم رصد وتسجيل اللوحة في الأرشيف بنجاح', textDirection: TextDirection.rtl), backgroundColor: Color(0xFF06D6A0)),
+      );
     }
   }
 
-  // رفع وقراءة ملف الإكسيل الحقيقي
   Future<void> _pickAndParseExcelFile() async {
     FilePickerResult? result = await FilePicker.platform.pickFiles(
       type: FileType.custom,
@@ -254,12 +253,11 @@ class _SheekhaHomeScreenState extends State<SheekhaHomeScreen> {
       _checkHistoricalRecordsAgainstNewDatabase();
 
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('تم قراءة ملف الإكسيل وتحديث قاعدة البيانات بنجاح!', textDirection: TextDirection.rtl), backgroundColor: Color(0xFF06D6A0)),
+        const SnackBar(content: Text('تم قراءة ملف الإكسيل الحقيقي وتحديث قاعدة البيانات بنجاح!', textDirection: TextDirection.rtl), backgroundColor: Color(0xFF06D6A0)),
       );
     }
   }
 
-  // فحص الأرشيف التاريخي (مقارنة سيارات رصدناها سابقاً بملف الإكسيل الجديد)
   void _checkHistoricalRecordsAgainstNewDatabase() {
     for (var record in _records) {
       var match = _wantedDatabase.firstWhere(
