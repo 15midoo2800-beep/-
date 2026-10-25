@@ -27,97 +27,153 @@ class MyApp extends StatelessWidget {
   }
 }
 
-// المحرك الذكي لتحويل الكلام المنطوق باللهجة المصرية والعربية إلى حروف وأرقام لوحات
-class SmartPlateProcessor {
-  static final Map<String, String> spokenLettersMap = {
-    'الف': 'ا', 'ألف': 'ا', 'اء': 'ا', 'ا': 'ا', 'أ': 'ا',
-    'ب': 'ب', 'به': 'ب', 'باء': 'ب', 'با': 'ب', 'بي': 'ب',
-    'ح': 'ح', 'حه': 'ح', 'حاء': 'ح', 'حا': 'ح',
+// المحرك الفوري لاستخراج اللوحات من الصوت الحي وتجاهل الكلام الخارجي
+class LivePlateExtractor {
+  // الحروف المعتمدة في اللوحات (المصرية والسعودية)
+  static const String validPlateChars = 'ابتثجحخدذرزسشصضطظعغفقكلمنهويىأإآؤئ';
+
+  static final Map<String, String> spokenLetters = {
+    'الف': 'أ', 'ألف': 'أ', 'إلف': 'أ', 'ا': 'أ', 'أ': 'أ', 'إ': 'أ', 'آ': 'أ', 'همزه': 'أ', 'همزة': 'أ',
+    'ب': 'ب', 'به': 'ب', 'بة': 'ب', 'باء': 'ب', 'با': 'ب', 'بي': 'ب',
+    'ت': 'ت', 'ته': 'ت', 'تاء': 'ت',
+    'ث': 'ث', 'ثه': 'ث', 'ثاء': 'ث',
+    'ج': 'ج', 'جيم': 'ج', 'جم': 'ج',
+    'ح': 'ح', 'حه': 'ح', 'حة': 'ح', 'حاء': 'ح', 'حا': 'ح',
+    'خ': 'خ', 'خه': 'خ', 'خاء': 'خ',
     'د': 'د', 'دال': 'د', 'دل': 'د',
-    'ر': 'ر', 'ره': 'ر', 'راء': 'ر', 'را': 'ر',
+    'ذ': 'ذ', 'ذال': 'ذ',
+    'ر': 'ر', 'ره': 'ر', 'رة': 'ر', 'راء': 'ر', 'را': 'ر',
+    'ز': 'ز', 'زين': 'ز', 'زاي': 'ز',
     'س': 'س', 'سين': 'س', 'سن': 'س',
+    'ش': 'ش', 'شين': 'ش',
     'ص': 'ص', 'صاد': 'ص', 'صد': 'ص',
-    'ط': 'ط', 'طه': 'ط', 'طاء': 'ط', 'طا': 'ط',
+    'ض': 'ض', 'ضاد': 'ض', 'ضد': 'ض',
+    'ط': 'ط', 'طه': 'ط', 'طة': 'ط', 'طاء': 'ط', 'طا': 'ط',
+    'ظ': 'ظ', 'ظه': 'ظ', 'ظاء': 'ظ',
     'ع': 'ع', 'عين': 'ع', 'عن': 'ع',
+    'غ': 'غ', 'غين': 'غ',
+    'ف': 'ف', 'فه': 'ف', 'فة': 'ف', 'فاء': 'ف', 'فا': 'ف',
     'ق': 'ق', 'قاف': 'ق', 'قف': 'ق',
     'ك': 'ك', 'كاف': 'ك', 'كف': 'ك',
     'ل': 'ل', 'لام': 'ل', 'لم': 'ل',
     'م': 'م', 'ميم': 'م', 'مم': 'م',
     'ن': 'ن', 'نون': 'ن', 'نن': 'ن',
-    'ه': 'ه', 'هه': 'ه', 'هاء': 'ه', 'ها': 'ه', 'هـ': 'ه',
+    'ه': 'هـ', 'هه': 'هـ', 'هة': 'هـ', 'هاء': 'هـ', 'ها': 'هـ', 'هـ': 'هـ',
     'و': 'و', 'واو': 'و', 'وو': 'و',
-    'ى': 'ي', 'ي': 'ي', 'يه': 'ي', 'ياء': 'ي', 'يا': 'ي',
-    'ج': 'ج', 'جيم': 'ج',
-    'ف': 'ف', 'فه': 'ف', 'فاء': 'ف',
+    'ي': 'ي', 'ى': 'ي', 'يه': 'ي', 'ية': 'ي', 'ياء': 'ي', 'يا': 'ي',
   };
 
-  static final Map<String, String> spokenDigitsMap = {
+  static final Map<String, String> spokenDigits = {
     'صفر': '0', 'زيرو': '0',
-    'واحد': '1', 'واحده': '1',
-    'اثنين': '2', 'اتنين': '2', 'إثنين': '2', 'تنين': '2',
+    'واحد': '1', 'واحده': '1', 'واحدة': '1', 'وحده': '1',
+    'اثنين': '2', 'اتنين': '2', 'إثنين': '2', 'تنين': '2', 'اثنان': '2',
     'ثلاثه': '3', 'ثلاثة': '3', 'تلاته': '3', 'تلاتة': '3', 'تلات': '3', 'ثلاث': '3',
-    'اربعه': '4', 'أربعة': '4', 'اربعة': '4', 'اربع': '4', 'أربع': '4',
+    'اربعه': '4', 'أربعة': '4', 'اربعة': '4', 'اربع': '4', 'أربع': '4', 'أربعه': '4',
     'خمسه': '5', 'خمسة': '5', 'خمس': '5',
     'سته': '6', 'ستة': '6', 'ست': '6',
     'سبعه': '7', 'سبعة': '7', 'سبع': '7',
-    'ثمانيه': '8', 'ثمانية': '8', 'تمانيه': '8', 'تمانية': '8', 'تمن': '8', 'ثمان': '8',
+    'ثمانيه': '8', 'ثمانية': '8', 'تمانيه': '8', 'تمانية': '8', 'تمن': '8', 'ثمان': '8', 'تماني': '8',
     'تسعه': '9', 'تسعة': '9', 'تسع': '9',
   };
 
-  static final List<String> carTypes = [
-    'دينا', 'ديانا', 'تويوتا', 'هيونداي', 'كيا', 'نيسان', 'مرسيدس', 'بي ام', 'شفروليه', 'ربع', 'جامبو', 'ملاكي', 'نقل'
-  ];
+  static final Map<String, String> carTypes = {
+    'دينا': 'دينا', 'ديانا': 'دينا', 'دينه': 'دينا',
+    'تويوتا': 'تويوتا', 'تيوتا': 'تويوتا', 'هايلوكس': 'هايلوكس', 'توسان': 'توسان',
+    'هيونداي': 'هيونداي', 'هونداي': 'هيونداي', 'النترا': 'النترا', 'اكسنت': 'اكسنت',
+    'كيا': 'كيا', 'سيراتو': 'سيراتو', 'سبورتاج': 'سبورتاج',
+    'نيسان': 'نيسان', 'صني': 'صني', 'تيدا': 'تيدا',
+    'مرسيدس': 'مرسيدس', 'بي': 'بي ام', 'شفروليه': 'شفروليه', 'شيفروليه': 'شفروليه',
+    'ربع': 'ربع نقل', 'جامبو': 'جامبو', 'ملاكي': 'ملاكي', 'نقل': 'نقل', 'ميكروباص': 'ميكروباص',
+  };
 
-  static Map<String, String>? parseSpokenText(String rawText) {
-    if (rawText.trim().isEmpty) return null;
+  /// يحول النص المنطوق بالكامل إلى رموز لوحات ويستخرج اللوحة المكتملة
+  static Map<String, String>? extractFromLiveStream(String rawSpeech) {
+    if (rawSpeech.trim().isEmpty) return null;
 
-    String normalized = _normalizeArabicNumbers(rawText);
-    List<String> words = normalized.split(RegExp(r'\s+'));
+    String normalized = normalizeNumbers(rawSpeech);
+    // فصل الأرقام الملتصقة بالحروف (مثل دبد2718 -> دبد 2718)
+    normalized = normalized.replaceAllMapped(
+        RegExp(r'([\u0621-\u064A])(\d)'), (m) => '${m[1]} ${m[2]}');
+    normalized = normalized.replaceAllMapped(
+        RegExp(r'(\d)([\u0621-\u064A])'), (m) => '${m[1]} ${m[2]}');
 
-    List<String> extractedLetters = [];
-    String extractedDigits = '';
+    List<String> tokens = normalized.split(RegExp(r'\s+'));
+
+    List<String> currentLetters = [];
+    String currentDigits = '';
     String detectedType = '-';
 
-    for (String word in words) {
-      String cleanWord = word.replaceAll(RegExp(r'[^\u0621-\u064A0-9]'), '');
-      if (cleanWord.isEmpty) continue;
+    for (int i = 0; i < tokens.length; i++) {
+      String word = tokens[i].replaceAll(RegExp(r'[^\u0621-\u064A0-9]'), '');
+      if (word.isEmpty) continue;
 
-      if (carTypes.contains(cleanWord)) {
-        detectedType = cleanWord == 'ديانا' ? 'دينا' : cleanWord;
+      // 1. فحص هل الكلمة نوع سيارة
+      if (carTypes.containsKey(word)) {
+        detectedType = carTypes[word]!;
         continue;
       }
 
-      if (spokenDigitsMap.containsKey(cleanWord)) {
-        extractedDigits += spokenDigitsMap[cleanWord]!;
+      // 2. فحص هل الكلمة رقم منطوق (واحد، اثنين...)
+      if (spokenDigits.containsKey(word)) {
+        // إذا بدأنا في الأرقام بعد جمع الحروف
+        currentDigits += spokenDigits[word]!;
         continue;
       }
 
-      if (RegExp(r'^\d+$').hasMatch(cleanWord)) {
-        extractedDigits += cleanWord;
+      // 3. فحص هل الكلمة أرقام صريحة (مثل 2718 أو 2 7 1 8)
+      if (RegExp(r'^\d+$').hasMatch(word)) {
+        currentDigits += word;
         continue;
       }
 
-      if (spokenLettersMap.containsKey(cleanWord)) {
-        if (extractedLetters.length < 4) {
-          extractedLetters.add(spokenLettersMap[cleanWord]!);
+      // 4. فحص هل الكلمة اسم حرف منطوق (دال، به، سين، نون...)
+      if (spokenLetters.containsKey(word)) {
+        // إذا كان لدينا لوحة سابقة مكتملة وبدأ ينطق حروف لوحة جديدة، نصفر لتسجيل الجديدة
+        if (currentLetters.length >= 2 && currentDigits.length >= 3) {
+          break;
+        }
+        if (currentDigits.isEmpty && currentLetters.length < 4) {
+          currentLetters.add(spokenLetters[word]!);
         }
         continue;
       }
 
-      if (cleanWord.length == 1 && RegExp(r'[\u0621-\u064A]').hasMatch(cleanWord)) {
-        if (extractedLetters.length < 4) {
-          extractedLetters.add(cleanWord);
+      // 5. ماذا لو دمج جوجل الحروف المنطوقة في كلمة قصيرة من 2 أو 3 حروف (مثل: "دبد" أو "طسق" أو "اند")؟
+      // بشرط ألا تكون من كلمات الكلام العادي الشائعة
+      if (word.length >= 2 &&
+          word.length <= 3 &&
+          currentDigits.isEmpty &&
+          currentLetters.isEmpty &&
+          !_isCommonFillerWord(word)) {
+        // نتحقق هل يتبعها في الجملة أرقام؟ إذا كان بعدها أرقام فهي بالتأكيد حروف لوحة مدمجة!
+        bool followedByNumbers = _checkIfFollowedByNumbers(tokens, i + 1);
+        if (followedByNumbers) {
+          for (int c = 0; c < word.length; c++) {
+            String ch = word[c];
+            if (spokenLetters.containsKey(ch)) {
+              currentLetters.add(spokenLetters[ch]!);
+            } else {
+              currentLetters.add(ch);
+            }
+          }
+          continue;
         }
+      }
+
+      // 6. إذا كانت كلمة كلام عادي طويل (مثل: "تعال"، "نسجل"، "النهارده") ولم يكتمل النمط بعد، نصفر الحروف العشوائية
+      if (currentDigits.isEmpty && word.length > 3 && !spokenLetters.containsKey(word)) {
+        currentLetters.clear();
       }
     }
 
-    if (extractedLetters.length >= 2 && extractedDigits.length >= 2) {
-      if (extractedDigits.length > 4) {
-        extractedDigits = extractedDigits.substring(extractedDigits.length - 4);
+    // شرط اعتماد اللوحة: من 2 إلى 4 حروف + من 2 إلى 4 أرقام
+    if (currentLetters.length >= 2 && currentDigits.length >= 2) {
+      if (currentDigits.length > 4) {
+        currentDigits = currentDigits.substring(0, 4);
       }
       return {
-        'letters': extractedLetters.take(3).join(' '),
-        'digits': extractedDigits,
+        'letters': currentLetters.take(3).join(' '),
+        'digits': currentDigits,
         'type': detectedType,
       };
     }
@@ -125,13 +181,42 @@ class SmartPlateProcessor {
     return null;
   }
 
-  static String _normalizeArabicNumbers(String input) {
+  static bool _checkIfFollowedByNumbers(List<String> tokens, int startIndex) {
+    for (int j = startIndex; j < min(tokens.length, startIndex + 3); j++) {
+      String w = tokens[j].replaceAll(RegExp(r'[^\u0621-\u064A0-9]'), '');
+      if (RegExp(r'^\d+$').hasMatch(w) || spokenDigits.containsKey(w)) {
+        return true;
+      }
+    }
+    return false;
+  }
+
+  static bool _isCommonFillerWord(String w) {
+    const fillers = {
+      'انا', 'أنت', 'انت', 'مش', 'من', 'في', 'على', 'علي', 'عن', 'مع', 'ده', 'دي',
+      'كده', 'كدا', 'هنا', 'بس', 'لو', 'او', 'أو', 'ثم', 'اي', 'أي', 'كل', 'ولا',
+      'يا', 'اه', 'لا', 'طيب', 'طب', 'عم', 'اللي', 'الي', 'هو', 'هي', 'هم'
+    };
+    return fillers.contains(w);
+  }
+
+  static String normalizeNumbers(String input) {
     const arabic = ['٠', '١', '٢', '٣', '٤', '٥', '٦', '٧', '٨', '٩'];
     const english = ['0', '1', '2', '3', '4', '5', '6', '7', '8', '9'];
     for (int i = 0; i < arabic.length; i++) {
       input = input.replaceAll(arabic[i], english[i]);
     }
     return input;
+  }
+
+  // توحيد شكل الحروف والأرقام عند المقارنة مع شيت الإكسيل
+  static String normalizeForComparison(String text) {
+    String s = normalizeNumbers(text);
+    s = s.replaceAll(RegExp(r'\s+'), '');
+    s = s.replaceAll('أ', 'ا').replaceAll('إ', 'ا').replaceAll('آ', 'ا');
+    s = s.replaceAll('هـ', 'ه').replaceAll('ة', 'ه');
+    s = s.replaceAll('ى', 'ي');
+    return s;
   }
 }
 
@@ -143,11 +228,15 @@ class SheekhaHomeScreen extends StatefulWidget {
 }
 
 class _SheekhaHomeScreenState extends State<SheekhaHomeScreen> {
-  int _currentIndex = 3;
+  int _currentIndex = 1; // تبويب التسجيل
   bool _isListening = false;
-  String _currentStatusText = 'اضغط الميكروفون وابدأ نطق اللوحات...';
+  String _currentStatusText = 'اضغط الميكروفون وابدأ نطق اللوحة...';
   double _soundLevel = 0.0;
-  String _lastProcessedPlate = '';
+
+  // لتتبع الكلمات التي تمت معالجتها داخل نفس الجملة الصوتية المستمرة
+  int _processedWordIndex = 0;
+  String _lastAddedPlateKey = '';
+  DateTime _lastAddedTime = DateTime.fromMillisecondsSinceEpoch(0);
 
   final stt.SpeechToText _speech = stt.SpeechToText();
   bool _speechEnabled = false;
@@ -180,7 +269,7 @@ class _SheekhaHomeScreenState extends State<SheekhaHomeScreen> {
       bool available = await _speech.initialize(
         onStatus: (status) {
           if ((status == 'done' || status == 'notListening') && _isListening) {
-            Future.delayed(const Duration(milliseconds: 250), () {
+            Future.delayed(const Duration(milliseconds: 150), () {
               if (_isListening && mounted) {
                 _startListeningSession();
               }
@@ -189,7 +278,7 @@ class _SheekhaHomeScreenState extends State<SheekhaHomeScreen> {
         },
         onError: (error) {
           if (_isListening && mounted) {
-            Future.delayed(const Duration(milliseconds: 400), () {
+            Future.delayed(const Duration(milliseconds: 300), () {
               if (_isListening && mounted) {
                 _startListeningSession();
               }
@@ -200,21 +289,25 @@ class _SheekhaHomeScreenState extends State<SheekhaHomeScreen> {
 
       if (available) {
         var locales = await _speech.locales();
-        var arabicLocale = locales.firstWhere(
-          (l) => l.localeId.startsWith('ar'),
-          orElse: () => stt.LocaleName('ar_EG', 'Arabic'),
+        // اختيار اللغة العربية الأنسب في الجهاز
+        var arLocale = locales.firstWhere(
+          (l) => l.localeId.toLowerCase().contains('ar_eg') || l.localeId.toLowerCase().contains('ar_sa'),
+          orElse: () => locales.firstWhere(
+            (l) => l.localeId.toLowerCase().startsWith('ar'),
+            orElse: () => stt.LocaleName('ar', 'Arabic'),
+          ),
         );
-        _selectedLocaleId = arabicLocale.localeId;
+        _selectedLocaleId = arLocale.localeId;
       }
 
       setState(() {
         _speechEnabled = available;
         _currentStatusText = available
-            ? 'الميكروفون جاهز ($_selectedLocaleId) - اضغط للتسجيل'
-            : 'تأكد من تفعيل تطبيق Google والاتصال بالإنترنت';
+            ? 'جاهز للرصد الصوتي - اضغط الميكروفون وتحدث'
+            : 'خدمة التعرف الصوتي من Google غير مفعلة بالهاتف';
       });
     } catch (e) {
-      setState(() => _currentStatusText = 'خطأ تهيئة الميكروفون: $e');
+      setState(() => _currentStatusText = 'خطأ في الميكروفون: $e');
     }
   }
 
@@ -233,8 +326,8 @@ class _SheekhaHomeScreenState extends State<SheekhaHomeScreen> {
       }
       setState(() {
         _isListening = true;
-        _lastProcessedPlate = '';
-        _currentStatusText = 'يستمع الآن... انطق الحروف ثم الأرقام';
+        _processedWordIndex = 0;
+        _currentStatusText = 'تكلم الآن... (مثال: دال به دال 2718)';
       });
       _startListeningSession();
     }
@@ -242,13 +335,15 @@ class _SheekhaHomeScreenState extends State<SheekhaHomeScreen> {
 
   void _startListeningSession() async {
     if (!_isListening) return;
+    _processedWordIndex = 0;
+
     await _speech.listen(
       localeId: _selectedLocaleId,
       listenMode: stt.ListenMode.dictation,
-      partialResults: true,
+      partialResults: true, // حاسم جداً: يقرأ كلامك لحظياً قبل انتهاء الجملة!
       cancelOnError: false,
-      listenFor: const Duration(seconds: 30),
-      pauseFor: const Duration(seconds: 3),
+      listenFor: const Duration(seconds: 60),
+      pauseFor: const Duration(seconds: 5),
       onSoundLevelChange: (level) {
         if (mounted) {
           setState(() {
@@ -258,53 +353,61 @@ class _SheekhaHomeScreenState extends State<SheekhaHomeScreen> {
       },
       onResult: (result) {
         if (!mounted) return;
-        String spoken = result.recognizedWords.trim();
-        if (spoken.isNotEmpty) {
-          setState(() {
-            _currentStatusText = spoken;
-          });
-        }
+        String fullSpoken = result.recognizedWords.trim();
+        if (fullSpoken.isEmpty) return;
 
-        if (result.finalResult && spoken.isNotEmpty) {
-          _analyzeAndAddPlate(spoken);
+        // عرض النص المنطوق أمامك في الشريط العلوي لحظة بلحظة كما في الفيديو
+        setState(() {
+          _currentStatusText = fullSpoken;
+        });
+
+        // أخذ الجزء الجديد فقط من الكلام الذي لم نتحقق منه بعد في هذه الجلسة
+        List<String> allWords = fullSpoken.split(RegExp(r'\s+'));
+        if (_processedWordIndex > allWords.length) {
+          _processedWordIndex = 0;
+        }
+        StringunprocessedSegment = allWords.sublist(_processedWordIndex).join(' ');
+
+        // محاولة استخراج لوحة من الكلمات المنطوقة حالياً
+        var extracted = LivePlateExtractor.extractFromLiveStream(unprocessedSegment);
+        if (extracted != null) {
+          // انتظر جزءاً صغيراً من الثانية أو تأكد من اكتمال 3-4 أرقام حتى لا يقطع الرقم قبل أن تكمل نطقه
+          String digits = extracted['digits']!;
+          if (digits.length >= 3 || result.finalResult) {
+            _processedWordIndex = allWords.length; // تصفير المؤشر للبدء في التقاط اللوحة التالية!
+            _addCapturedPlateToList(extracted);
+          }
         }
       },
     );
   }
 
-  void _analyzeAndAddPlate(String spokenText) {
-    var parsed = SmartPlateProcessor.parseSpokenText(spokenText);
-    if (parsed == null) return;
-
+  void _addCapturedPlateToList(Map<String, String> parsed) {
     String letters = parsed['letters']!;
     String digits = parsed['digits']!;
     String carType = parsed['type']!;
-    String fullPlateKey = '$letters-$digits';
+    String plateKey = '${LivePlateExtractor.normalizeForComparison(letters)}-$digits';
 
-    if (fullPlateKey == _lastProcessedPlate) return;
-    _lastProcessedPlate = fullPlateKey;
+    // منع إضافة نفس اللوحة مرتين في نفس الثانيتين بسبب تحديثات الصوت السريعة
+    if (plateKey == _lastAddedPlateKey &&
+        DateTime.now().difference(_lastAddedTime).inSeconds < 3) {
+      return;
+    }
+    _lastAddedPlateKey = plateKey;
+    _lastAddedTime = DateTime.now();
 
-    String cleanInputDigits = digits.trim();
-    String cleanInputLetters = letters.replaceAll(' ', '');
-
-    var match = _wantedDatabase.firstWhere(
-      (car) {
-        String dbDigits = (car['digits'] ?? '').trim();
-        String dbLetters = (car['letters'] ?? '').replaceAll(' ', '');
-        return dbDigits == cleanInputDigits &&
-            (dbLetters.isEmpty || dbLetters == cleanInputLetters);
-      },
-      orElse: () => {},
-    );
-
-    bool isWanted = match.isNotEmpty;
+    // البحث في شيت الإكسيل للسيارات المطلوبة
+    Map<String, String> matchedCar = _findInWantedDatabase(letters, digits);
+    bool isWanted = matchedCar.isNotEmpty;
 
     setState(() {
       _records.insert(0, {
         'id': (_records.length + 1).toString(),
         'letters': letters,
         'digits': digits,
-        'type': isWanted ? (match['type'] ?? carType) : carType,
+        'type': isWanted && (matchedCar['type'] ?? '').isNotEmpty && matchedCar['type'] != '-'
+            ? matchedCar['type']!
+            : carType,
         'district': _currentDistrict,
         'street': _currentStreet,
         'note': _selectedNote == 'بدون' ? '+' : _selectedNote,
@@ -317,10 +420,141 @@ class _SheekhaHomeScreenState extends State<SheekhaHomeScreen> {
     HapticFeedback.mediumImpact();
 
     if (isWanted) {
+      // إطلاق الإنذار الصوتي والاهتزاز القوي وفتح نافذة التحذير الحمراء
+      _triggerAlarmAndModal(matchedCar, letters, digits);
+    }
+  }
+
+  Map<String, String> _findInWantedDatabase(String spokenLetters, String spokenDigits) {
+    String normSpokenLetters = LivePlateExtractor.normalizeForComparison(spokenLetters);
+    String normSpokenDigits = LivePlateExtractor.normalizeNumbers(spokenDigits).trim();
+
+    for (var car in _wantedDatabase) {
+      String dbDigits = LivePlateExtractor.normalizeNumbers(car['digits'] ?? '').trim();
+      String dbLetters = LivePlateExtractor.normalizeForComparison(car['letters'] ?? '');
+
+      if (dbDigits == normSpokenDigits && dbDigits.isNotEmpty) {
+        if (dbLetters.isEmpty || dbLetters == normSpokenLetters || dbLetters.contains(normSpokenLetters) || normSpokenLetters.contains(dbLetters)) {
+          return car;
+        }
+      }
+    }
+    return {};
+  }
+
+  void _triggerAlarmAndModal(Map<String, String> car, String letters, String digits) async {
+    // تكرار نغمة التنبيه والاهتزاز لتنبيه المستخدم بقوة كما في الفيديو
+    for (int i = 0; i < 3; i++) {
       HapticFeedback.heavyImpact();
       SystemSound.play(SystemSoundType.alert);
-      _showWantedAlertModal(match, letters, digits);
+      await Future.delayed(const Duration(milliseconds: 350));
     }
+    if (mounted) {
+      _showWantedAlertModal(car, letters, digits);
+    }
+  }
+
+  // قراءة شيت الإكسيل بذكاء مهما كان ترتيب الأعمدة
+  Future<void> _pickAndParseExcelFile() async {
+    FilePickerResult? result = await FilePicker.platform.pickFiles(
+      type: FileType.custom,
+      allowedExtensions: ['xlsx', 'xls', 'csv'],
+    );
+
+    if (result != null && result.files.single.path != null) {
+      var bytes = File(result.files.single.path!).readAsBytesSync();
+      var excel = ex.Excel.decodeBytes(bytes);
+      List<Map<String, String>> extractedCars = [];
+
+      for (var table in excel.tables.keys) {
+        var sheet = excel.tables[table];
+        if (sheet == null) continue;
+
+        for (int rowIndex = 0; rowIndex < sheet.rows.length; rowIndex++) {
+          var row = sheet.rows[rowIndex];
+          if (row.isEmpty) continue;
+
+          // تجميع خلايا الصف
+          List<String> cells = row.map((c) => c?.value?.toString().trim() ?? '').toList();
+          String joinedRow = cells.join(' ');
+          if (joinedRow.trim().isEmpty || joinedRow.contains('اللوحة') || joinedRow.contains('الحروف')) {
+            continue; // تخطي صف العناوين
+          }
+
+          String foundDigits = '';
+          String foundLetters = '';
+          String type = '-';
+          String owner = 'مطلوبة في الشيت';
+          String chassis = '-';
+
+          // البحث في خلايا الصف عن اللوحة (سواء في خلية واحدة مثل "د م س 9599" أو في خليتين)
+          for (int c = 0; c < cells.length; c++) {
+            String cellVal = LivePlateExtractor.normalizeNumbers(cells[c]);
+            if (cellVal.isEmpty) continue;
+
+            // هل الخلية تحتوي على حروف وأرقام معاً؟ (مثل: دمس 9599 أو د ب د 2718)
+            var digitMatches = RegExp(r'\d{2,4}').allMatches(cellVal);
+            var letterMatches = RegExp(r'[\u0621-\u064A\s]{2,10}').allMatches(cellVal);
+
+            if (digitMatches.isNotEmpty && letterMatches.isNotEmpty && cellVal.length <= 15 && foundDigits.isEmpty) {
+              foundDigits = digitMatches.first.group(0)!;
+              String rawL = cellVal.replaceAll(RegExp(r'[\d\-\|_]'), '').trim();
+              // تفريق الحروف إذا كانت ملتصقة مثل "دمس" -> "د م س"
+              foundLetters = rawL.replaceAll(' ', '').split('').join(' ');
+            } else if (RegExp(r'^\d{2,4}$').hasMatch(cellVal) && foundDigits.isEmpty) {
+              foundDigits = cellVal;
+            } else if (RegExp(r'^[\u0621-\u064A\s]{2,7}$').hasMatch(cellVal) && foundLetters.isEmpty && cellVal.replaceAll(' ', '').length <= 4) {
+              foundLetters = cellVal.replaceAll(' ', '').split('').join(' ');
+            } else if (RegExp(r'^[A-Za-z0-9]{10,20}$').hasMatch(cellVal)) {
+              chassis = cellVal; // رقم الشاسيه / الهيكل
+            } else if (type == '-') {
+              type = cellVal;
+            } else if (owner == 'مطلوبة في الشيت') {
+              owner = cellVal;
+            }
+          }
+
+          if (foundDigits.isNotEmpty) {
+            extractedCars.add({
+              'letters': foundLetters,
+              'digits': foundDigits,
+              'type': type,
+              'owner': owner,
+              'chassis': chassis,
+              'row': (rowIndex + 1).toString(),
+            });
+          }
+        }
+      }
+
+      setState(() {
+        _wantedDatabase = extractedCars;
+        _excelFileName = '${result.files.single.name} (${extractedCars.length} سيارة)';
+        _saveData();
+      });
+
+      _checkHistoricalRecordsAgainstNewDatabase();
+
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('تم تحميل شيت السيارات المطلوبة بنجاح (${extractedCars.length} لوحة)!', textDirection: TextDirection.rtl),
+            backgroundColor: const Color(0xFF06D6A0),
+          ),
+        );
+      }
+    }
+  }
+
+  void _checkHistoricalRecordsAgainstNewDatabase() {
+    for (var record in _records) {
+      var match = _findInWantedDatabase(record['letters'] ?? '', record['digits'] ?? '');
+      if (match.isNotEmpty && record['status'] != 'مطلوبة') {
+        record['status'] = 'مطلوبة';
+        _triggerAlarmAndModal(match, record['letters']!, record['digits']!);
+      }
+    }
+    _saveData();
   }
 
   Future<void> _loadData() async {
@@ -349,564 +583,40 @@ class _SheekhaHomeScreenState extends State<SheekhaHomeScreen> {
     prefs.setString('sheekha_excel_name', _excelFileName);
   }
 
-  Future<void> _pickAndParseExcelFile() async {
-    FilePickerResult? result = await FilePicker.platform.pickFiles(
-      type: FileType.custom,
-      allowedExtensions: ['xlsx', 'xls', 'csv'],
-    );
-
-    if (result != null && result.files.single.path != null) {
-      var bytes = File(result.files.single.path!).readAsBytesSync();
-      var excel = ex.Excel.decodeBytes(bytes);
-      List<Map<String, String>> extractedCars = [];
-
-      for (var table in excel.tables.keys) {
-        var sheet = excel.tables[table];
-        if (sheet != null) {
-          for (var row in sheet.rows.skip(1)) {
-            if (row.isNotEmpty && row[0] != null) {
-              String col0 = row[0]?.value?.toString() ?? '';
-              String col1 = row.length > 1 ? (row[1]?.value?.toString() ?? '') : '';
-              String col2 = row.length > 2 ? (row[2]?.value?.toString() ?? 'غير محدد') : 'غير محدد';
-              String col3 = row.length > 3 ? (row[3]?.value?.toString() ?? 'غير معروف') : 'غير معروف';
-
-              String letters = col0;
-              String digits = col1;
-              if (col1.isEmpty || !RegExp(r'\d').hasMatch(col1)) {
-                digits = col0.replaceAll(RegExp(r'[^\d]'), '');
-                letters = col0.replaceAll(RegExp(r'[\d]'), '').trim();
-              }
-
-              if (digits.isNotEmpty) {
-                extractedCars.add({
-                  'letters': letters,
-                  'digits': digits,
-                  'type': col2,
-                  'owner': col3,
-                  'status': 'مطلوبة'
-                });
-              }
-            }
-          }
-        }
-      }
-
-      setState(() {
-        _wantedDatabase = extractedCars;
-        _excelFileName = '${result.files.single.name} (${extractedCars.length} لوحة)';
-        _saveData();
-      });
-
-      _checkHistoricalRecordsAgainstNewDatabase();
-
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('تم استيراد ${extractedCars.length} سيارة مطلوبة بنجاح!', textDirection: TextDirection.rtl),
-            backgroundColor: const Color(0xFF06D6A0),
-          ),
-        );
-      }
-    }
-  }
-
-  void _checkHistoricalRecordsAgainstNewDatabase() {
-    for (var record in _records) {
-      var match = _wantedDatabase.firstWhere(
-        (car) => car['digits'] == record['digits'],
-        orElse: () => {},
-      );
-      if (match.isNotEmpty && record['status'] != 'مطلوبة') {
-        record['status'] = 'مطلوبة';
-        _showWantedAlertModal(match, record['letters']!, record['digits']!);
-      }
-    }
-    _saveData();
-  }
-
-  void _showDistrictMenu() {
-    showModalBottomSheet(
-      context: context,
-      backgroundColor: const Color(0xFF1C2541),
-      builder: (context) => Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          ..._districts.map((d) => ListTile(
-                title: Text(d, style: const TextStyle(color: Colors.white), textDirection: TextDirection.rtl),
-                trailing: Icon(
-                  _currentDistrict == d ? Icons.radio_button_checked : Icons.radio_button_off,
-                  color: const Color(0xFF06D6A0),
-                ),
-                onTap: () {
-                  setState(() => _currentDistrict = d);
-                  Navigator.pop(context);
-                },
-              )),
-          ListTile(
-            title: const Text('إضافة حي +', style: TextStyle(color: Color(0xFF06D6A0), fontWeight: FontWeight.bold), textDirection: TextDirection.rtl),
-            onTap: () {
-              Navigator.pop(context);
-              _showAddDistrictDialog();
-            },
-          ),
-        ],
-      ),
-    );
-  }
-
-  void _showAddDistrictDialog() {
-    TextEditingController ctrl = TextEditingController();
+  // إضافة لوحة يدوياً للاختبار السريع أو الفحص اليدوي
+  void _showManualCheckDialog() {
+    TextEditingController lettersCtrl = TextEditingController();
+    TextEditingController digitsCtrl = TextEditingController();
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
         backgroundColor: const Color(0xFF1C2541),
-        title: const Text('إضافة حي', style: TextStyle(color: Colors.white), textAlign: TextAlign.center),
-        content: TextField(
-          controller: ctrl,
-          autofocus: true,
-          textDirection: TextDirection.rtl,
-          style: const TextStyle(color: Colors.white),
-          decoration: const InputDecoration(hintText: 'اسم الحي', hintStyle: TextStyle(color: Colors.grey)),
-        ),
-        actions: [
-          TextButton(onPressed: () => Navigator.pop(context), child: const Text('إلغاء')),
-          ElevatedButton(
-            style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFF06D6A0)),
-            onPressed: () {
-              if (ctrl.text.trim().isNotEmpty) {
-                setState(() {
-                  _districts.add(ctrl.text.trim());
-                  _currentDistrict = ctrl.text.trim();
-                });
-              }
-              Navigator.pop(context);
-            },
-            child: const Text('إضافة', style: TextStyle(color: Colors.black)),
-          ),
-        ],
-      ),
-    );
-  }
-
-  void _showStreetDialog() {
-    TextEditingController ctrl = TextEditingController(text: _currentStreet);
-    showDialog(
-      context: context,
-      builder: (context) => AlertDialog(
-        backgroundColor: const Color(0xFF1C2541),
-        title: const Text('الشارع', style: TextStyle(color: Colors.white), textAlign: TextAlign.center),
-        content: TextField(
-          controller: ctrl,
-          autofocus: true,
-          textDirection: TextDirection.rtl,
-          style: const TextStyle(color: Colors.white),
-          decoration: const InputDecoration(hintText: 'مثال: ض 1 أو س 1', hintStyle: TextStyle(color: Colors.grey)),
-        ),
-        actions: [
-          TextButton(onPressed: () => Navigator.pop(context), child: const Text('إلغاء')),
-          ElevatedButton(
-            style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFF06D6A0)),
-            onPressed: () {
-              if (ctrl.text.trim().isNotEmpty) {
-                setState(() => _currentStreet = ctrl.text.trim());
-              }
-              Navigator.pop(context);
-            },
-            child: const Text('حفظ', style: TextStyle(color: Colors.black)),
-          ),
-        ],
-      ),
-    );
-  }
-
-  void _showNotesMenu() {
-    final notes = ['بدون', 'برحة', 'برحة يمين', 'برحة يسار', 'برحة آخر الشارع', 'برحة وسط الشارع', 'تحت تندة'];
-    showModalBottomSheet(
-      context: context,
-      backgroundColor: const Color(0xFF1C2541),
-      builder: (context) => ListView(
-        shrinkWrap: true,
-        children: notes
-            .map((n) => ListTile(
-                  title: Text(n, style: const TextStyle(color: Colors.white), textDirection: TextDirection.rtl),
-                  trailing: Icon(
-                    _selectedNote == n ? Icons.radio_button_checked : Icons.radio_button_off,
-                    color: const Color(0xFF06D6A0),
-                  ),
-                  onTap: () {
-                    setState(() => _selectedNote = n);
-                    Navigator.pop(context);
-                  },
-                ))
-            .toList(),
-      ),
-    );
-  }
-
-  void _showWantedAlertModal(Map<String, String> car, String letters, String digits) {
-    showDialog(
-      context: context,
-      barrierDismissible: false,
-      builder: (context) => AlertDialog(
-        backgroundColor: Colors.white,
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(20),
-          side: const BorderSide(color: Colors.redAccent, width: 3),
-        ),
-        title: Row(
-          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-          children: [
-            IconButton(icon: const Icon(Icons.close, color: Colors.black54), onPressed: () => Navigator.pop(context)),
-            Row(
-              children: const [
-                Column(
-                  crossAxisAlignment: CrossAxisAlignment.end,
-                  children: [
-                    Text('تنبيه فوري', style: TextStyle(color: Colors.red, fontSize: 13, fontWeight: FontWeight.bold)),
-                    Text('تم رصد لوحة مطلوبة', style: TextStyle(color: Colors.black87, fontSize: 16, fontWeight: FontWeight.bold)),
-                  ],
-                ),
-                SizedBox(width: 8),
-                CircleAvatar(backgroundColor: Colors.red, child: Icon(Icons.priority_high, color: Colors.white)),
-              ],
-            ),
-          ],
-        ),
+        title: const Text('فحص وإضافة لوحة يدوياً', style: TextStyle(color: Colors.white), textAlign: TextAlign.center),
         content: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Container(
-              padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 20),
-              decoration: BoxDecoration(color: Colors.red.shade50, borderRadius: BorderRadius.circular(12)),
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                children: [
-                  Text(digits, style: const TextStyle(color: Colors.red, fontSize: 22, fontWeight: FontWeight.bold)),
-                  Container(width: 2, height: 25, color: Colors.red.shade300),
-                  Text(letters, style: const TextStyle(color: Colors.red, fontSize: 22, fontWeight: FontWeight.bold)),
-                ],
-              ),
+            TextField(
+              controller: lettersCtrl,
+              textDirection: TextDirection.rtl,
+              style: const TextStyle(color: Colors.white),
+              decoration: const InputDecoration(labelText: 'الحروف (مثال: د ب د)', labelStyle: TextStyle(color: Colors.grey)),
             ),
-            const SizedBox(height: 15),
-            _infoRowLight('اللوحة', '$letters $digits'),
-            _infoRowLight('النوع', car['type'] ?? 'غير محدد'),
-            _infoRowLight('الجهة/المالك', car['owner'] ?? 'مطلوبة'),
-            _infoRowLight('الموقع', '$_currentDistrict - $_currentStreet'),
+            const SizedBox(height: 10),
+            TextField(
+              controller: digitsCtrl,
+              keyboardType: TextInputType.number,
+              style: const TextStyle(color: Colors.white),
+              decoration: const InputDecoration(labelText: 'الأرقام (مثال: 2718)', labelStyle: TextStyle(color: Colors.grey)),
+            ),
           ],
         ),
         actions: [
-          SizedBox(
-            width: double.infinity,
-            child: ElevatedButton(
-              style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
-              onPressed: () => Navigator.pop(context),
-              child: const Text('إغلاق ومتابعة الرصد', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _infoRowLight(String label, String value) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 4),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-        children: [
-          Text(value, style: const TextStyle(color: Colors.black87, fontSize: 14, fontWeight: FontWeight.bold)),
-          Text(label, style: const TextStyle(color: Colors.grey, fontSize: 13)),
-        ],
-      ),
-    );
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(
-        backgroundColor: Colors.transparent,
-        elevation: 0,
-        leading: IconButton(
-          icon: const Icon(Icons.upload_file, color: Color(0xFF06D6A0)),
-          onPressed: _pickAndParseExcelFile,
-          tooltip: 'رفع ملف الإكسيل للسيارات المطلوبة',
-        ),
-        title: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text('الملف: $_excelFileName', style: const TextStyle(color: Colors.grey, fontSize: 10), overflow: TextOverflow.ellipsis),
-            const Text('باقي ٢٩ يوم (ينتهي ٣/١/٢٠٢٦)', style: TextStyle(color: Colors.grey, fontSize: 9)),
-          ],
-        ),
-        actions: const [
-          Center(
-            child: Text(
-              'SHEEKHA',
-              style: TextStyle(letterSpacing: 2, fontWeight: FontWeight.bold, fontSize: 18, color: Color(0xFF06D6A0)),
-            ),
-          ),
-          SizedBox(width: 12),
-        ],
-      ),
-      body: Padding(
-        padding: const EdgeInsets.all(12.0),
-        child: Column(
-          children: [
-            Container(
-              padding: const EdgeInsets.all(14),
-              decoration: BoxDecoration(
-                color: const Color(0xFF1C2541),
-                borderRadius: BorderRadius.circular(20),
-                border: Border.all(color: _isListening ? const Color(0xFF06D6A0) : Colors.transparent, width: 1.5),
-              ),
-              child: Column(
-                children: [
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                        decoration: BoxDecoration(
-                          color: (_isListening ? const Color(0xFF06D6A0) : Colors.grey).withOpacity(0.2),
-                          borderRadius: BorderRadius.circular(12),
-                        ),
-                        child: Text(
-                          _isListening ? 'قوي' : 'متوقف',
-                          style: TextStyle(color: _isListening ? const Color(0xFF06D6A0) : Colors.grey, fontSize: 12),
-                        ),
-                      ),
-                      Expanded(
-                        child: Padding(
-                          padding: const EdgeInsets.symmetric(horizontal: 10),
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.end,
-                            children: [
-                              Text(
-                                _isListening ? 'يستمع الآن' : 'اضغط للتسجيل',
-                                style: TextStyle(color: _isListening ? const Color(0xFF06D6A0) : Colors.grey, fontSize: 11),
-                              ),
-                              Text(
-                                _currentStatusText,
-                                textAlign: TextAlign.right,
-                                maxLines: 1,
-                                overflow: TextOverflow.ellipsis,
-                                style: const TextStyle(color: Colors.white, fontSize: 14, fontWeight: FontWeight.bold),
-                              ),
-                            ],
-                          ),
-                        ),
-                      ),
-                      GestureDetector(
-                        onTap: _toggleLiveListening,
-                        child: CircleAvatar(
-                          radius: 26,
-                          backgroundColor: _isListening ? const Color(0xFF06D6A0) : Colors.redAccent,
-                          child: Icon(
-                            _isListening ? Icons.mic : Icons.mic_off,
-                            color: Colors.black,
-                            size: 28,
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 12),
-                  SizedBox(
-                    height: 35,
-                    child: Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                      children: List.generate(30, (index) {
-                        double baseHeight = 6.0;
-                        double dynamicWave = _isListening
-                            ? baseHeight + (sin(index + _soundLevel) * _soundLevel * 2.2).abs()
-                            : baseHeight;
-                        return AnimatedContainer(
-                          duration: const Duration(milliseconds: 80),
-                          width: 3.5,
-                          height: dynamicWave.clamp(5.0, 35.0),
-                          decoration: BoxDecoration(
-                            color: _isListening ? const Color(0xFF06D6A0) : Colors.grey.shade700,
-                            borderRadius: BorderRadius.circular(2),
-                          ),
-                        );
-                      }),
-                    ),
-                  ),
-                ],
-              ),
-            ),
-            const SizedBox(height: 10),
-
-            Row(
-              children: [
-                Expanded(child: _controlCard('ملاحظات', _selectedNote, Icons.edit, Colors.amber, _showNotesMenu)),
-                const SizedBox(width: 6),
-                Expanded(child: _controlCard('الشارع', _currentStreet, Icons.location_on, const Color(0xFF06D6A0), _showStreetDialog)),
-                const SizedBox(width: 6),
-                Expanded(child: _controlCard('الحي', _currentDistrict, Icons.folder, Colors.blueAccent, _showDistrictMenu)),
-              ],
-            ),
-            const SizedBox(height: 10),
-
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                Row(
-                  children: [
-                    OutlinedButton.icon(
-                      style: OutlinedButton.styleFrom(side: const BorderSide(color: Colors.redAccent)),
-                      onPressed: () {
-                        setState(() => _records.clear());
-                        _saveData();
-                      },
-                      icon: const Icon(Icons.delete_outline, color: Colors.redAccent, size: 16),
-                      label: const Text('حذف الكل', style: TextStyle(color: Colors.redAccent, fontSize: 11)),
-                    ),
-                    const SizedBox(width: 8),
-                    OutlinedButton.icon(
-                      style: OutlinedButton.styleFrom(side: const BorderSide(color: Color(0xFF06D6A0))),
-                      onPressed: () {
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          const SnackBar(content: Text('تم حفظ ملف الإكسيل في مجلد التنزيلات (Downloads)', textDirection: TextDirection.rtl)),
-                        );
-                      },
-                      icon: const Icon(Icons.download, color: Color(0xFF06D6A0), size: 16),
-                      label: const Text('تصدير إكسيل', style: TextStyle(color: Color(0xFF06D6A0), fontSize: 11)),
-                    ),
-                  ],
-                ),
-                Text('عدد السجلات: ${_records.length}', style: const TextStyle(color: Colors.grey, fontSize: 12)),
-              ],
-            ),
-            const SizedBox(height: 8),
-
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-              decoration: BoxDecoration(
-                color: const Color(0xFF1C2541).withOpacity(0.6),
-                borderRadius: BorderRadius.circular(8),
-              ),
-              child: const Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  Text('حذف', style: TextStyle(color: Colors.grey, fontSize: 11)),
-                  Text('ملاحظات', style: TextStyle(color: Colors.grey, fontSize: 11)),
-                  Text('الشارع', style: TextStyle(color: Colors.grey, fontSize: 11)),
-                  Text('النوع', style: TextStyle(color: Colors.grey, fontSize: 11)),
-                  Text('الحالة', style: TextStyle(color: Colors.grey, fontSize: 11)),
-                  Text('اللوحة', style: TextStyle(color: Colors.grey, fontSize: 11)),
-                ],
-              ),
-            ),
-            const SizedBox(height: 6),
-
-            Expanded(
-              child: _records.isEmpty
-                  ? const Center(
-                      child: Text(
-                        'اختر الحي والشارع أولاً، ثم ابدأ التسجيل وقل اللوحة\nوبعدها النوع',
-                        textAlign: TextAlign.center,
-                        style: TextStyle(color: Colors.grey, fontSize: 13),
-                      ),
-                    )
-                  : ListView.builder(
-                      itemCount: _records.length,
-                      itemBuilder: (context, index) {
-                        final r = _records[index];
-                        bool isWanted = r['status'] == 'مطلوبة';
-                        return Container(
-                          margin: const EdgeInsets.only(bottom: 6),
-                          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 10),
-                          decoration: BoxDecoration(
-                            color: isWanted ? Colors.redAccent.withOpacity(0.2) : const Color(0xFF1C2541),
-                            borderRadius: BorderRadius.circular(10),
-                            border: isWanted ? Border.all(color: Colors.redAccent) : null,
-                          ),
-                          child: Row(
-                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                            children: [
-                              InkWell(
-                                onTap: () {
-                                  setState(() => _records.removeAt(index));
-                                  _saveData();
-                                },
-                                child: const Icon(Icons.delete_outline, color: Colors.redAccent, size: 18),
-                              ),
-                              Text(r['note'] ?? '+', style: const TextStyle(color: Colors.amber, fontSize: 11)),
-                              Text(r['street'] ?? '', style: const TextStyle(color: Colors.white70, fontSize: 12)),
-                              Text(r['type'] ?? '-', style: const TextStyle(color: Colors.white70, fontSize: 12)),
-                              Icon(
-                                isWanted ? Icons.warning_amber_rounded : Icons.check_circle,
-                                color: isWanted ? Colors.redAccent : const Color(0xFF06D6A0),
-                                size: 18,
-                              ),
-                              Text(
-                                '${r['letters']} ${r['digits']}',
-                                style: TextStyle(
-                                  color: isWanted ? Colors.redAccent : const Color(0xFF06D6A0),
-                                  fontSize: 16,
-                                  fontWeight: FontWeight.bold,
-                                ),
-                              ),
-                            ],
-                          ),
-                        );
-                      },
-                    ),
-            ),
-          ],
-        ),
-      ),
-      bottomNavigationBar: BottomNavigationBar(
-        backgroundColor: const Color(0xFF0B132B),
-        selectedItemColor: const Color(0xFF06D6A0),
-        unselectedItemColor: Colors.grey,
-        currentIndex: _currentIndex,
-        type: BottomNavigationBarType.fixed,
-        onTap: (index) => setState(() => _currentIndex = index),
-        items: const [
-          BottomNavigationBarItem(icon: Icon(Icons.settings), label: 'الإعدادات'),
-          BottomNavigationBarItem(icon: Icon(Icons.search), label: 'فحص يدوي'),
-          BottomNavigationBarItem(icon: Icon(Icons.history), label: 'المرصودة'),
-          BottomNavigationBarItem(icon: Icon(Icons.mic), label: 'التسجيل'),
-          BottomNavigationBarItem(icon: Icon(Icons.fact_check_outlined), label: 'التشييك'),
-        ],
-      ),
-    );
-  }
-
-  Widget _controlCard(String title, String value, IconData icon, Color borderColor, VoidCallback onTap) {
-    return InkWell(
-      onTap: onTap,
-      child: Container(
-        padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 8),
-        decoration: BoxDecoration(
-          color: const Color(0xFF1C2541),
-          borderRadius: BorderRadius.circular(10),
-          border: Border.all(color: borderColor.withOpacity(0.6)),
-        ),
-        child: Column(
-          children: [
-            Text(title, style: const TextStyle(color: Colors.grey, fontSize: 10)),
-            const SizedBox(height: 2),
-            Row(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                Flexible(
-                  child: Text(
-                    value,
-                    overflow: TextOverflow.ellipsis,
-                    style: const TextStyle(color: Colors.white, fontSize: 12, fontWeight: FontWeight.bold),
-                  ),
-                ),
-                const SizedBox(width: 4),
-                Icon(icon, color: borderColor, size: 14),
-              ],
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-}
+          TextButton(onPressed: () => Navigator.pop(context), child: const Text('إلغاء')),
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFF06D6A0)),
+            onPressed: () {
+              if (digitsCtrl.text.trim().isNotEmpty) {
+                String fLetters = lettersCtrl.text.trim().replaceAll(' ', '').split('').join(' ');
+                Navigator.pop(context);
+                _addCapturedPlateToList({
+                  'letters
