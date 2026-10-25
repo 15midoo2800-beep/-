@@ -118,7 +118,7 @@ class LivePlateExtractor {
       }
     }
 
-    if (letters.length >= 2 && digits.length >= 3) {
+    if (letters.length >= 1 && digits.length >= 2) {
       if (digits.length > 4) {
         digits = digits.substring(digits.length - 4);
       }
@@ -152,14 +152,13 @@ class SheekhaHomeScreen extends StatefulWidget {
 class _SheekhaHomeScreenState extends State<SheekhaHomeScreen> {
   int _currentIndex = 3;
   bool _isListening = false;
-  String _currentStatusText = 'اضغط الميكروفون وابدأ نطق اللوحات...';
+  String _currentStatusText = 'اضغط الميكروفون وابدأ نطق اللوحات بالعربية...';
   double _soundLevel = 0.0;
   int _processedWordIndex = 0;
   String _lastAddedPlateKey = '';
 
   final stt.SpeechToText _speech = stt.SpeechToText();
   bool _speechEnabled = false;
-  String _selectedLocaleId = 'ar_EG';
 
   final List<String> _districts = ['الروضة', 'السلام', 'المنيل', 'المعادي'];
   String _currentDistrict = 'الروضة';
@@ -202,19 +201,10 @@ class _SheekhaHomeScreenState extends State<SheekhaHomeScreen> {
         },
       );
 
-      if (available) {
-        var locales = await _speech.locales();
-        var arLocale = locales.firstWhere(
-          (l) => l.localeId.startsWith('ar'),
-          orElse: () => stt.LocaleName('ar_EG', 'Arabic'),
-        );
-        _selectedLocaleId = arLocale.localeId;
-      }
-
       setState(() {
         _speechEnabled = available;
         _currentStatusText = available
-            ? 'الميكروفون جاهز - اضغط وابدأ النطق المباشر'
+            ? 'الميكروفون جاهز (اللغة العربية) - اضغط للتسجيل'
             : 'تأكد من تفعيل خدمات Google الصوتية بالهاتف';
       });
     } catch (e) {
@@ -238,7 +228,7 @@ class _SheekhaHomeScreenState extends State<SheekhaHomeScreen> {
       setState(() {
         _isListening = true;
         _processedWordIndex = 0;
-        _currentStatusText = 'يستمع الآن... انطق الحروف ثم الأرقام';
+        _currentStatusText = 'يستمع باللغة العربية... انطق اللوحة';
       });
       _startListeningSession();
     }
@@ -248,8 +238,9 @@ class _SheekhaHomeScreenState extends State<SheekhaHomeScreen> {
     if (!_isListening) return;
     _processedWordIndex = 0;
 
+    // تثبيت محرك التعرف الصوتي حصرياً على اللغة العربية (السعودية / مصر) لتجنب الإنجليزية
     await _speech.listen(
-      localeId: _selectedLocaleId,
+      localeId: 'ar_SA', 
       listenMode: stt.ListenMode.dictation,
       partialResults: true,
       cancelOnError: false,
@@ -644,7 +635,7 @@ class _SheekhaHomeScreenState extends State<SheekhaHomeScreen> {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Text('الملف: $_excelFileName', style: const TextStyle(color: Colors.grey, fontSize: 10), overflow: TextOverflow.ellipsis),
-            const Text('باقي ٢٩ يوم (ينتهي ٣/١/٢٠٢٦)', style: TextStyle(color: Colors.grey, fontSize: 9)),
+            const Text('باقي ٢٩ يوم (ينتهي ٣/١/٢٠٢٦)', style: const TextStyle(color: Colors.grey, fontSize: 9)),
           ],
         ),
         actions: const [
@@ -891,6 +882,7 @@ class _SheekhaHomeScreenState extends State<SheekhaHomeScreen> {
           border: Border.all(color: borderColor.withOpacity(0.6)),
         ),
         child: Column(
+          codes: [],
           children: [
             Text(title, style: const TextStyle(color: Colors.grey, fontSize: 10)),
             const SizedBox(height: 2),
