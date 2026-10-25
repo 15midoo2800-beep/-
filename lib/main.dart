@@ -27,28 +27,40 @@ class MyApp extends StatelessWidget {
   }
 }
 
-// محرك استخراج وتحليل متعدد اللوحات للتدفق الصوتي السريع والمتواصل
+// محرك متطور يفك شفرة الحروف المدمجة في الكلام السريع (مثل "لم" و "النون")
 class MultiPlateStreamTokenizer {
-  static final Map<String, String> spokenLettersMap = {
-    'الف': 'أ', 'ألف': 'أ', 'الأف': 'أ', 'اء': 'أ', 'ا': 'أ', 'أ': 'أ', 'إ': 'أ',
-    'ب': 'ب', 'به': 'ب', 'باء': 'ب', 'با': 'ب', 'بي': 'ب', 'بت': 'ب',
-    'ج': 'ج', 'جيم': 'ج', 'جى': 'ج',
-    'ح': 'ح', 'حه': 'ح', 'حاء': 'ح', 'حا': 'ح',
-    'د': 'د', 'دال': 'د', 'دل': 'د', 'دا': 'د',
-    'ر': 'ر', 'ره': 'ر', 'راء': 'ر', 'را': 'ر',
-    'س': 'س', 'سين': 'س', 'سن': 'س', 'سا': 'س',
-    'ص': 'ص', 'صاد': 'ص', 'صد': 'ص',
-    'ط': 'ط', 'طه': 'ط', 'طاء': 'ط', 'طا': 'ط',
-    'ع': 'ع', 'عين': 'ع', 'عن': 'ع',
-    'ق': 'ق', 'قاف': 'ق', 'قف': 'ق',
-    'ك': 'ك', 'كاف': 'ك', 'كف': 'ك',
-    'ل': 'ل', 'لام': 'ل', 'لم': 'ل',
-    'م': 'م', 'ميم': 'م', 'مم': 'م',
-    'ن': 'ن', 'نون': 'ن', 'نن': 'ن',
-    'ه': 'ه', 'هه': 'ه', 'هاء': 'ه', 'ها': 'ه', 'هـ': 'ه',
-    'و': 'و', 'واو': 'و', 'وو': 'و',
-    'ى': 'ي', 'ي': 'ي', 'يه': 'ي', 'ياء': 'ي', 'يا': 'ي',
-    'ف': 'ف', 'فه': 'ف', 'فاء': 'ف',
+  static final Map<String, List<String>> spokenLettersGroupMap = {
+    // الحروف المدمجة التي يكتبها أندرويد أثتاء النطق السريع
+    'لمن': ['ل', 'م', 'ن'],
+    'لم': ['ل', 'م'],
+    'من': ['م', 'ن'],
+    'بن': ['ب', 'ن'],
+    'بل': ['ب', 'ل'],
+    'جم': ['ج', 'م'],
+    'جن': ['ج', 'ن'],
+    'سل': ['س', 'ل'],
+    'سم': ['س', 'م'],
+    'سن': ['س', 'ن'],
+    // الحروف الفردية وأسمائها الصريحَة
+    'الف': ['أ'], 'ألف': ['أ'], 'الأف': ['أ'], 'اء': ['أ'], 'ا': ['أ'], 'أ': ['أ'], 'إ': ['أ'],
+    'ب': ['ب'], 'به': ['ب'], 'باء': ['ب'], 'با': ['ب'], 'بي': ['ب'], 'بت': ['ب'],
+    'ج': ['ج'], 'جيم': ['ج'], 'جى': ['ج'],
+    'ح': ['ح'], 'حه': ['ح'], 'حاء': ['ح'], 'حا': ['ح'],
+    'د': ['د'], 'دال': ['د'], 'دل': ['د'], 'دا': ['د'],
+    'ر': ['ر'], 'ره': ['ر'], 'راء': ['ر'], 'را': ['ر'],
+    'س': ['س'], 'سين': ['س'], 'سن': ['س'], 'سا': ['س'],
+    'ص': ['ص'], 'صاد': ['ص'], 'صد': ['ص'],
+    'ط': ['ط'], 'طه': ['ط'], 'طاء': ['ط'], 'طا': ['ط'],
+    'ع': ['ع'], 'عين': ['ع'], 'عن': ['ع'],
+    'ق': ['ق'], 'قاف': ['ق'], 'قف': ['ق'],
+    'ك': ['ك'], 'كاف': ['ك'], 'كف': ['ك'],
+    'ل': ['ل'], 'لام': ['ل'], 'اللام': ['ل'], 'لم': ['ل'],
+    'م': ['م'], 'ميم': ['م'], 'الميم': ['م'],
+    'ن': ['ن'], 'نون': ['ن'], 'النون': ['ن'],
+    'ه': ['ه'], 'هه': ['ه'], 'هاء': ['ه'], 'ها': ['ه'], 'هـ': ['ه'],
+    'و': ['و'], 'واو': ['و'], 'وو': ['و'],
+    'ى': ['ي'], 'ي': ['ي'], 'يه': ['ي'], 'ياء': ['ي'], 'يا': ['ي'],
+    'ف': ['ف'], 'فه': ['ف'], 'فاء': ['ف'],
   };
 
   static final Map<String, String> spokenDigitsMap = {
@@ -69,7 +81,6 @@ class MultiPlateStreamTokenizer {
     'دينا', 'ديانا', 'تويوتا', 'هيونداي', 'كيا', 'نيسان', 'مرسيدس', 'ربع', 'جامبو', 'ملاكي', 'نقل'
   ];
 
-  // دالة تستخرج *جميع* اللوحات الموجودة في جملة طويلة متصلة دفعة واحدة
   static List<Map<String, String>> extractAllPlates(String text) {
     if (text.trim().isEmpty) return [];
 
@@ -88,9 +99,8 @@ class MultiPlateStreamTokenizer {
       if (digitVal != null || RegExp(r'^\d+$').hasMatch(clean)) {
         tempDigits += digitVal ?? clean;
       } else {
-        String letterVal = spokenLettersMap[clean] ?? (clean.length == 1 ? clean : '');
-        if (letterVal.isNotEmpty) {
-          // إذا جمعنا 3 أو 4 أرقام مسبقاً، فهذا الحرف الجديد يعلن بداية لوحة جديدة!
+        List<String>? mappedLetters = spokenLettersGroupMap[clean];
+        if (mappedLetters != null) {
           if (tempDigits.length >= 3) {
             if (tempLetters.isNotEmpty) {
               foundPlates.add({
@@ -98,18 +108,30 @@ class MultiPlateStreamTokenizer {
                 'digits': tempDigits.substring(0, tempDigits.length > 4 ? 4 : tempDigits.length),
               });
             }
-            tempLetters = [letterVal];
+            tempLetters = List.from(mappedLetters);
             tempDigits = '';
           } else {
-            if (tempLetters.length < 3) {
-              tempLetters.add(letterVal);
+            for (var l in mappedLetters) {
+              if (tempLetters.length < 3) tempLetters.add(l);
             }
+          }
+        } else if (clean.length == 1 && RegExp(r'[\u0621-\u064A]').hasMatch(clean)) {
+          if (tempDigits.length >= 3) {
+            if (tempLetters.isNotEmpty) {
+              foundPlates.add({
+                'letters': tempLetters.take(3).join(' '),
+                'digits': tempDigits.substring(0, tempDigits.length > 4 ? 4 : tempDigits.length),
+              });
+            }
+            tempLetters = [clean];
+            tempDigits = '';
+          } else {
+            if (tempLetters.length < 3) tempLetters.add(clean);
           }
         }
       }
     }
 
-    // فحص الباقي في نهاية الجملة
     if (tempLetters.isNotEmpty && tempDigits.length >= 3) {
       foundPlates.add({
         'letters': tempLetters.take(3).join(' '),
@@ -140,10 +162,9 @@ class SheekhaHomeScreen extends StatefulWidget {
 class _SheekhaHomeScreenState extends State<SheekhaHomeScreen> {
   int _currentIndex = 3;
   bool _isListening = false;
-  String _currentStatusText = 'اضغط الميكروفون وتحدث بسلاسة وبسرعة...';
+  String _currentStatusText = 'اضغط الميكروفون وتحدث بحرية تامة...';
   double _soundLevel = 0.0;
 
-  // ذاكرة أزمنة لمنع تكرار تسجيل نفس اللوحة في خلال 5 ثوانٍ
   final Map<String, DateTime> _recordedPlateCooldowns = {};
 
   final stt.SpeechToText _speech = stt.SpeechToText();
@@ -193,7 +214,7 @@ class _SheekhaHomeScreenState extends State<SheekhaHomeScreen> {
       setState(() {
         _speechEnabled = available;
         _currentStatusText = available
-            ? 'الميكروفون جاهز - تحدث وسجل ورا بعض براحتك'
+            ? 'الميكروفون جاهز - انطق اللوحات ورا بعض'
             : 'تأكد من تفعيل خدمات Google الصوتية بالهاتف';
       });
     } catch (e) {
@@ -216,7 +237,7 @@ class _SheekhaHomeScreenState extends State<SheekhaHomeScreen> {
       }
       setState(() {
         _isListening = true;
-        _currentStatusText = 'يستمع الآن للتدفق المستمر... تكلم بسرعة';
+        _currentStatusText = 'يستمع الآن... انطق بطلاقة وسرعة';
       });
       _startListeningSession();
     }
@@ -241,10 +262,8 @@ class _SheekhaHomeScreenState extends State<SheekhaHomeScreen> {
         String spoken = result.recognizedWords.trim();
         if (spoken.isEmpty) return;
 
-        // عرض النص المسموع حالياً في الأعلى بكل وضوح
         setState(() => _currentStatusText = spoken);
 
-        // استخراج جميع اللوحات من النص المتدفق دفعة واحدة
         List<Map<String, String>> extractedPlates = MultiPlateStreamTokenizer.extractAllPlates(spoken);
 
         for (var plate in extractedPlates) {
@@ -254,7 +273,7 @@ class _SheekhaHomeScreenState extends State<SheekhaHomeScreen> {
 
           DateTime now = DateTime.now();
           bool isRecent = _recordedPlateCooldowns.containsKey(plateKey) &&
-              now.difference(_recordedPlateCooldowns[plateKey]!).inSeconds < 5;
+              now.difference(_recordedPlateCooldowns[plateKey]!).inSeconds < 4;
 
           if (!isRecent) {
             _recordedPlateCooldowns[plateKey] = now;
@@ -269,7 +288,6 @@ class _SheekhaHomeScreenState extends State<SheekhaHomeScreen> {
     String cleanDigits = digits.trim();
     String cleanLetters = letters.replaceAll(' ', '');
 
-    // التشييك الفوري في الخلفية ضد شيت الإكسيل
     var match = _wantedDatabase.firstWhere(
       (car) {
         String dbDigits = (car['digits'] ?? '').trim();
@@ -665,7 +683,7 @@ class _SheekhaHomeScreenState extends State<SheekhaHomeScreen> {
                             crossAxisAlignment: CrossAxisAlignment.end,
                             children: [
                               Text(
-                                _isListening ? 'يستمع الآن (بث حي متعدد)' : 'اضغط للتسجيل',
+                                _isListening ? 'يستمع الآن (بث حي دقيق)' : 'اضغط للتسجيل',
                                 style: TextStyle(color: _isListening ? const Color(0xFF06D6A0) : Colors.grey, fontSize: 11),
                               ),
                               Text(
