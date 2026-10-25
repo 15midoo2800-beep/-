@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'dart:convert';
+import 'dart:async';
 import 'package:flutter/services.dart';
 import 'package:speech_to_text/speech_to_text.dart' as stt;
 import 'package:file_picker/file_picker.dart';
@@ -27,13 +28,19 @@ class MyApp extends StatelessWidget {
   }
 }
 
-// محرك متطور يفك شفرة الحروف المدمجة في الكلام السريع (مثل "لم" و "النون")
-class MultiPlateStreamTokenizer {
+// محرك متطور يفك شفرة الحروف المدمجة ويدير التجميع الذكي للوحات في الكلام السريع
+class SmartStreamTokenizer {
   static final Map<String, List<String>> spokenLettersGroupMap = {
-    // الحروف المدمجة التي يكتبها أندرويد أثتاء النطق السريع
+    // الكلمات المدمجة التي يكتبها أندرويد أثناء النطق السريع في الشارع
     'لمن': ['ل', 'م', 'ن'],
     'لم': ['ل', 'م'],
     'من': ['م', 'ن'],
+    'منع': ['م', 'ن', 'ع'],
+    'وعج': ['و', 'ع', 'ج'],
+    'لفق': ['ل', 'ف', 'ق'],
+    'منو': ['م', 'ن', 'و'],
+    'عقب': ['ع', 'ق', 'ب'],
+    'ابت': ['أ', 'ب', 'ت'],
     'بن': ['ب', 'ن'],
     'بل': ['ب', 'ل'],
     'جم': ['ج', 'م'],
@@ -41,26 +48,26 @@ class MultiPlateStreamTokenizer {
     'سل': ['س', 'ل'],
     'سم': ['س', 'م'],
     'سن': ['س', 'ن'],
-    // الحروف الفردية وأسمائها الصريحَة
+    // الحروف الفردية وأسمائها الصريحة
     'الف': ['أ'], 'ألف': ['أ'], 'الأف': ['أ'], 'اء': ['أ'], 'ا': ['أ'], 'أ': ['أ'], 'إ': ['أ'],
-    'ب': ['ب'], 'به': ['ب'], 'باء': ['ب'], 'با': ['ب'], 'بي': ['ب'], 'بت': ['ب'],
-    'ج': ['ج'], 'جيم': ['ج'], 'جى': ['ج'],
-    'ح': ['ح'], 'حه': ['ح'], 'حاء': ['ح'], 'حا': ['ح'],
-    'د': ['د'], 'دال': ['د'], 'دل': ['د'], 'دا': ['د'],
-    'ر': ['ر'], 'ره': ['ر'], 'راء': ['ر'], 'را': ['ر'],
-    'س': ['س'], 'سين': ['س'], 'سن': ['س'], 'سا': ['س'],
-    'ص': ['ص'], 'صاد': ['ص'], 'صد': ['ص'],
-    'ط': ['ط'], 'طه': ['ط'], 'طاء': ['ط'], 'طا': ['ط'],
-    'ع': ['ع'], 'عين': ['ع'], 'عن': ['ع'],
-    'ق': ['ق'], 'قاف': ['ق'], 'قف': ['ق'],
-    'ك': ['ك'], 'كاف': ['ك'], 'كف': ['ك'],
-    'ل': ['ل'], 'لام': ['ل'], 'اللام': ['ل'], 'لم': ['ل'],
+    'ب': ['ب'], 'به': ['ب'], 'باء': ['ب'], 'با': ['ب'], 'بي': ['ب'], 'بت': ['ب'], 'الباء': ['ب'],
+    'ج': ['ج'], 'جيم': ['ج'], 'جى': ['ج'], 'الجيم': ['ج'],
+    'ح': ['ح'], 'حه': ['ح'], 'حاء': ['ح'], 'حا': ['ح'], 'الحاء': ['ح'],
+    'د': ['د'], 'دال': ['د'], 'دل': ['د'], 'دا': ['د'], 'الدال': ['د'],
+    'ر': ['ر'], 'ره': ['ر'], 'راء': ['ر'], 'را': ['ر'], 'الراء': ['ر'],
+    'س': ['س'], 'سين': ['س'], 'سن': ['س'], 'سا': ['س'], 'السين': ['س'],
+    'ص': ['ص'], 'صاد': ['ص'], 'صد': ['ص'], 'الصاد': ['ص'],
+    'ط': ['ط'], 'طه': ['ط'], 'طاء': ['ط'], 'طا': ['ط'], 'الطاء': ['ط'],
+    'ع': ['ع'], 'عين': ['ع'], 'عن': ['ع'], 'العين': ['ع'],
+    'ق': ['ق'], 'قاف': ['ق'], 'قف': ['ق'], 'القاف': ['ق'],
+    'ك': ['ك'], 'كاف': ['ك'], 'كف': ['ك'], 'الكاف': ['ك'],
+    'ل': ['ل'], 'لام': ['ل'], 'اللام': ['ل'],
     'م': ['م'], 'ميم': ['م'], 'الميم': ['م'],
     'ن': ['ن'], 'نون': ['ن'], 'النون': ['ن'],
-    'ه': ['ه'], 'هه': ['ه'], 'هاء': ['ه'], 'ها': ['ه'], 'هـ': ['ه'],
-    'و': ['و'], 'واو': ['و'], 'وو': ['و'],
-    'ى': ['ي'], 'ي': ['ي'], 'يه': ['ي'], 'ياء': ['ي'], 'يا': ['ي'],
-    'ف': ['ف'], 'فه': ['ف'], 'فاء': ['ف'],
+    'ه': ['ه'], 'هه': 'ه', 'هاء': 'ه', 'ها': 'ه', 'هـ': 'ه', 'الهاء': ['ه'],
+    'و': ['و'], 'واو': ['و'], 'وو': ['و'], 'الواو': ['و'],
+    'ى': ['ي'], 'ي': ['ي'], 'يه': 'ي', 'ياء': 'ي', 'يا': 'ي', 'الياء': ['ي'],
+    'ف': ['ف'], 'فه': 'ف', 'فاء': 'ف', 'الفاء': ['ف'],
   };
 
   static final Map<String, String> spokenDigitsMap = {
@@ -165,6 +172,7 @@ class _SheekhaHomeScreenState extends State<SheekhaHomeScreen> {
   String _currentStatusText = 'اضغط الميكروفون وتحدث بحرية تامة...';
   double _soundLevel = 0.0;
 
+  Timer? _debounceTimer;
   final Map<String, DateTime> _recordedPlateCooldowns = {};
 
   final stt.SpeechToText _speech = stt.SpeechToText();
@@ -214,7 +222,7 @@ class _SheekhaHomeScreenState extends State<SheekhaHomeScreen> {
       setState(() {
         _speechEnabled = available;
         _currentStatusText = available
-            ? 'الميكروفون جاهز - انطق اللوحات ورا بعض'
+            ? 'الميكروفون جاهز - انطق اللوحات بطلاقة'
             : 'تأكد من تفعيل خدمات Google الصوتية بالهاتف';
       });
     } catch (e) {
@@ -229,6 +237,7 @@ class _SheekhaHomeScreenState extends State<SheekhaHomeScreen> {
         _soundLevel = 0.0;
         _currentStatusText = 'تم إيقاف الاستماع';
       });
+      _debounceTimer?.cancel();
       await _speech.stop();
     } else {
       if (!_speechEnabled) {
@@ -251,7 +260,7 @@ class _SheekhaHomeScreenState extends State<SheekhaHomeScreen> {
       partialResults: true,
       cancelOnError: false,
       listenFor: const Duration(minutes: 15),
-      pauseFor: const Duration(seconds: 10),
+      pauseFor: const Duration(seconds: 12),
       onSoundLevelChange: (level) {
         if (mounted) {
           setState(() => _soundLevel = level.clamp(0.0, 15.0));
@@ -264,22 +273,29 @@ class _SheekhaHomeScreenState extends State<SheekhaHomeScreen> {
 
         setState(() => _currentStatusText = spoken);
 
-        List<Map<String, String>> extractedPlates = MultiPlateStreamTokenizer.extractAllPlates(spoken);
+        // إلغاء المؤقت السابق لعدم المعالجة المتكررة أثناء دفق الكلام السريع
+        _debounceTimer?.cancel();
 
-        for (var plate in extractedPlates) {
-          String letters = plate['letters']!;
-          String digits = plate['digits']!;
-          String plateKey = '$letters-$digits';
+        // استخدام نظام تجميع مؤقت (Debounce 400ms) للتأكد من اكتمال نطق اللوحة تماماً قبل اعتمادها
+        _debounceTimer = Timer(const Duration(milliseconds: 400), () {
+          if (!mounted) return;
+          List<Map<String, String>> extractedPlates = SmartStreamTokenizer.extractAllPlates(spoken);
 
-          DateTime now = DateTime.now();
-          bool isRecent = _recordedPlateCooldowns.containsKey(plateKey) &&
-              now.difference(_recordedPlateCooldowns[plateKey]!).inSeconds < 4;
+          for (var plate in extractedPlates) {
+            String letters = plate['letters']!;
+            String digits = plate['digits']!;
+            String plateKey = '$letters-$digits';
 
-          if (!isRecent) {
-            _recordedPlateCooldowns[plateKey] = now;
-            _registerDetectedPlate(letters, digits);
+            DateTime now = DateTime.now();
+            bool isRecent = _recordedPlateCooldowns.containsKey(plateKey) &&
+                now.difference(_recordedPlateCooldowns[plateKey]!).inSeconds < 4;
+
+            if (!isRecent) {
+              _recordedPlateCooldowns[plateKey] = now;
+              _registerDetectedPlate(letters, digits);
+            }
           }
-        }
+        });
       },
     );
   }
@@ -683,7 +699,7 @@ class _SheekhaHomeScreenState extends State<SheekhaHomeScreen> {
                             crossAxisAlignment: CrossAxisAlignment.end,
                             children: [
                               Text(
-                                _isListening ? 'يستمع الآن (بث حي دقيق)' : 'اضغط للتسجيل',
+                                _isListening ? 'يستمع الآن (بث حي ذكي)' : 'اضغط للتسجيل',
                                 style: TextStyle(color: _isListening ? const Color(0xFF06D6A0) : Colors.grey, fontSize: 11),
                               ),
                               Text(
