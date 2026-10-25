@@ -1,6 +1,7 @@
-name: sheekha_app
-description: A modern Flutter app.
+name: sheekha
+description: "Sheekha field plate recognition and voice scanner app."
 publish_to: 'none'
+
 version: 1.0.0+1
 
 environment:
@@ -9,17 +10,35 @@ environment:
 dependencies:
   flutter:
     sdk: flutter
-  cupertino_icons: ^1.0.2
+
+  # الأيقونات الأساسية
+  cupertino_icons: ^1.0.6
+
+  # حفظ البيانات والأرشيف محلياً على الهاتف
   shared_preferences: ^2.2.2
-  speech_to_text: ^6.3.0
-  file_picker: ^6.1.1
-  excel: ^4.0.2
+
+  # التعرف الصوتي المباشر
+  speech_to_text: ^6.6.1
+
+  # إدارة أذونات الميكروفون والموقع
   permission_handler: ^11.3.0
+
+  # اختيار ملفات الإكسيل من الجهاز
+  file_picker: ^8.0.0
+
+  # قراءة ومعالجة ملفات الإكسيل للسيارات المطلوبة
+  excel: ^4.0.2
+
+  # تحديد الموقع الجغرافي الدقيق عبر GPS
+  geolocator: ^11.0.0
+
+  # فتح الموقع مباشرة في خرائط Google
+  url_launcher: ^6.2.5
 
 dev_dependencies:
   flutter_test:
     sdk: flutter
-  flutter_lints: ^2.0.0
+  flutter_lints: ^3.0.0
 
 flutter:
   uses-material-design: true
