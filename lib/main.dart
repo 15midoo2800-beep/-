@@ -71,10 +71,7 @@ class SmartPlateProcessor {
   static Map<String, String>? parseSpokenText(String rawText) {
     if (rawText.trim().isEmpty) return null;
 
-    // توحيد الأرقام العربية إلى إنجليزية أولاً
     String normalized = _normalizeArabicNumbers(rawText);
-    
-    // تقسيم الجملة إلى كلمات
     List<String> words = normalized.split(RegExp(r'\s+'));
 
     List<String> extractedLetters = [];
@@ -85,25 +82,21 @@ class SmartPlateProcessor {
       String cleanWord = word.replaceAll(RegExp(r'[^\u0621-\u064A0-9]'), '');
       if (cleanWord.isEmpty) continue;
 
-      // 1. فحص هل الكلمة نوع سيارة معروف (مثل دينا / تويوتا)
       if (carTypes.contains(cleanWord)) {
         detectedType = cleanWord == 'ديانا' ? 'دينا' : cleanWord;
         continue;
       }
 
-      // 2. فحص هل الكلمة رقم منطوق بالحروف (مثل سبعة)
       if (spokenDigitsMap.containsKey(cleanWord)) {
         extractedDigits += spokenDigitsMap[cleanWord]!;
         continue;
       }
 
-      // 3. فحص هل الكلمة أرقام مباشرة (مثل 2718)
       if (RegExp(r'^\d+$').hasMatch(cleanWord)) {
         extractedDigits += cleanWord;
         continue;
       }
 
-      // 4. فحص هل الكلمة حرف منطوق (مثل دال، به، سين)
       if (spokenLettersMap.containsKey(cleanWord)) {
         if (extractedLetters.length < 4) {
           extractedLetters.add(spokenLettersMap[cleanWord]!);
@@ -111,7 +104,6 @@ class SmartPlateProcessor {
         continue;
       }
 
-      // 5. إذا كانت الكلمة حرفاً واحداً مفرداً
       if (cleanWord.length == 1 && RegExp(r'[\u0621-\u064A]').hasMatch(cleanWord)) {
         if (extractedLetters.length < 4) {
           extractedLetters.add(cleanWord);
@@ -119,10 +111,7 @@ class SmartPlateProcessor {
       }
     }
 
-    // لكي نعتبرها لوحة صحيحة ونتجاهل الكلام الجانبي العادي (مثل الفيديو):
-    // يجب أن تحتوي على حرفين على الأقل ورقمين على الأقل
     if (extractedLetters.length >= 2 && extractedDigits.length >= 2) {
-      // أخذ آخر 4 أرقام بحد أقصى
       if (extractedDigits.length > 4) {
         extractedDigits = extractedDigits.substring(extractedDigits.length - 4);
       }
@@ -133,7 +122,7 @@ class SmartPlateProcessor {
       };
     }
 
-    return null; // تجاهل الكلام العادي إذا لم يكتمل نمط اللوحة
+    return null;
   }
 
   static String _normalizeArabicNumbers(String input) {
@@ -154,7 +143,7 @@ class SheekhaHomeScreen extends StatefulWidget {
 }
 
 class _SheekhaHomeScreenState extends State<SheekhaHomeScreen> {
-  int _currentIndex = 1; // البدء على تبويب التسجيل كما في الفيديو
+  int _currentIndex = 3;
   bool _isListening = false;
   String _currentStatusText = 'اضغط الميكروفون وابدأ نطق اللوحات...';
   double _soundLevel = 0.0;
@@ -164,7 +153,7 @@ class _SheekhaHomeScreenState extends State<SheekhaHomeScreen> {
   bool _speechEnabled = false;
   String _selectedLocaleId = 'ar_EG';
 
-  List<String> _districts = ['الروضة', 'السلام', 'المنيل', 'المعادي'];
+  final List<String> _districts = ['الروضة', 'السلام', 'المنيل', 'المعادي'];
   String _currentDistrict = 'الروضة';
   String _currentStreet = 'ض 1';
   String _selectedNote = 'بدون';
@@ -190,7 +179,6 @@ class _SheekhaHomeScreenState extends State<SheekhaHomeScreen> {
     try {
       bool available = await _speech.initialize(
         onStatus: (status) {
-          // إعادة تشغيل الاستماع تلقائياً إذا كان المستخدم لم يضغط إيقاف (استماع مستمر مثل الفيديو)
           if ((status == 'done' || status == 'notListening') && _isListening) {
             Future.delayed(const Duration(milliseconds: 250), () {
               if (_isListening && mounted) {
@@ -201,7 +189,6 @@ class _SheekhaHomeScreenState extends State<SheekhaHomeScreen> {
         },
         onError: (error) {
           if (_isListening && mounted) {
-            // تجاوز أخطاء الصمت المؤقت وإعادة فتح الميكروفون
             Future.delayed(const Duration(milliseconds: 400), () {
               if (_isListening && mounted) {
                 _startListeningSession();
@@ -213,7 +200,6 @@ class _SheekhaHomeScreenState extends State<SheekhaHomeScreen> {
 
       if (available) {
         var locales = await _speech.locales();
-        // البحث عن اللغة العربية (مصر أو السعودية أو أي لهجة عربية متاحة بالهاتف)
         var arabicLocale = locales.firstWhere(
           (l) => l.localeId.startsWith('ar'),
           orElse: () => stt.LocaleName('ar_EG', 'Arabic'),
@@ -279,7 +265,6 @@ class _SheekhaHomeScreenState extends State<SheekhaHomeScreen> {
           });
         }
 
-        // عندما تكتمل الجملة أو يتوقف لحظة بعد نطق اللوحة
         if (result.finalResult && spoken.isNotEmpty) {
           _analyzeAndAddPlate(spoken);
         }
@@ -289,18 +274,16 @@ class _SheekhaHomeScreenState extends State<SheekhaHomeScreen> {
 
   void _analyzeAndAddPlate(String spokenText) {
     var parsed = SmartPlateProcessor.parseSpokenText(spokenText);
-    if (parsed == null) return; // تجاهل الكلام الجانبي الذي ليس لوحة سيارة
+    if (parsed == null) return;
 
     String letters = parsed['letters']!;
     String digits = parsed['digits']!;
     String carType = parsed['type']!;
     String fullPlateKey = '$letters-$digits';
 
-    // منع تكرار نفس اللوحة في نفس الثانية
     if (fullPlateKey == _lastProcessedPlate) return;
     _lastProcessedPlate = fullPlateKey;
 
-    // فحص هل اللوحة مطلوبة في ملف الإكسيل المرفوع
     String cleanInputDigits = digits.trim();
     String cleanInputLetters = letters.replaceAll(' ', '');
 
@@ -387,7 +370,6 @@ class _SheekhaHomeScreenState extends State<SheekhaHomeScreen> {
               String col2 = row.length > 2 ? (row[2]?.value?.toString() ?? 'غير محدد') : 'غير محدد';
               String col3 = row.length > 3 ? (row[3]?.value?.toString() ?? 'غير معروف') : 'غير معروف';
 
-              // إذا كان العمود الأول يجمع الحروف والأرقام معاً (مثل: د ب د 2718)
               String letters = col0;
               String digits = col1;
               if (col1.isEmpty || !RegExp(r'\d').hasMatch(col1)) {
@@ -671,7 +653,6 @@ class _SheekhaHomeScreenState extends State<SheekhaHomeScreen> {
         padding: const EdgeInsets.all(12.0),
         child: Column(
           children: [
-            // بطاقة الميكروفون والموجات الصوتية التفاعلية الحقيقية
             Container(
               padding: const EdgeInsets.all(14),
               decoration: BoxDecoration(
@@ -731,7 +712,6 @@ class _SheekhaHomeScreenState extends State<SheekhaHomeScreen> {
                     ],
                   ),
                   const SizedBox(height: 12),
-                  // الموجات الصوتية تتفاعل مع مستوى الصوت الحقيقي (_soundLevel)
                   SizedBox(
                     height: 35,
                     child: Row(
@@ -758,19 +738,17 @@ class _SheekhaHomeScreenState extends State<SheekhaHomeScreen> {
             ),
             const SizedBox(height: 10),
 
-            // أزرار الحي والشارع والملاحظات مثل الفيديو تماماً
             Row(
               children: [
                 Expanded(child: _controlCard('ملاحظات', _selectedNote, Icons.edit, Colors.amber, _showNotesMenu)),
                 const SizedBox(width: 6),
                 Expanded(child: _controlCard('الشارع', _currentStreet, Icons.location_on, const Color(0xFF06D6A0), _showStreetDialog)),
                 const SizedBox(width: 6),
-                Expanded(child: _controlCard('الحي', _currentDistrict, Icons.Folder, Colors.blueAccent, _showDistrictMenu)),
+                Expanded(child: _controlCard('الحي', _currentDistrict, Icons.folder, Colors.blueAccent, _showDistrictMenu)),
               ],
             ),
             const SizedBox(height: 10),
 
-            // أزرار الحذف والتصدير وعدد السجلات
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
@@ -803,7 +781,6 @@ class _SheekhaHomeScreenState extends State<SheekhaHomeScreen> {
             ),
             const SizedBox(height: 8),
 
-            // ترويسة الجدول المطابقة للفيديو (ملاحظات | الشارع | النوع | الحالة | اللوحة)
             Container(
               padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
               decoration: BoxDecoration(
@@ -824,7 +801,6 @@ class _SheekhaHomeScreenState extends State<SheekhaHomeScreen> {
             ),
             const SizedBox(height: 6),
 
-            // قائمة اللوحات الملتقطة صوتياً
             Expanded(
               child: _records.isEmpty
                   ? const Center(
