@@ -27,7 +27,7 @@ class MyApp extends StatelessWidget {
   }
 }
 
-// محرك استخراج اللوحات الذكي (متوافق مع لغة ونطق هاتفك العربي)
+// محرك التدفق الحر المستمر لاستخراج اللوحات دون أي توقف أو انتظار
 class LivePlateExtractor {
   static final Map<String, String> spokenLettersMap = {
     'الف': 'أ', 'ألف': 'أ', 'الأف': 'أ', 'اء': 'أ', 'ا': 'أ', 'أ': 'أ', 'إ': 'أ',
@@ -68,57 +68,50 @@ class LivePlateExtractor {
     'دينا', 'ديانا', 'تويوتا', 'هيونداي', 'كيا', 'نيسان', 'مرسيدس', 'ربع', 'جامبو', 'ملاكي', 'نقل'
   ];
 
-  static Map<String, dynamic>? extractFromLiveStream(String segment) {
-    if (segment.trim().isEmpty) return null;
+  static Map<String, dynamic>? extractContinuous(String fullText) {
+    if (fullText.trim().isEmpty) return null;
 
-    String normalized = _normalizeNumbers(segment);
+    String normalized = _normalizeNumbers(fullText);
     List<String> words = normalized.split(RegExp(r'\s+'));
 
     List<String> letters = [];
     String digits = '';
     String detectedType = '-';
-    int consumedWords = 0;
 
-    for (int i = 0; i < words.length; i++) {
-      String clean = words[i].replaceAll(RegExp(r'[^\u0621-\u064A0-9]'), '');
+    for (String word in words) {
+      String clean = word.replaceAll(RegExp(r'[^\u0621-\u064A0-9]'), '');
       if (clean.isEmpty) continue;
 
       if (carTypes.contains(clean)) {
         detectedType = clean == 'ديانا' ? 'دينا' : clean;
-        consumedWords = i + 1;
         continue;
       }
 
       if (spokenDigitsMap.containsKey(clean)) {
         digits += spokenDigitsMap[clean]!;
-        consumedWords = i + 1;
         continue;
       }
 
       if (RegExp(r'^\d+$').hasMatch(clean)) {
         digits += clean;
-        consumedWords = i + 1;
         continue;
       }
 
       if (spokenLettersMap.containsKey(clean)) {
-        if (digits.isNotEmpty && letters.length >= 2) break;
-        if (letters.length < 4) {
+        if (letters.length < 3) {
           letters.add(spokenLettersMap[clean]!);
-          consumedWords = i + 1;
         }
         continue;
       }
 
       if (clean.length == 1 && RegExp(r'[\u0621-\u064A]').hasMatch(clean)) {
-        if (digits.isNotEmpty && letters.length >= 2) break;
-        if (letters.length < 4) {
+        if (letters.length < 3) {
           letters.add(clean);
-          consumedWords = i + 1;
         }
       }
     }
 
+    // شرط الالتقاط الحر: حرفين على الأقل ورقمين أو ثلاثة أرقام
     if (letters.isNotEmpty && digits.length >= 2) {
       if (digits.length > 4) {
         digits = digits.substring(digits.length - 4);
@@ -127,7 +120,6 @@ class LivePlateExtractor {
         'letters': letters.take(3).join(' '),
         'digits': digits,
         'type': detectedType,
-        'consumedWords': consumedWords > 0 ? consumedWords : words.length,
       };
     }
     return null;
@@ -153,10 +145,12 @@ class SheekhaHomeScreen extends StatefulWidget {
 class _SheekhaHomeScreenState extends State<SheekhaHomeScreen> {
   int _currentIndex = 3;
   bool _isListening = false;
-  String _currentStatusText = 'اضغط الميكروفون وابدأ الرصد الحي...';
+  String _currentStatusText = 'اضغط الميكروفون وتحدث بحرية مطلقة...';
   double _soundLevel = 0.0;
-  int _processedWordIndex = 0;
-  String _lastAddedPlateKey = '';
+  
+  // نظام زمنّي ذكي لمنع تكرار نفس اللوحة في أقل من 3 ثوانٍ أثناء التحدث السريع
+  String _lastRegisteredPlate = '';
+  DateTime _lastRegisterTime = DateTime.now();
 
   final stt.SpeechToText _speech = stt.SpeechToText();
   bool _speechEnabled = false;
@@ -188,14 +182,14 @@ class _SheekhaHomeScreenState extends State<SheekhaHomeScreen> {
       bool available = await _speech.initialize(
         onStatus: (status) {
           if ((status == 'done' || status == 'notListening') && _isListening) {
-            Future.delayed(const Duration(milliseconds: 200), () {
+            Future.delayed(const Duration(milliseconds: 100), () {
               if (_isListening && mounted) _startListeningSession();
             });
           }
         },
         onError: (error) {
           if (_isListening && mounted) {
-            Future.delayed(const Duration(milliseconds: 350), () {
+            Future.delayed(const Duration(milliseconds: 200), () {
               if (_isListening && mounted) _startListeningSession();
             });
           }
@@ -205,7 +199,7 @@ class _SheekhaHomeScreenState extends State<SheekhaHomeScreen> {
       setState(() {
         _speechEnabled = available;
         _currentStatusText = available
-            ? 'الميكروفون جاهز - اضغط للتسجيل'
+            ? 'الميكروفون جاهز للتدفق الحر - اضغط للتسجيل'
             : 'تأكد من تفعيل خدمات Google الصوتية بالهاتف';
       });
     } catch (e) {
@@ -228,8 +222,7 @@ class _SheekhaHomeScreenState extends State<SheekhaHomeScreen> {
       }
       setState(() {
         _isListening = true;
-        _processedWordIndex = 0;
-        _currentStatusText = 'يستمع الآن في الخلفية... انطق اللوحة';
+        _currentStatusText = 'يستمع بحرية مطلقة... انطق بسرعة';
       });
       _startListeningSession();
     }
@@ -237,15 +230,14 @@ class _SheekhaHomeScreenState extends State<SheekhaHomeScreen> {
 
   void _startListeningSession() async {
     if (!_isListening) return;
-    _processedWordIndex = 0;
 
-    // عدم فرض لغة صلبة، والاعتماد على لغة هاتفك الأساسية النشطة تلقائياً
+    // استماع حر مستمر بأقصى سرعة استجابة دون قيود الكلمات المجزأة
     await _speech.listen(
       listenMode: stt.ListenMode.dictation,
       partialResults: true,
       cancelOnError: false,
-      listenFor: const Duration(seconds: 45),
-      pauseFor: const Duration(seconds: 4),
+      listenFor: const Duration(seconds: 60),
+      pauseFor: const Duration(seconds: 5),
       onSoundLevelChange: (level) {
         if (mounted) {
           setState(() => _soundLevel = level.clamp(0.0, 15.0));
@@ -258,32 +250,29 @@ class _SheekhaHomeScreenState extends State<SheekhaHomeScreen> {
 
         setState(() => _currentStatusText = spoken);
 
-        List<String> allWords = spoken.split(RegExp(r'\s+'));
-        if (_processedWordIndex >= allWords.length) {
-          _processedWordIndex = 0;
-        }
-
-        String unprocessedSegment = allWords.sublist(_processedWordIndex).join(' ');
-        var extracted = LivePlateExtractor.extractFromLiveStream(unprocessedSegment);
-
+        // تحليل النص الكامل المتدفق فوراً
+        var extracted = LivePlateExtractor.extractContinuous(spoken);
         if (extracted != null) {
-          int consumed = extracted['consumedWords'] as int;
-          _processedWordIndex += consumed;
-          _registerDetectedPlate(
-            extracted['letters'] as String,
-            extracted['digits'] as String,
-            extracted['type'] as String,
-          );
+          String letters = extracted['letters'] as String;
+          String digits = extracted['digits'] as String;
+          String carType = extracted['type'] as String;
+          String plateKey = '$letters-$digits';
+
+          // منع التكرار السريع خلال أقل من 3 ثوانٍ لنفس اللوحة أثناء التحدث
+          bool isRecentDuplicate = (plateKey == _lastRegisteredPlate) &&
+              DateTime.now().difference(_lastRegisterTime).inMilliseconds < 3000;
+
+          if (!isRecentDuplicate) {
+            _lastRegisteredPlate = plateKey;
+            _lastRegisterTime = DateTime.now();
+            _registerDetectedPlate(letters, digits, carType);
+          }
         }
       },
     );
   }
 
   void _registerDetectedPlate(String letters, String digits, String carType) {
-    String plateKey = '$letters-$digits';
-    if (plateKey == _lastAddedPlateKey) return;
-    _lastAddedPlateKey = plateKey;
-
     String cleanDigits = digits.trim();
     String cleanLetters = letters.replaceAll(' ', '');
 
