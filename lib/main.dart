@@ -64,10 +64,10 @@ class SmartStreamTokenizer {
     'ل': ['ل'], 'لام': ['ل'], 'اللام': ['ل'],
     'م': ['م'], 'ميم': ['م'], 'الميم': ['م'],
     'ن': ['ن'], 'نون': ['ن'], 'النون': ['ن'],
-    'ه': ['ه'], 'هه': 'ه', 'هاء': 'ه', 'ها': 'ه', 'هـ': 'ه', 'الهاء': ['ه'],
+    'ه': ['ه'], 'هه': ['ه'], 'هاء': ['ه'], 'ها': ['ه'], 'هـ': ['ه'], 'الهاء': ['ه'],
     'و': ['و'], 'واو': ['و'], 'وو': ['و'], 'الواو': ['و'],
-    'ى': ['ي'], 'ي': ['ي'], 'يه': 'ي', 'ياء': 'ي', 'يا': 'ي', 'الياء': ['ي'],
-    'ف': ['ف'], 'فه': 'ف', 'فاء': 'ف', 'الفاء': ['ف'],
+    'ى': ['ي'], 'ي': ['ي'], 'يه': ['ي'], 'ياء': ['ي'], 'يا': ['ي'], 'الياء': ['ي'],
+    'ف': ['ف'], 'فه': ['ف'], 'فاء': ['ف'], 'الفاء': ['ف'],
   };
 
   static final Map<String, String> spokenDigitsMap = {
@@ -273,10 +273,8 @@ class _SheekhaHomeScreenState extends State<SheekhaHomeScreen> {
 
         setState(() => _currentStatusText = spoken);
 
-        // إلغاء المؤقت السابق لعدم المعالجة المتكررة أثناء دفق الكلام السريع
         _debounceTimer?.cancel();
 
-        // استخدام نظام تجميع مؤقت (Debounce 400ms) للتأكد من اكتمال نطق اللوحة تماماً قبل اعتمادها
         _debounceTimer = Timer(const Duration(milliseconds: 400), () {
           if (!mounted) return;
           List<Map<String, String>> extractedPlates = SmartStreamTokenizer.extractAllPlates(spoken);
@@ -782,7 +780,7 @@ class _SheekhaHomeScreenState extends State<SheekhaHomeScreen> {
                       style: OutlinedButton.styleFrom(side: const BorderSide(color: Color(0xFF06D6A0))),
                       onPressed: () {
                         ScaffoldMessenger.of(context).showSnackBar(
-                          const SnackBar(content: Text('تم حفظ ملف الإكسيل في مجلد التنزيلات (Downloads)', textDirection: TextDirection.rtl)),
+                          const SnackBar(content: Text('تم حفظ ملف الإكسيل في مجلد التنزيلات (Downloads)', textDirection: TextDirection.rtl),
                         );
                       },
                       icon: const Icon(Icons.download, color: Color(0xFF06D6A0), size: 16),
