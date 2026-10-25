@@ -27,8 +27,8 @@ class MyApp extends StatelessWidget {
   }
 }
 
-// محرك فائق السرعة مصمم لعرض وسحب الحروف والأرقام بدقة دون تهنيج
-class FastPlateScanner {
+// محرك النافذة الانزلاقية فائق السرعة للرصد الحر المباشر
+class LightningPlateScanner {
   static final Map<String, String> spokenLettersMap = {
     'الف': 'أ', 'ألف': 'أ', 'الأف': 'أ', 'اء': 'أ', 'ا': 'أ', 'أ': 'أ', 'إ': 'أ',
     'ب': 'ب', 'به': 'ب', 'باء': 'ب', 'با': 'ب', 'بي': 'ب', 'بت': 'ب',
@@ -69,44 +69,45 @@ class FastPlateScanner {
     'دينا', 'ديانا', 'تويوتا', 'هيونداي', 'كيا', 'نيسان', 'مرسيدس', 'ربع', 'جامبو', 'ملاكي', 'نقل'
   ];
 
-  static Map<String, dynamic>? scanFastText(String text) {
-    if (text.trim().isEmpty) return null;
-
-    String normalized = _normalizeNumbers(text);
-    List<String> rawWords = normalized.split(RegExp(r'\s+'));
+  static Map<String, dynamic>? scanLightning(List<String> words) {
+    if (words.isEmpty) return null;
 
     List<String> letters = [];
     String digits = '';
 
-    for (String word in rawWords) {
+    // مسح أحدث الكلمات فقط بأقصى سرعة
+    for (String word in words) {
       String clean = word.replaceAll(RegExp(r'[^\u0621-\u064A0-9]'), '');
       if (clean.isEmpty || stopWords.contains(clean)) continue;
 
-      if (spokenDigitsMap.containsKey(clean)) {
-        digits += spokenDigitsMap[clean]!;
+      String normalizedWord = _normalizeNumbers(clean);
+
+      if (spokenDigitsMap.containsKey(normalizedWord)) {
+        digits += spokenDigitsMap[normalizedWord]!;
         continue;
       }
 
-      if (RegExp(r'^\d+$').hasMatch(clean)) {
-        digits += clean;
+      if (RegExp(r'^\d+$').hasMatch(normalizedWord)) {
+        digits += normalizedWord;
         continue;
       }
 
-      if (spokenLettersMap.containsKey(clean)) {
+      if (spokenLettersMap.containsKey(normalizedWord)) {
+        if (digits.length >= 3) continue;
         if (letters.length < 3) {
-          letters.add(spokenLettersMap[clean]!);
+          letters.add(spokenLettersMap[normalizedWord]!);
         }
         continue;
       }
 
-      if (clean.length == 1 && RegExp(r'[\u0621-\u064A]').hasMatch(clean)) {
+      if (normalizedWord.length == 1 && RegExp(r'[\u0621-\u064A]').hasMatch(normalizedWord)) {
+        if (digits.length >= 3) continue;
         if (letters.length < 3) {
-          letters.add(clean);
+          letters.add(normalizedWord);
         }
       }
     }
 
-    // شرط الالتقاط: وجود حرف واحد على الأقل و3 أرقام صحيحة لضمان عدم اقتطاع البيانات
     if (letters.isNotEmpty && digits.length >= 3) {
       if (digits.length > 4) {
         digits = digits.substring(digits.length - 4);
@@ -114,7 +115,6 @@ class FastPlateScanner {
       return {
         'letters': letters.take(3).join(' '),
         'digits': digits,
-        'type': '-',
       };
     }
     return null;
@@ -140,9 +140,10 @@ class SheekhaHomeScreen extends StatefulWidget {
 class _SheekhaHomeScreenState extends State<SheekhaHomeScreen> {
   int _currentIndex = 3;
   bool _isListening = false;
-  String _currentStatusText = 'اضغط الميكروفون وتحدث بحرية مطلقة...';
+  String _currentStatusText = 'اضغط الميكروفون وتحدث بسرعة فائقة...';
   double _soundLevel = 0.0;
 
+  int _lastProcessedWordCount = 0;
   String _lastDetectedKey = '';
   DateTime _lastDetectTime = DateTime.now();
 
@@ -176,14 +177,14 @@ class _SheekhaHomeScreenState extends State<SheekhaHomeScreen> {
       bool available = await _speech.initialize(
         onStatus: (status) {
           if ((status == 'done' || status == 'notListening') && _isListening) {
-            Future.delayed(const Duration(milliseconds: 30), () {
+            Future.delayed(const Duration(milliseconds: 20), () {
               if (_isListening && mounted) _startListeningSession();
             });
           }
         },
         onError: (error) {
           if (_isListening && mounted) {
-            Future.delayed(const Duration(milliseconds: 50), () {
+            Future.delayed(const Duration(milliseconds: 40), () {
               if (_isListening && mounted) _startListeningSession();
             });
           }
@@ -193,7 +194,7 @@ class _SheekhaHomeScreenState extends State<SheekhaHomeScreen> {
       setState(() {
         _speechEnabled = available;
         _currentStatusText = available
-            ? 'الميكروفون جاهز - تحدث بحرية تامة'
+            ? 'الميكروفون جاهز للسرعة الفائقة - انطق بحرية'
             : 'تأكد من تفعيل خدمات Google الصوتية بالهاتف';
       });
     } catch (e) {
@@ -216,7 +217,8 @@ class _SheekhaHomeScreenState extends State<SheekhaHomeScreen> {
       }
       setState(() {
         _isListening = true;
-        _currentStatusText = 'يستمع الآن... انطق بطلاقة';
+        _lastProcessedWordCount = 0;
+        _currentStatusText = 'يستمع بسرعة البرق... تكلم الآن';
       });
       _startListeningSession();
     }
@@ -225,13 +227,12 @@ class _SheekhaHomeScreenState extends State<SheekhaHomeScreen> {
   void _startListeningSession() async {
     if (!_isListening) return;
 
-    // استماع متواصل فائق السرعة بدون أي ضغط على المعالج
     await _speech.listen(
       listenMode: stt.ListenMode.dictation,
       partialResults: true,
       cancelOnError: false,
-      listenFor: const Duration(minutes: 5),
-      pauseFor: const Duration(seconds: 6),
+      listenFor: const Duration(minutes: 10),
+      pauseFor: const Duration(seconds: 8),
       onSoundLevelChange: (level) {
         if (mounted) {
           setState(() => _soundLevel = level.clamp(0.0, 15.0));
@@ -242,30 +243,34 @@ class _SheekhaHomeScreenState extends State<SheekhaHomeScreen> {
         String spoken = result.recognizedWords.trim();
         if (spoken.isEmpty) return;
 
-        // تحديث النص الحي المعروض أمامك على الشاشة فوراً بكل ما يسمعه الهاتف
         setState(() => _currentStatusText = spoken);
 
-        var extracted = FastPlateScanner.scanFastText(spoken);
+        List<String> allWords = spoken.split(RegExp(r'\s+'));
+        
+        // النافذة الانزلاقية: أخذ آخر 6 كلمات فقط للفحص السريع الفوري بدون ثقل أو تهنيج
+        int startIndex = allWords.length > 6 ? allWords.length - 6 : 0;
+        List<String> recentWords = allWords.sublist(startIndex);
+
+        var extracted = LightningPlateScanner.scanLightning(recentWords);
         if (extracted != null) {
           String letters = extracted['letters'] as String;
           String digits = extracted['digits'] as String;
-          String carType = extracted['type'] as String;
           String plateKey = '$letters-$digits';
 
           bool isDuplicate = (plateKey == _lastDetectedKey) &&
-              DateTime.now().difference(_lastDetectTime).inMilliseconds < 2000;
+              DateTime.now().difference(_lastDetectTime).inMilliseconds < 1800;
 
           if (!isDuplicate) {
             _lastDetectedKey = plateKey;
             _lastDetectTime = DateTime.now();
-            _registerDetectedPlate(letters, digits, carType);
+            _registerDetectedPlate(letters, digits);
           }
         }
       },
     );
   }
 
-  void _registerDetectedPlate(String letters, String digits, String carType) {
+  void _registerDetectedPlate(String letters, String digits) {
     String cleanDigits = digits.trim();
     String cleanLetters = letters.replaceAll(' ', '');
 
@@ -285,7 +290,7 @@ class _SheekhaHomeScreenState extends State<SheekhaHomeScreen> {
         'id': (_records.length + 1).toString(),
         'letters': letters,
         'digits': digits,
-        'type': isWanted ? (match['type'] ?? carType) : carType,
+        'type': isWanted ? (match['type'] ?? 'ملاكي') : 'ملاكي',
         'district': _currentDistrict,
         'street': _currentStreet,
         'note': _selectedNote == 'بدون' ? '+' : _selectedNote,
@@ -348,7 +353,7 @@ class _SheekhaHomeScreenState extends State<SheekhaHomeScreen> {
             if (row.isNotEmpty && row[0] != null) {
               String col0 = row[0]?.value?.toString() ?? '';
               String col1 = row.length > 1 ? (row[1]?.value?.toString() ?? '') : '';
-              String col2 = row.length > 2 ? (row[2]?.value?.toString() ?? 'غير محدد') : 'غير محدد';
+              String col2 = row.length > 2 ? (row[2]?.value?.toString() ?? 'ملاكي') : 'ملاكي';
               String col3 = row.length > 3 ? (row[3]?.value?.toString() ?? 'مطلوبة') : 'مطلوبة';
 
               String letters = col0;
@@ -451,7 +456,7 @@ class _SheekhaHomeScreenState extends State<SheekhaHomeScreen> {
             ),
             const SizedBox(height: 15),
             _infoRowLight('اللوحة', '$letters $digits'),
-            _infoRowLight('النوع', car['type'] ?? 'غير محدد'),
+            _infoRowLight('النوع', car['type'] ?? 'ملاكي'),
             _infoRowLight('الجهة/المالك', car['owner'] ?? 'مطلوبة'),
             _infoRowLight('الموقع', '$_currentDistrict - $_currentStreet'),
           ],
@@ -664,7 +669,7 @@ class _SheekhaHomeScreenState extends State<SheekhaHomeScreen> {
                             crossAxisAlignment: CrossAxisAlignment.end,
                             children: [
                               Text(
-                                _isListening ? 'يستمع الآن' : 'اضغط للتسجيل',
+                                _isListening ? 'يستمع الآن (بث حي مباشر)' : 'اضغط للتسجيل',
                                 style: TextStyle(color: _isListening ? const Color(0xFF06D6A0) : Colors.grey, fontSize: 11),
                               ),
                               Text(
