@@ -27,10 +27,9 @@ class MyApp extends StatelessWidget {
   }
 }
 
-// محرك استخراج ذكي يدمج العامية المصرية، الحروف العربية، والنسخ الصوتي اللاتيني المحتمل
+// محرك استخراج اللوحات الذكي (متوافق مع لغة ونطق هاتفك العربي)
 class LivePlateExtractor {
   static final Map<String, String> spokenLettersMap = {
-    // عربى فصحى وعامية
     'الف': 'أ', 'ألف': 'أ', 'الأف': 'أ', 'اء': 'أ', 'ا': 'أ', 'أ': 'أ', 'إ': 'أ',
     'ب': 'ب', 'به': 'ب', 'باء': 'ب', 'با': 'ب', 'بي': 'ب', 'بت': 'ب',
     'ح': 'ح', 'حه': 'ح', 'حاء': 'ح', 'حا': 'ح',
@@ -50,23 +49,19 @@ class LivePlateExtractor {
     'ى': 'ي', 'ي': 'ي', 'يه': 'ي', 'ياء': 'ي', 'يا': 'ي',
     'ج': 'ج', 'جيم': 'ج', 'جى': 'ج',
     'ف': 'ف', 'فه': 'ف', 'فاء': 'ف',
-    // صوتيات إنجليزية محتملة يخرجها أندرويد بالخطأ عند النطق العربي
-    'a': 'أ', 'b': 'ب', 't': 'ت', 'j': 'ج', 'h': 'ح', 'd': 'د',
-    'r': 'ر', 's': 'س', 'sh': 'ش', 'z': 'ز', 'f': 'ف', 'q': 'ق',
-    'k': 'ك', 'l': 'ل', 'm': 'م', 'n': 'ن', 'w': 'و', 'y': 'ي'
   };
 
   static final Map<String, String> spokenDigitsMap = {
-    'صفر': '0', 'زيرو': '0', 'zero': '0',
-    'واحد': '1', 'واحده': '1', 'واحدة': '1', 'one': '1',
-    'اتنين': '2', 'اثنين': '2', 'إثنين': '2', 'تنين': '2', 'two': '2',
-    'تلاته': '3', 'ثلاثة': '3', 'تلاتة': '3', 'تلات': '3', 'ثلاث': '3', 'three': '3',
-    'اربعة': '4', 'اربعه': '4', 'اربع': '4', 'أربع': '4', 'four': '4',
-    'خمسه': '5', 'خمسة': '5', 'خمس': '5', 'five': '5',
-    'سته': '6', 'ستة': '6', 'ست': '6', 'six': '6',
-    'سبعه': '7', 'سبعة': '7', 'سبع': '7', 'seven': '7',
-    'تمانيه': '8', 'ثمانية': '8', 'ثمانيه': '8', 'تمن': '8', 'eight': '8',
-    'تسعه': '9', 'تسعة': '9', 'تسع': '9', 'nine': '9',
+    'صفر': '0', 'زيرو': '0',
+    'واحد': '1', 'واحده': '1', 'واحدة': '1',
+    'اتنين': '2', 'اثنين': '2', 'إثنين': '2', 'تنين': '2',
+    'تلاته': '3', 'ثلاثة': '3', 'تلاتة': '3', 'تلات': '3', 'ثلاث': '3',
+    'اربعة': '4', 'اربعه': '4', 'اربع': '4', 'أربع': '4',
+    'خمسه': '5', 'خمسة': '5', 'خمس': '5',
+    'سته': '6', 'ستة': '6', 'ست': '6',
+    'سبعه': '7', 'سبعة': '7', 'سبع': '7',
+    'تمانيه': '8', 'ثمانية': '8', 'ثمانيه': '8', 'تمن': '8',
+    'تسعه': '9', 'تسعة': '9', 'تسع': '9',
   };
 
   static final List<String> carTypes = [
@@ -85,8 +80,7 @@ class LivePlateExtractor {
     int consumedWords = 0;
 
     for (int i = 0; i < words.length; i++) {
-      String rawWord = words[i].toLowerCase();
-      String clean = rawWord.replaceAll(RegExp(r'[^a-zA-Z\u0621-\u064A0-9]'), '');
+      String clean = words[i].replaceAll(RegExp(r'[^\u0621-\u064A0-9]'), '');
       if (clean.isEmpty) continue;
 
       if (carTypes.contains(clean)) {
@@ -116,10 +110,10 @@ class LivePlateExtractor {
         continue;
       }
 
-      if (clean.length == 1) {
+      if (clean.length == 1 && RegExp(r'[\u0621-\u064A]').hasMatch(clean)) {
         if (digits.isNotEmpty && letters.length >= 2) break;
         if (letters.length < 4) {
-          letters.add(clean.toUpperCase());
+          letters.add(clean);
           consumedWords = i + 1;
         }
       }
@@ -166,7 +160,6 @@ class _SheekhaHomeScreenState extends State<SheekhaHomeScreen> {
 
   final stt.SpeechToText _speech = stt.SpeechToText();
   bool _speechEnabled = false;
-  String _selectedLocaleId = 'ar_SA';
 
   final List<String> _districts = ['الروضة', 'السلام', 'المنيل', 'المعادي'];
   String _currentDistrict = 'الروضة';
@@ -209,19 +202,10 @@ class _SheekhaHomeScreenState extends State<SheekhaHomeScreen> {
         },
       );
 
-      if (available) {
-        var locales = await _speech.locales();
-        var arLocale = locales.firstWhere(
-          (l) => l.localeId.toLowerCase().contains('ar'),
-          orElse: () => stt.LocaleName('ar_SA', 'Arabic'),
-        );
-        _selectedLocaleId = arLocale.localeId;
-      }
-
       setState(() {
         _speechEnabled = available;
         _currentStatusText = available
-            ? 'الميكروفون جاهز (اللغة العربية) - اضغط للتسجيل'
+            ? 'الميكروفون جاهز - اضغط للتسجيل'
             : 'تأكد من تفعيل خدمات Google الصوتية بالهاتف';
       });
     } catch (e) {
@@ -245,7 +229,7 @@ class _SheekhaHomeScreenState extends State<SheekhaHomeScreen> {
       setState(() {
         _isListening = true;
         _processedWordIndex = 0;
-        _currentStatusText = 'يستمع باللغة العربية... انطق اللوحة';
+        _currentStatusText = 'يستمع الآن في الخلفية... انطق اللوحة';
       });
       _startListeningSession();
     }
@@ -255,8 +239,8 @@ class _SheekhaHomeScreenState extends State<SheekhaHomeScreen> {
     if (!_isListening) return;
     _processedWordIndex = 0;
 
+    // عدم فرض لغة صلبة، والاعتماد على لغة هاتفك الأساسية النشطة تلقائياً
     await _speech.listen(
-      localeId: _selectedLocaleId,
       listenMode: stt.ListenMode.dictation,
       partialResults: true,
       cancelOnError: false,
@@ -303,6 +287,7 @@ class _SheekhaHomeScreenState extends State<SheekhaHomeScreen> {
     String cleanDigits = digits.trim();
     String cleanLetters = letters.replaceAll(' ', '');
 
+    // الفحص التلقائي في الخلفية ضد شيت السيارات المطلوبة
     var match = _wantedDatabase.firstWhere(
       (car) {
         String dbDigits = (car['digits'] ?? '').trim();
