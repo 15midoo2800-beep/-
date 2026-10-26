@@ -14,13 +14,11 @@ dependencies:
   cupertino_icons: ^1.0.6
   shared_preferences: ^2.2.2
   speech_to_text: ^6.6.0
-  
-  # إصدارات مستقرة متوافقة مع Kotlin 1.7.1 الموجود في السيرفر بدون أخطاء
-  permission_handler: 10.4.5
-  file_picker: 5.5.0
+  permission_handler: ^11.0.1
+  file_picker: ^6.1.1
   excel: ^4.0.2
-  geolocator: 9.0.2
-  url_launcher: 6.1.14
+  geolocator: ^10.1.0
+  url_launcher: ^6.2.2
 
 dev_dependencies:
   flutter_test:
