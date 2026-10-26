@@ -196,7 +196,7 @@ class SheekhaHomeScreen extends StatefulWidget {
 }
 
 class _SheekhaHomeScreenState extends State<SheekhaHomeScreen> {
-  int _currentIndex = 4; // شاشة التشييك
+  int _currentIndex = 4; // شاشة التشييك الافتراضية
   bool _isListening = false;
   String _currentStatusText = 'يستمع الآن...';
   double _soundLevel = 0.0;
@@ -366,7 +366,6 @@ class _SheekhaHomeScreenState extends State<SheekhaHomeScreen> {
     }
   }
 
-  // 1 & 5: استيراد ملف السيارات المطلوبة مع نافذة تحميل تفاعلية
   Future<void> _pickAndParseWantedDatabaseFile() async {
     FilePickerResult? result = await FilePicker.platform.pickFiles(
       type: FileType.custom,
@@ -375,7 +374,6 @@ class _SheekhaHomeScreenState extends State<SheekhaHomeScreen> {
 
     if (result != null && result.files.single.path != null) {
       _showLoadingProgressModal('جاري قراءة ومعالجة ملف السيارات المطلوبة...');
-
       await Future.delayed(const Duration(milliseconds: 100));
 
       try {
@@ -420,7 +418,7 @@ class _SheekhaHomeScreenState extends State<SheekhaHomeScreen> {
           _saveData();
         });
 
-        if (mounted) Navigator.pop(context); // إغلاق نافذة التحميل
+        if (mounted) Navigator.pop(context);
 
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
@@ -442,7 +440,6 @@ class _SheekhaHomeScreenState extends State<SheekhaHomeScreen> {
     }
   }
 
-  // نافذة التحميل العامة التفاعلية
   void _showLoadingProgressModal(String message) {
     showDialog(
       context: context,
@@ -465,7 +462,7 @@ class _SheekhaHomeScreenState extends State<SheekhaHomeScreen> {
     );
   }
 
-  // تصدير حقيقي لمجلد Download
+  // 2 & 6: حفظ الإكسيل باسم الحي وتضمين رابط الخريطة المباشر
   Future<void> _exportExcelDirectlyToDownloads() async {
     try {
       await Permission.storage.request();
@@ -483,12 +480,15 @@ class _SheekhaHomeScreenState extends State<SheekhaHomeScreen> {
         ex.TextCellValue('النوع'),
         ex.TextCellValue('الحي'),
         ex.TextCellValue('الشارع'),
-        ex.TextCellValue('الإحداثيات'),
+        ex.TextCellValue('رابط الخريطة'),
         ex.TextCellValue('ملاحظات'),
         ex.TextCellValue('الوقت'),
       ]);
 
       for (var r in _records) {
+        String coords = r['coords'] ?? '';
+        String mapLink = coords.isNotEmpty ? 'https://maps.google.com/?q=$coords' : 'غير متوفر';
+
         sheet.appendRow([
           ex.TextCellValue(r['id'] ?? ''),
           ex.TextCellValue('${r['letters']} ${r['digits']}'),
@@ -496,7 +496,7 @@ class _SheekhaHomeScreenState extends State<SheekhaHomeScreen> {
           ex.TextCellValue(r['type'] ?? ''),
           ex.TextCellValue(r['district'] ?? ''),
           ex.TextCellValue(r['street'] ?? ''),
-          ex.TextCellValue(r['coords'] ?? ''),
+          ex.TextCellValue(mapLink),
           ex.TextCellValue(r['note'] ?? ''),
           ex.TextCellValue(r['time'] ?? ''),
         ]);
@@ -507,7 +507,13 @@ class _SheekhaHomeScreenState extends State<SheekhaHomeScreen> {
         downloadDir = await Directory('/storage/emulated/0/Downloads').create(recursive: true);
       }
 
-      String fileName = 'Sheekha_${DateTime.now().millisecondsSinceEpoch}.xlsx';
+      // حفظ الملف باسم الحي مع التاريخ والوقت
+      DateTime now = DateTime.now();
+      String dateStr = '${now.year}-${now.month.toString().padLeft(2, '0')}-${now.day.toString().padLeft(2, '0')}_${now.hour}${now.minute}';
+      String safeDistrict = _currentDistrict.replaceAll(RegExp(r'[^\w\s\u0621-\u064A]'), '_').trim();
+      if (safeDistrict.isEmpty) safeDistrict = 'سجلات';
+      String fileName = '${safeDistrict}_$dateStr.xlsx';
+
       String filePath = '${downloadDir.path}/$fileName';
       File file = File(filePath);
       await file.writeAsBytes(excel.save()!);
@@ -517,7 +523,7 @@ class _SheekhaHomeScreenState extends State<SheekhaHomeScreen> {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('تم تصدير ${_records.length} سجل بنجاح في مجلد Download:\n$fileName', textDirection: TextDirection.rtl),
+            content: Text('تم حفظ شيت "$fileName" في مجلد Download بنجاح!', textDirection: TextDirection.rtl),
             backgroundColor: const Color(0xFF06D6A0),
             duration: const Duration(seconds: 4),
           ),
@@ -533,7 +539,6 @@ class _SheekhaHomeScreenState extends State<SheekhaHomeScreen> {
     }
   }
 
-  // 5: استيراد ملف سابق والإكمال عليه مع شاشة التحميل التفاعلية
   Future<void> _pickAndAppendExcelFile() async {
     FilePickerResult? result = await FilePicker.platform.pickFiles(
       type: FileType.custom,
@@ -670,6 +675,7 @@ class _SheekhaHomeScreenState extends State<SheekhaHomeScreen> {
     );
   }
 
+  // 3: توجيه مباشر لتطبيق WhatsApp مع البيانات المحددة
   void _sendWantedToWhatsApp() async {
     List<Map<String, String>> toSend = _records.where((r) => r['status'] == 'مطلوبة' && _selectedWantedIds.contains(r['id'])).toList();
     if (toSend.isEmpty) {
@@ -691,20 +697,32 @@ class _SheekhaHomeScreenState extends State<SheekhaHomeScreen> {
       buffer.writeln('📋 النوع: ${car['type']}');
       buffer.writeln('📍 الموقع: ${car['district']} - ${car['street']}');
       if ((car['coords'] ?? '').isNotEmpty) {
-        buffer.writeln('🗺 خريطة: https://maps.google.com/?q=${car['coords']}');
+        buffer.writeln('🗺 الخريطة: https://maps.google.com/?q=${car['coords']}');
       }
       buffer.writeln('⏱ الوقت: ${car['time']}');
       buffer.writeln('-----------------------------------');
     }
 
     String phone = _savedWhatsAppPhone.replaceAll(RegExp(r'[^\d]'), '');
-    String url = 'https://wa.me/$phone?text=${Uri.encodeComponent(buffer.toString())}';
-    if (await canLaunchUrl(Uri.parse(url))) {
-      await launchUrl(Uri.parse(url), mode: LaunchMode.externalApplication);
+    String encodedText = Uri.encodeComponent(buffer.toString());
+    Uri whatsappUri = Uri.parse('whatsapp://send?phone=$phone&text=$encodedText');
+
+    try {
+      if (await canLaunchUrl(whatsappUri)) {
+        await launchUrl(whatsappUri, mode: LaunchMode.externalApplication);
+      } else {
+        Uri webUri = Uri.parse('https://api.whatsapp.com/send?phone=$phone&text=$encodedText');
+        await launchUrl(webUri, mode: LaunchMode.externalApplication);
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('تعذر فتح الواتساب: $e', textDirection: TextDirection.rtl)),
+        );
+      }
     }
   }
 
-  // 2: فحص يدوي مرن مع البحث في الشيت المرفق للسيارات المطلوبة
   void _executeManualSearch(String query) {
     if (query.trim().isEmpty) {
       setState(() => _manualSearchResults = []);
@@ -714,7 +732,6 @@ class _SheekhaHomeScreenState extends State<SheekhaHomeScreen> {
     String normalizedQuery = SheekhaFullEngine.normalizeFlexible(query);
     List<Map<String, String>> matched = [];
 
-    // أولاً: فحص قاعدة بيانات السيارات المطلوبة (الشيت المرفق)
     for (var car in _wantedDatabase) {
       String target = SheekhaFullEngine.normalizeFlexible('${car['letters']} ${car['digits']} ${car['type']} ${car['owner']}');
       if (target.contains(normalizedQuery)) {
@@ -733,7 +750,6 @@ class _SheekhaHomeScreenState extends State<SheekhaHomeScreen> {
       }
     }
 
-    // ثانياً: فحص السجلات الميدانية المرصودة سابقاً
     for (var car in _records) {
       String target = SheekhaFullEngine.normalizeFlexible('${car['letters']} ${car['digits']} ${car['type']}');
       if (target.contains(normalizedQuery)) {
@@ -743,7 +759,6 @@ class _SheekhaHomeScreenState extends State<SheekhaHomeScreen> {
       }
     }
 
-    // إذا كانت مطابقة دقيقة لسيارة مطلوبة تظهر نافذة التنبيه الفوري
     String cleanDigitsOnly = query.replaceAll(RegExp(r'[^\d]'), '');
     if (cleanDigitsOnly.length >= 3) {
       var exactMatch = _wantedDatabase.firstWhere(
@@ -760,6 +775,7 @@ class _SheekhaHomeScreenState extends State<SheekhaHomeScreen> {
     setState(() => _manualSearchResults = matched);
   }
 
+  // 4: التقاط الـ GPS بدون إظهار الإحداثيات الطويلة
   Future<void> _fetchGPSLocation() async {
     bool serviceEnabled = await Geolocator.isLocationServiceEnabled();
     if (!serviceEnabled) {
@@ -778,19 +794,33 @@ class _SheekhaHomeScreenState extends State<SheekhaHomeScreen> {
     Position pos = await Geolocator.getCurrentPosition(desiredAccuracy: LocationAccuracy.high);
     setState(() {
       _currentCoordinates = '${pos.latitude.toStringAsFixed(6)},${pos.longitude.toStringAsFixed(6)}';
-      _currentStreet = 'GPS ($_currentCoordinates)';
     });
 
     ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text('تم تثبيت الإحداثيات: $_currentCoordinates', textDirection: TextDirection.rtl), backgroundColor: const Color(0xFF06D6A0)),
+      const SnackBar(content: Text('تم تثبيت إشارة الـ GPS بنجاح', textDirection: TextDirection.rtl), backgroundColor: Color(0xFF06D6A0)),
     );
   }
 
+  // 5: فتح تطبيق الخرائط مباشرة
   void _openGoogleMaps(String coords) async {
-    if (coords.isEmpty) return;
-    final Uri url = Uri.parse('https://www.google.com/maps/search/?api=1&query=$coords');
-    if (await canLaunchUrl(url)) {
-      await launchUrl(url, mode: LaunchMode.externalApplication);
+    if (coords.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('لم يتم التقاط إحداثيات GPS لهذه اللوحة', textDirection: TextDirection.rtl)),
+      );
+      return;
+    }
+
+    Uri geoUri = Uri.parse('geo:$coords?q=$coords');
+    Uri webUri = Uri.parse('https://maps.google.com/?q=$coords');
+
+    try {
+      if (await canLaunchUrl(geoUri)) {
+        await launchUrl(geoUri, mode: LaunchMode.externalApplication);
+      } else {
+        await launchUrl(webUri, mode: LaunchMode.externalApplication);
+      }
+    } catch (_) {
+      await launchUrl(webUri, mode: LaunchMode.externalApplication);
     }
   }
 
@@ -800,6 +830,7 @@ class _SheekhaHomeScreenState extends State<SheekhaHomeScreen> {
     final String? savedDb = prefs.getString('sheekha_wanted_db');
     final String? savedPhone = prefs.getString('sheekha_wa_phone');
     final String? savedWantedName = prefs.getString('sheekha_wanted_name');
+    final String? savedDistricts = prefs.getString('sheekha_districts_list');
 
     setState(() {
       if (savedRecords != null) {
@@ -812,6 +843,12 @@ class _SheekhaHomeScreenState extends State<SheekhaHomeScreen> {
       }
       if (savedPhone != null) _savedWhatsAppPhone = savedPhone;
       if (savedWantedName != null) _wantedFileName = savedWantedName;
+      if (savedDistricts != null) {
+        List<String> loadedDistricts = List<String>.from(json.decode(savedDistricts));
+        for (var d in loadedDistricts) {
+          if (!_districts.contains(d)) _districts.add(d);
+        }
+      }
     });
   }
 
@@ -821,6 +858,7 @@ class _SheekhaHomeScreenState extends State<SheekhaHomeScreen> {
     prefs.setString('sheekha_wanted_db', json.encode(_wantedDatabase));
     prefs.setString('sheekha_wa_phone', _savedWhatsAppPhone);
     prefs.setString('sheekha_wanted_name', _wantedFileName);
+    prefs.setString('sheekha_districts_list', json.encode(_districts));
   }
 
   void _showWantedAlertModal(Map<String, String> car, String letters, String digits) {
@@ -857,7 +895,6 @@ class _SheekhaHomeScreenState extends State<SheekhaHomeScreen> {
       appBar: AppBar(
         backgroundColor: Colors.transparent,
         elevation: 0,
-        // 1: زر رفع ملف السيارات المطلوبة متاح دائماً بالأعلى
         leading: IconButton(
           icon: const Icon(Icons.upload_file, color: Color(0xFF06D6A0), size: 28),
           tooltip: 'رفع شيت السيارات المطلوبة',
@@ -876,7 +913,7 @@ class _SheekhaHomeScreenState extends State<SheekhaHomeScreen> {
         ),
         centerTitle: true,
         actions: const [
-          SizedBox(width: 48), // لموازنة أيقونة الرفع
+          SizedBox(width: 48),
         ],
       ),
       body: _buildCurrentTabBody(),
@@ -914,7 +951,6 @@ class _SheekhaHomeScreenState extends State<SheekhaHomeScreen> {
     }
   }
 
-  // 3: خانة التشييك - نقية ومخصصة للاستماع فقط وسجلاته
   Widget _buildCheckingTab() {
     return Padding(
       padding: const EdgeInsets.all(12.0),
@@ -936,8 +972,9 @@ class _SheekhaHomeScreenState extends State<SheekhaHomeScreen> {
     );
   }
 
-  // خانة التسجيل - الإعدادات الميدانية والإكمال والتصدير
   Widget _buildRegistrationTab() {
+    bool hasGPS = _currentCoordinates.isNotEmpty;
+
     return Padding(
       padding: const EdgeInsets.all(12.0),
       child: Column(
@@ -951,6 +988,7 @@ class _SheekhaHomeScreenState extends State<SheekhaHomeScreen> {
                   children: [
                     Expanded(child: _controlCard('ملاحظات', _selectedNote, Icons.edit, Colors.amber, _showNotesMenu)),
                     const SizedBox(width: 6),
+                    // 4: خانة الشارع مع زر GPS أنيق وإمكانية النسخ بدون إزاحة
                     Expanded(
                       child: InkWell(
                         onTap: _showStreetDialog,
@@ -963,12 +1001,25 @@ class _SheekhaHomeScreenState extends State<SheekhaHomeScreen> {
                                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                                 children: [
                                   InkWell(
-                                    onTap: _fetchGPSLocation,
-                                    child: const Row(
-                                      children: [
-                                        Icon(Icons.my_location, color: Color(0xFF06D6A0), size: 12),
-                                        Text(' GPS', style: TextStyle(color: Color(0xFF06D6A0), fontSize: 9, fontWeight: FontWeight.bold)),
-                                      ],
+                                    onTap: () {
+                                      if (hasGPS) {
+                                        Clipboard.setData(ClipboardData(text: _currentCoordinates));
+                                        ScaffoldMessenger.of(context).showSnackBar(
+                                          SnackBar(content: Text('تم نسخ الإحداثيات: $_currentCoordinates', textDirection: TextDirection.rtl), backgroundColor: const Color(0xFF06D6A0)),
+                                        );
+                                      } else {
+                                        _fetchGPSLocation();
+                                      }
+                                    },
+                                    child: Container(
+                                      padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 1),
+                                      decoration: BoxDecoration(color: hasGPS ? const Color(0xFF06D6A0) : Colors.transparent, borderRadius: BorderRadius.circular(4)),
+                                      child: Row(
+                                        children: [
+                                          Icon(Icons.my_location, color: hasGPS ? Colors.black : const Color(0xFF06D6A0), size: 12),
+                                          Text(hasGPS ? ' GPS ✓' : ' GPS', style: TextStyle(color: hasGPS ? Colors.black : const Color(0xFF06D6A0), fontSize: 9, fontWeight: FontWeight.bold)),
+                                        ],
+                                      ),
                                     ),
                                   ),
                                   const Text('الشارع', style: TextStyle(color: Colors.grey, fontSize: 10)),
@@ -993,7 +1044,7 @@ class _SheekhaHomeScreenState extends State<SheekhaHomeScreen> {
                         style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFF06D6A0)),
                         onPressed: _exportExcelDirectlyToDownloads,
                         icon: const Icon(Icons.download, color: Colors.black, size: 18),
-                        label: const Text('تصدير إكسيل (Download)', style: TextStyle(color: Colors.black, fontSize: 11, fontWeight: FontWeight.bold)),
+                        label: const Text('تصدير إكسيل (باسم الحي)', style: TextStyle(color: Colors.black, fontSize: 11, fontWeight: FontWeight.bold)),
                       ),
                     ),
                     const SizedBox(width: 8),
@@ -1017,7 +1068,6 @@ class _SheekhaHomeScreenState extends State<SheekhaHomeScreen> {
     );
   }
 
-  // خانة المرصودة - المطلوبة فقط + إرسال للواتساب
   Widget _buildWantedRecordsTab() {
     List<Map<String, String>> wantedList = _records.where((r) => r['status'] == 'مطلوبة').toList();
 
@@ -1082,9 +1132,10 @@ class _SheekhaHomeScreenState extends State<SheekhaHomeScreen> {
                                 });
                               },
                             ),
+                            // 5: فتح موقع السيارة مباشرة على تطبيق الخرائط
                             InkWell(
                               onTap: () => _openGoogleMaps(car['coords'] ?? ''),
-                              child: const Icon(Icons.map, color: Color(0xFF06D6A0), size: 22),
+                              child: const Icon(Icons.map, color: Color(0xFF06D6A0), size: 24),
                             ),
                             Column(
                               crossAxisAlignment: CrossAxisAlignment.end,
@@ -1134,7 +1185,6 @@ class _SheekhaHomeScreenState extends State<SheekhaHomeScreen> {
     );
   }
 
-  // 2: خانة الفحص اليدوي (يفحص في الشيت المرفق + السجلات)
   Widget _buildManualSearchTab() {
     return Padding(
       padding: const EdgeInsets.all(12.0),
@@ -1165,6 +1215,7 @@ class _SheekhaHomeScreenState extends State<SheekhaHomeScreen> {
     );
   }
 
+  // 7: توجيه زر الدعم مباشرة للواتساب
   Widget _buildSettingsTab() {
     return ListView(
       padding: const EdgeInsets.all(16),
@@ -1200,9 +1251,24 @@ class _SheekhaHomeScreenState extends State<SheekhaHomeScreen> {
           subtitle: const Text('واتساب: 00201155661920', style: TextStyle(color: Colors.grey, fontSize: 11)),
           trailing: const Icon(Icons.arrow_forward_ios, color: Colors.grey, size: 16),
           onTap: () async {
-            const url = 'https://wa.me/201155661920?text=مرحباً، أود الاستفسار وتجديد اشتراك تطبيق SHEEKHA';
-            if (await canLaunchUrl(Uri.parse(url))) {
-              await launchUrl(Uri.parse(url), mode: LaunchMode.externalApplication);
+            const phone = '201155661920';
+            const text = 'مرحباً، أود الاستفسار وتجديد اشتراك تطبيق SHEEKHA';
+            String encodedText = Uri.encodeComponent(text);
+            Uri whatsappUri = Uri.parse('whatsapp://send?phone=$phone&text=$encodedText');
+
+            try {
+              if (await canLaunchUrl(whatsappUri)) {
+                await launchUrl(whatsappUri, mode: LaunchMode.externalApplication);
+              } else {
+                Uri webUri = Uri.parse('https://wa.me/$phone?text=$encodedText');
+                await launchUrl(webUri, mode: LaunchMode.externalApplication);
+              }
+            } catch (e) {
+              if (mounted) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(content: Text('تعذر فتح الواتساب: $e', textDirection: TextDirection.rtl)),
+                );
+              }
             }
           },
         ),
@@ -1276,14 +1342,13 @@ class _SheekhaHomeScreenState extends State<SheekhaHomeScreen> {
           child: Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
+              // 5: فتح موقع السيارة مباشرة على تطبيق الخرائط
               InkWell(onTap: coords.isNotEmpty ? () => _openGoogleMaps(coords) : null, child: Icon(Icons.map_outlined, color: coords.isNotEmpty ? const Color(0xFF06D6A0) : Colors.grey, size: 18)),
               InkWell(onTap: () => setState(() => list.removeAt(index)), child: const Icon(Icons.delete_outline, color: Colors.redAccent, size: 18)),
               Text(r['note'] ?? '+', style: const TextStyle(color: Colors.amber, fontSize: 11)),
               Text(r['street'] ?? '', style: const TextStyle(color: Colors.white70, fontSize: 11)),
-              // تعديل النوع يدوياً
               InkWell(onTap: () => _editRecordManually(index), child: Text(r['type'] ?? '-', style: const TextStyle(color: Color(0xFF06D6A0), fontSize: 12, decoration: TextDecoration.underline))),
               Icon(isWanted ? Icons.warning_amber_rounded : Icons.check_circle, color: isWanted ? Colors.redAccent : const Color(0xFF06D6A0), size: 18),
-              // تعديل اللوحة يدوياً
               InkWell(
                 onTap: () => _editRecordManually(index),
                 child: Text('${r['letters']} ${r['digits']}', style: TextStyle(color: isWanted ? Colors.redAccent : Colors.white, fontSize: 16, fontWeight: FontWeight.bold)),
@@ -1319,19 +1384,68 @@ class _SheekhaHomeScreenState extends State<SheekhaHomeScreen> {
     );
   }
 
+  // 1: إضافة حي يدوي مع إمكانية كتابة الاسم
   void _showDistrictMenu() {
     showModalBottomSheet(
       context: context,
       backgroundColor: const Color(0xFF1C2541),
       builder: (context) => Column(
         mainAxisSize: MainAxisSize.min,
-        children: _districts.map((d) => ListTile(
-          title: Text(d, style: const TextStyle(color: Colors.white), textDirection: TextDirection.rtl),
-          onTap: () {
-            setState(() => _currentDistrict = d);
-            Navigator.pop(context);
-          },
-        )).toList(),
+        children: [
+          ..._districts.map((d) => ListTile(
+            title: Text(d, style: const TextStyle(color: Colors.white), textDirection: TextDirection.rtl),
+            trailing: Icon(_currentDistrict == d ? Icons.check_circle : Icons.circle_outlined, color: const Color(0xFF06D6A0), size: 18),
+            onTap: () {
+              setState(() => _currentDistrict = d);
+              Navigator.pop(context);
+            },
+          )),
+          const Divider(color: Colors.white24),
+          ListTile(
+            leading: const Icon(Icons.add, color: Color(0xFF06D6A0)),
+            title: const Text('إضافة حي +', style: TextStyle(color: Color(0xFF06D6A0), fontWeight: FontWeight.bold), textDirection: TextDirection.rtl),
+            onTap: () {
+              Navigator.pop(context);
+              _showAddDistrictDialog();
+            },
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _showAddDistrictDialog() {
+    TextEditingController districtCtrl = TextEditingController();
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        backgroundColor: const Color(0xFF1C2541),
+        title: const Text('إضافة حي جديد', style: TextStyle(color: Color(0xFF06D6A0)), textAlign: TextAlign.center),
+        content: TextField(
+          controller: districtCtrl,
+          autofocus: true,
+          textDirection: TextDirection.rtl,
+          style: const TextStyle(color: Colors.white),
+          decoration: const InputDecoration(hintText: 'اكتب اسم الحي الجديد...', hintStyle: TextStyle(color: Colors.grey)),
+        ),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(context), child: const Text('إلغاء')),
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFF06D6A0)),
+            onPressed: () {
+              String newD = districtCtrl.text.trim();
+              if (newD.isNotEmpty) {
+                setState(() {
+                  if (!_districts.contains(newD)) _districts.add(newD);
+                  _currentDistrict = newD;
+                });
+                _saveData();
+              }
+              Navigator.pop(context);
+            },
+            child: const Text('إضافة وتحديد', style: TextStyle(color: Colors.black, fontWeight: FontWeight.bold)),
+          ),
+        ],
       ),
     );
   }
