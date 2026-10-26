@@ -30,8 +30,8 @@ class MyApp extends StatelessWidget {
   }
 }
 
-// محرك المعجم التفكيكي الشامل والدقيق للوحات المصرية
-class EgyptianPlateFullEngine {
+// محرك التدفق اللحظي للوحات
+class LiveStreamPlateEngine {
   static final Map<String, String> validLetters = {
     'الف': 'أ', 'ألف': 'أ', 'الأف': 'أ', 'الاف': 'أ', 'أليف': 'أ', 'ا': 'أ', 'أ': 'أ', 'إ': 'أ', 'ء': 'أ',
     'باء': 'ب', 'با': 'ب', 'به': 'ب', 'بي': 'ب', 'بت': 'ب', 'الباء': 'ب', 'اب': 'ب', 'ب': 'ب',
@@ -90,66 +90,70 @@ class EgyptianPlateFullEngine {
     'تسعه': '9', 'تسعة': '9', 'تسع': '9',
   };
 
-  static List<Map<String, String>> parseAll(String text) {
+  // تفكيك لحظي مباشر وتحويل فوري إلى قائمة رموز
+  static List<String> tokenize(String text) {
     if (text.trim().isEmpty) return [];
 
     String cleaned = _cleanNumbers(text);
-    List<String> rawTokens = cleaned.split(RegExp(r'\s+'));
-    List<String> stream = [];
+    List<String> raw = cleaned.split(RegExp(r'\s+'));
+    List<String> tokens = [];
 
-    for (String token in rawTokens) {
-      String w = token.replaceAll(RegExp(r'[^\u0621-\u064A0-9]'), '');
+    for (String r in raw) {
+      String w = r.replaceAll(RegExp(r'[^\u0621-\u064A0-9]'), '');
       if (w.isEmpty) continue;
 
       if (digitsDict.containsKey(w)) {
-        stream.add(digitsDict[w]!);
+        tokens.add(digitsDict[w]!);
       } else if (RegExp(r'^\d+$').hasMatch(w)) {
-        for (int i = 0; i < w.length; i++) stream.add(w[i]);
+        for (int i = 0; i < w.length; i++) tokens.add(w[i]);
       } else if (compoundDict.containsKey(w)) {
-        stream.addAll(compoundDict[w]!);
+        tokens.addAll(compoundDict[w]!);
       } else if (validLetters.containsKey(w)) {
-        stream.add(validLetters[w]!);
+        tokens.add(validLetters[w]!);
       } else {
-        // تفكيك الكلمات مع حذف التاء المربوطة والهاء المتطرفة
         for (int i = 0; i < w.length; i++) {
           String ch = w[i];
           if (ch == 'ة' || (ch == 'ه' && i == w.length - 1)) continue;
           if (RegExp(r'[\u0621-\u064A]').hasMatch(ch)) {
-            stream.add(ch == 'أ' || ch == 'إ' || ch == 'آ' ? 'أ' : ch);
+            tokens.add(ch == 'أ' || ch == 'إ' || ch == 'آ' ? 'أ' : ch);
           }
         }
       }
     }
+    return tokens;
+  }
 
-    List<Map<String, String>> results = [];
-    List<String> currentLetters = [];
-    String currentDigits = '';
+  // التقاط مباشر للوحات الكاملة أثناء الحديث
+  static List<Map<String, String>> extractPlatesDirect(List<String> tokens) {
+    List<Map<String, String>> plates = [];
+    List<String> letters = [];
+    String digits = '';
 
-    for (String item in stream) {
-      if (RegExp(r'^\d$').hasMatch(item)) {
-        currentDigits += item;
-      } else if (RegExp(r'^[\u0621-\u064A]$').hasMatch(item)) {
-        if (currentDigits.length >= 3 && currentLetters.length >= 2) {
-          results.add({
-            'letters': currentLetters.take(3).join(' '),
-            'digits': currentDigits.substring(0, currentDigits.length > 4 ? 4 : currentDigits.length),
+    for (String t in tokens) {
+      if (RegExp(r'^\d$').hasMatch(t)) {
+        digits += t;
+      } else if (RegExp(r'^[\u0621-\u064A]$').hasMatch(t)) {
+        if (digits.length >= 3 && letters.length >= 2) {
+          plates.add({
+            'letters': letters.take(3).join(' '),
+            'digits': digits.substring(0, digits.length > 4 ? 4 : digits.length),
           });
-          currentLetters = [item];
-          currentDigits = '';
+          letters = [t];
+          digits = '';
         } else {
-          if (currentLetters.length < 3) currentLetters.add(item);
+          if (letters.length < 3) letters.add(t);
         }
       }
     }
 
-    if (currentLetters.length >= 2 && currentDigits.length >= 3) {
-      results.add({
-        'letters': currentLetters.take(3).join(' '),
-        'digits': currentDigits.substring(0, currentDigits.length > 4 ? 4 : currentDigits.length),
+    if (letters.length >= 2 && digits.length >= 3) {
+      plates.add({
+        'letters': letters.take(3).join(' '),
+        'digits': digits.substring(0, digits.length > 4 ? 4 : digits.length),
       });
     }
 
-    return results;
+    return plates;
   }
 
   static String _cleanNumbers(String input) {
@@ -172,10 +176,9 @@ class SheekhaHomeScreen extends StatefulWidget {
 class _SheekhaHomeScreenState extends State<SheekhaHomeScreen> {
   int _currentIndex = 3;
   bool _isListening = false;
-  String _currentStatusText = 'اضغط الميكروفون لبدء الاستماع الكامل...';
+  String _currentStatusText = 'اضغط الميكروفون لبدء الرصد المباشر...';
   double _soundLevel = 0.0;
 
-  Timer? _debounceTimer;
   final Map<String, DateTime> _cooldowns = {};
   final stt.SpeechToText _speech = stt.SpeechToText();
   bool _speechEnabled = false;
@@ -194,10 +197,10 @@ class _SheekhaHomeScreenState extends State<SheekhaHomeScreen> {
   void initState() {
     super.initState();
     _loadData();
-    _initSpeechEngine();
+    _initEngine();
   }
 
-  Future<void> _initSpeechEngine() async {
+  Future<void> _initEngine() async {
     var micStatus = await Permission.microphone.request();
     if (!micStatus.isGranted) {
       setState(() => _currentStatusText = 'يرجى تفعيل إذن الميكروفون من الإعدادات');
@@ -221,7 +224,7 @@ class _SheekhaHomeScreenState extends State<SheekhaHomeScreen> {
       setState(() {
         _speechEnabled = available;
         _currentStatusText = available
-            ? 'الميكروفون مستعد للاستماع الكامل - اضغط للرصد'
+            ? 'الميكروفون مستعد للرصد المباشر واللحظي'
             : 'تأكد من تفعيل خدمات التعرف الصوتي بالجهاز';
       });
     } catch (e) {
@@ -245,16 +248,15 @@ class _SheekhaHomeScreenState extends State<SheekhaHomeScreen> {
         _soundLevel = 0.0;
         _currentStatusText = 'تم إيقاف الاستماع';
       });
-      _debounceTimer?.cancel();
       await _speech.stop();
     } else {
       if (!_speechEnabled) {
-        await _initSpeechEngine();
+        await _initEngine();
         if (!_speechEnabled) return;
       }
       setState(() {
         _isListening = true;
-        _currentStatusText = 'استماع كامل ومستمر لكل ما تنطقه...';
+        _currentStatusText = 'الرصد المباشر نشط... انطق اللوحات بطلاقة';
       });
       _startListeningSession();
     }
@@ -263,7 +265,6 @@ class _SheekhaHomeScreenState extends State<SheekhaHomeScreen> {
   void _startListeningSession() async {
     if (!_isListening) return;
 
-    // استخدام ListenMode.dictation ليلتقط الجملة والأرقام بالكامل دون بتر
     await _speech.listen(
       listenMode: stt.ListenMode.dictation,
       partialResults: true,
@@ -280,27 +281,24 @@ class _SheekhaHomeScreenState extends State<SheekhaHomeScreen> {
 
         setState(() => _currentStatusText = spoken);
 
-        _debounceTimer?.cancel();
-        // معالجة فورية خفيفة (70ms) تمنع التكرار وتضمن التقاط الأرقام كاملة
-        _debounceTimer = Timer(const Duration(milliseconds: 70), () {
-          if (!mounted) return;
-          List<Map<String, String>> plates = EgyptianPlateFullEngine.parseAll(spoken);
+        // تحليل فوري مباشر على الكلمات اللحظية بدون مؤقت وبدون انتظار صمت
+        List<String> tokens = LiveStreamPlateEngine.tokenize(spoken);
+        List<Map<String, String>> detected = LiveStreamPlateEngine.extractPlatesDirect(tokens);
 
-          for (var p in plates) {
-            String letters = p['letters']!;
-            String digits = p['digits']!;
-            String key = '$letters-$digits';
+        for (var p in detected) {
+          String letters = p['letters']!;
+          String digits = p['digits']!;
+          String key = '$letters-$digits';
 
-            DateTime now = DateTime.now();
-            bool isRecent = _cooldowns.containsKey(key) &&
-                now.difference(_cooldowns[key]!).inSeconds < 4;
+          DateTime now = DateTime.now();
+          bool isRecent = _cooldowns.containsKey(key) &&
+              now.difference(_cooldowns[key]!).inSeconds < 4;
 
-            if (!isRecent) {
-              _cooldowns[key] = now;
-              _registerDetectedPlate(letters, digits);
-            }
+          if (!isRecent) {
+            _cooldowns[key] = now;
+            _registerDetectedPlate(letters, digits);
           }
-        });
+        }
       },
     );
   }
@@ -712,7 +710,7 @@ class _SheekhaHomeScreenState extends State<SheekhaHomeScreen> {
                           borderRadius: BorderRadius.circular(12),
                         ),
                         child: Text(
-                          _isListening ? 'استماع دائم' : 'متوقف',
+                          _isListening ? 'رصد متدفق' : 'متوقف',
                           style: TextStyle(color: _isListening ? const Color(0xFF06D6A0) : Colors.grey, fontSize: 12),
                         ),
                       ),
@@ -723,7 +721,7 @@ class _SheekhaHomeScreenState extends State<SheekhaHomeScreen> {
                             crossAxisAlignment: CrossAxisAlignment.end,
                             children: [
                               Text(
-                                _isListening ? 'يستمع لكامل كلامك بطلاقة:' : 'اضغط للتسجيل',
+                                _isListening ? 'يرصد الحروف والأرقام مباشرة:' : 'اضغط للتسجيل',
                                 style: TextStyle(color: _isListening ? const Color(0xFF06D6A0) : Colors.grey, fontSize: 11),
                               ),
                               Text(
@@ -893,7 +891,7 @@ class _SheekhaHomeScreenState extends State<SheekhaHomeScreen> {
               child: _records.isEmpty
                   ? const Center(
                       child: Text(
-                        'الاستماع مستمر بالكامل... انطق اللوحات بحرية وسلاسة',
+                        'الرصد مباشر ومتدفق... انطق اللوحات بطلاقة وحرية',
                         textAlign: TextAlign.center,
                         style: TextStyle(color: Colors.grey, fontSize: 13),
                       ),
