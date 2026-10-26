@@ -37,17 +37,14 @@ jobs:
             sed -i -E "s/ext\.kotlin_version = '[^']+'/ext.kotlin_version = '1.9.22'/g" android/build.gradle
           fi
 
-          # 2. ضبط minSdkVersion إلى 21
+          # 2. ضبط minSdkVersion إلى 21 لدعم حزم الصوت والموقع
           sed -i 's/flutter.minSdkVersion/21/g' android/app/build.gradle || true
           sed -i 's/minSdkVersion [0-9]*/minSdkVersion 21/g' android/app/build.gradle || true
 
-          # 3. تفعيل التشفير والتعتيم على مستوى أندرويد (ProGuard / R8)
-          sed -i 's/buildTypes {/buildTypes {\n        release {\n            minifyEnabled true\n            shrinkResources true\n            proguardFiles getDefaultProguardFile("proguard-android-optimize.txt"), "proguard-rules.pro"/g' android/app/build.gradle || true
-
-          # 4. إضافة أذونات الصوت، الإنترنت، الـ GPS، وحفظ الملفات
+          # 3. إضافة أذونات الصوت، الإنترنت، الـ GPS، وحفظ الملفات
           sed -i '/<manifest/a \    <uses-permission android:name="android.permission.RECORD_AUDIO"/>\n    <uses-permission android:name="android.permission.INTERNET"/>\n    <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION"/>\n    <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION"/>\n    <uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE"/>\n    <uses-permission android:name="android.permission.WRITE_EXTERNAL_STORAGE"/>' android/app/src/main/AndroidManifest.xml
 
-          # 5. إضافة دعم استقبال ومشاركة ملفات الإكسيل (Open with / Share to)
+          # 4. إضافة دعم استقبال ومشاركة ملفات الإكسيل (Open with / Share to)
           sed -i '/<\/activity>/i \        <intent-filter>\n            <action android:name="android.intent.action.VIEW" />\n            <category android:name="android.intent.category.DEFAULT" />\n            <category android:name="android.intent.category.BROWSABLE" />\n            <data android:scheme="content" />\n            <data android:scheme="file" />\n            <data android:mimeType="*/*" />\n            <data android:pathPattern=".*\\.xlsx" />\n            <data android:pathPattern=".*\\.xls" />\n            <data android:pathPattern=".*\\.csv" />\n        </intent-filter>' android/app/src/main/AndroidManifest.xml
 
       - name: Install Dependencies
