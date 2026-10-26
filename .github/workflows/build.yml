@@ -2,61 +2,38 @@ name: Build Flutter APK
 
 on:
   push:
-    branches: [ main, master ]
+    branches: [ main ]
+  workflow_dispatch:
 
 jobs:
   build:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      
-      - uses: subosito/flutter-action@v2
+
+      - name: Set up Java
+        uses: actions/setup-java@v4
         with:
-          flutter-version: '3.19.x'
+          distribution: 'zulu'
+          java-version: '17'
+
+      - name: Set up Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          flutter-version: '3.19.6'
           channel: 'stable'
-          
-      - name: Recreate Modern Android Project
-        run: |
-          rm -rf android
-          flutter create . --platforms=android --project-name=sheekha_app --org=com.sheekha
 
-      - name: Inject Permissions and Speech Queries into AndroidManifest
-        run: |
-          python3 -c '
-          path = "android/app/src/main/AndroidManifest.xml"
-          with open(path, "r") as f:
-              content = f.read()
-          permissions = """
-              <uses-permission android:name="android.permission.RECORD_AUDIO"/>
-              <uses-permission android:name="android.permission.INTERNET"/>
-              <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE"/>
-              <uses-permission android:name="android.permission.BLUETOOTH"/>
-              <uses-permission android:name="android.permission.BLUETOOTH_ADMIN"/>
-              <uses-permission android:name="android.permission.BLUETOOTH_CONNECT"/>
-              <queries>
-                  <intent>
-                      <action android:name="android.speech.RecognitionService" />
-                  </intent>
-              </queries>
-          """
-          content = content.replace("<application", permissions + "\n    <application", 1)
-          with open(path, "w") as f:
-              f.write(content)
-          '
+      - name: Install Dependencies
+        run: flutter pub get
 
-      - name: Update minSdkVersion to 21
+      - name: Upgrade Kotlin & Build APK
         run: |
-          if [ -f "android/app/build.gradle" ]; then
-            sed -i 's/minSdkVersion flutter.minSdkVersion/minSdkVersion 21/g' android/app/build.gradle
-            sed -i 's/minSdk = flutter.minSdkVersion/minSdk = 21/g' android/app/build.gradle
-          fi
-          
-      - run: flutter pub get
-      
-      - run: flutter build apk --release
-      
-      - name: Upload APK
+          flutter create . --platforms=android
+          sed -i "s/ext.kotlin_version = '.*'/ext.kotlin_version = '1.9.0'/g" android/build.gradle || true
+          flutter build apk --release
+
+      - name: Upload APK Artifact
         uses: actions/upload-artifact@v4
         with:
-          name: release-apk
+          name: sheekha-app
           path: build/app/outputs/flutter-apk/app-release.apk
