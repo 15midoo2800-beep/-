@@ -23,7 +23,7 @@ jobs:
           flutter-version: '3.19.6'
           channel: 'stable'
 
-      - name: Configure Android Project, Brand Name & Real Radar Icon
+      - name: Configure Android Project, Brand Name & Share Filters
         run: |
           rm -rf android
           flutter create . --platforms=android --project-name rased
@@ -41,16 +41,16 @@ jobs:
           sed -i 's/flutter.minSdkVersion/21/g' android/app/build.gradle || true
           sed -i 's/minSdkVersion [0-9]*/minSdkVersion 21/g' android/app/build.gradle || true
 
-          # 3. تثبيت اسم التطبيق الرسمي ليكون "رصد" تحت الأيقونة
+          # 3. تثبيت اسم التطبيق الرسمي ليكون "رصد"
           sed -i 's/android:label="[^"]*"/android:label="رصد"/g' android/app/src/main/AndroidManifest.xml
 
           # 4. إضافة أذونات الصوت، الإنترنت، الـ GPS، وحفظ الملفات
           sed -i '/<manifest/a \    <uses-permission android:name="android.permission.RECORD_AUDIO"/>\n    <uses-permission android:name="android.permission.INTERNET"/>\n    <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION"/>\n    <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION"/>\n    <uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE"/>\n    <uses-permission android:name="android.permission.WRITE_EXTERNAL_STORAGE"/>' android/app/src/main/AndroidManifest.xml
 
-          # 5. إضافة دعم استقبال ومشاركة ملفات الإكسيل (Open with / Share to)
-          sed -i '/<\/activity>/i \        <intent-filter>\n            <action android:name="android.intent.action.VIEW" />\n            <category android:name="android.intent.category.DEFAULT" />\n            <category android:name="android.intent.category.BROWSABLE" />\n            <data android:scheme="content" />\n            <data android:scheme="file" />\n            <data android:mimeType="*/*" />\n            <data android:pathPattern=".*\\.xlsx" />\n            <data android:pathPattern=".*\\.xls" />\n            <data android:pathPattern=".*\\.csv" />\n        </intent-filter>' android/app/src/main/AndroidManifest.xml
+          # 5. إضافة دعم استقبال ومشاركة ملفات الإكسيل (Open with + Share to)
+          sed -i '/<\/activity>/i \        <intent-filter>\n            <action android:name="android.intent.action.VIEW" />\n            <action android:name="android.intent.action.SEND" />\n            <category android:name="android.intent.category.DEFAULT" />\n            <category android:name="android.intent.category.BROWSABLE" />\n            <data android:mimeType="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" />\n            <data android:mimeType="application/vnd.ms-excel" />\n            <data android:mimeType="text/comma-separated-values" />\n            <data android:mimeType="text/csv" />\n            <data android:mimeType="application/octet-stream" />\n            <data android:mimeType="*/*" />\n        </intent-filter>' android/app/src/main/AndroidManifest.xml
 
-          # 6. رسم وحقن أيقونة الرادار الأصلية المطابقة للصورة المرفقة
+          # 6. رسم وحقن أيقونة الرادار الأصلية
           python3 -c "
           import os, zlib, struct, math
 
@@ -66,22 +66,16 @@ jobs:
                   dist = math.hypot(dx, dy)
                   angle = math.atan2(dy, dx)
 
-                  # الخلفية دائرية خضراء داكنة نيون كالصورة الأصلية
                   if dist > 120:
                       raw_data.extend([0, 0, 0, 0])
                   else:
-                      # خلفية عميقة
                       r, g, b = 11, 19, 43
-                      # الدائرة الخارجية المتوهجة
                       if abs(dist - 110) < 4:
                           r, g, b = 6, 214, 160
-                      # أقواس الرادار الداخلية
                       elif abs(dist - 80) < 3 or abs(dist - 52) < 3 or abs(dist - 25) < 3:
                           r, g, b = 6, 214, 160
-                      # المركز المضيء
                       elif dist < 12:
                           r, g, b = 6, 214, 160
-                      # إشعاع الرادار الأخضر المائل كالأيقونة الأصلية
                       elif -0.8 < angle < 0.2 and dist < 105:
                           factor = (1.0 - (dist / 115.0)) * 0.7
                           r = int(11 + (6 - 11) * factor)
