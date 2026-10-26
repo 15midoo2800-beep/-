@@ -30,9 +30,9 @@ class MyApp extends StatelessWidget {
   }
 }
 
-// محرك الجذور الصوتية الذكي للوحات المصرية
-class RealtimePlateExtractor {
-  static final Map<String, String> letterMap = {
+// محرك المعجم التفكيكي المعزول صوتياً
+class FilteredPlateEngine {
+  static final Map<String, String> validLetters = {
     'الف': 'أ', 'ألف': 'أ', 'الأف': 'أ', 'الاف': 'أ', 'أليف': 'أ', 'ا': 'أ', 'أ': 'أ', 'إ': 'أ', 'ء': 'أ',
     'باء': 'ب', 'با': 'ب', 'به': 'ب', 'بي': 'ب', 'بت': 'ب', 'الباء': 'ب', 'اب': 'ب', 'ب': 'ب',
     'تاء': 'ت', 'تا': 'ت', 'ته': 'ت', 'تي': 'ت', 'التاء': 'ت', 'ات': 'ت', 'ت': 'ت',
@@ -63,56 +63,21 @@ class RealtimePlateExtractor {
     'ياء': 'ي', 'يا': 'ي', 'يه': 'ي', 'الياء': 'ي', 'ى': 'ي', 'ي': 'ي',
   };
 
-  // معجم التفكيك الميداني للكلمات المدمجة من نطق الحروف المتتابعة
-  static final Map<String, List<String>> dialectWords = {
-    // واو وقاف (واوقاف / أوقاف)
-    'واوقاف': ['و', 'ق'],
-    'أوقاف': ['و', 'ق'],
-    'اوقاف': ['و', 'ق'],
-    'وقاف': ['و', 'ق'],
-    // واو وصاد (واوساط / أوساط)
-    'واوساط': ['و', 'ص'],
-    'أوساط': ['و', 'ص'],
-    'اوساط': ['و', 'ص'],
-    'وساط': ['و', 'ص'],
-    'وسط': ['و', 'ص'],
-    // نون وعين (نوعين)
-    'نوعين': ['ن', 'ع'],
-    'نوعان': ['ن', 'ع'],
-    'نوع': ['ن', 'ع'],
-    // نون وهاء (نهاء)
-    'نهاء': ['ن', 'ه'],
-    'نها': ['ن', 'ه'],
-    'منهاء': ['م', 'ن', 'ه'],
-    'منها': ['م', 'ن', 'ه'],
-    // كاف وهاء وجيم (تقديم / كهج)
-    'تقديم': ['ك', 'ه', 'ج'],
-    'كهج': ['ك', 'ه', 'ج'],
-    // خاء وطاء وفاء (خطه / خطف)
-    'خطه': ['خ', 'ط'],
-    'خطة': ['خ', 'ط'],
-    'خطف': ['خ', 'ط', 'ف'],
-    // لام وقاف (أفلام)
-    'افلام': ['ل', 'ق'],
-    'أفلام': ['ل', 'ق'],
-    'فلام': ['ل', 'ق'],
-    'لقاف': ['ل', 'ق'],
-    // لام وميم ونون
-    'لمن': ['ل', 'م', 'ن'],
-    'لم': ['ل', 'م'],
-    'من': ['م', 'ن'],
-    'منع': ['م', 'ن', 'ع'],
-    'منوعين': ['م', 'ن', 'ع'],
-    'وعج': ['و', 'ع', 'ج'],
-    'لفق': ['ل', 'ف', 'ق'],
-    'عقب': ['ع', 'ق', 'ب'],
-    'ابت': ['أ', 'ب', 'ت'],
-    'بهاء': ['ب', 'ه'],
-    'مها': ['م', 'ه'],
-    'سها': ['س', 'ه'],
+  static final Map<String, List<String>> compoundDict = {
+    'واوقاف': ['و', 'ق'], 'أوقاف': ['و', 'ق'], 'اوقاف': ['و', 'ق'], 'وقاف': ['و', 'ق'],
+    'واوساط': ['و', 'ص'], 'أوساط': ['و', 'ص'], 'اوساط': ['و', 'ص'], 'وساط': ['و', 'ص'],
+    'نوعين': ['ن', 'ع'], 'نوعان': ['ن', 'ع'], 'نوع': ['ن', 'ع'],
+    'نهاء': ['ن', 'ه'], 'نها': ['ن', 'ه'], 'منهاء': ['م', 'ن', 'ه'], 'منها': ['م', 'ن', 'ه'],
+    'تقديم': ['ك', 'ه', 'ج'], 'كهج': ['ك', 'ه', 'ج'],
+    'خطه': ['خ', 'ط'], 'خطة': ['خ', 'ط'], 'خطف': ['خ', 'ط', 'ف'],
+    'افلام': ['ل', 'ق'], 'أفلام': ['ل', 'ق'], 'فلام': ['ل', 'ق'],
+    'لمن': ['ل', 'م', 'ن'], 'لم': ['ل', 'م'], 'من': ['م', 'ن'], 'منع': ['م', 'ن', 'ع'],
+    'منوعين': ['م', 'ن', 'ع'], 'وعج': ['و', 'ع', 'ج'], 'لفق': ['ل', 'ف', 'ق'],
+    'عقب': ['ع', 'ق', 'ب'], 'ابت': ['أ', 'ب', 'ت'],
+    'بهاء': ['ب', 'ه'], 'مها': ['م', 'ه'], 'سها': ['س', 'ه'],
   };
 
-  static final Map<String, String> digitsMap = {
+  static final Map<String, String> digitsDict = {
     'صفر': '0', 'زيرو': '0', 'واحد': '1', 'واحده': '1',
     'اتنين': '2', 'اثنين': '2', 'إثنين': '2', 'تنين': '2',
     'تلاته': '3', 'ثلاثة': '3', 'تلاتة': '3', 'تلات': '3', 'ثلاث': '3',
@@ -124,45 +89,39 @@ class RealtimePlateExtractor {
     'تسعه': '9', 'تسعة': '9', 'تسع': '9',
   };
 
-  static List<Map<String, String>> parse(String text) {
+  // استخراج مع فلترة الأصوات والكلمات الدخيلة غير التابعة للوحات
+  static List<Map<String, String>> parseFiltered(String text) {
     if (text.trim().isEmpty) return [];
 
-    String cleaned = _normalizeDigits(text);
+    String cleaned = _cleanNumbers(text);
     List<String> rawTokens = cleaned.split(RegExp(r'\s+'));
-
-    List<String> streamTokens = [];
+    List<String> validStream = [];
 
     for (String token in rawTokens) {
-      String cleanWord = token.replaceAll(RegExp(r'[^\u0621-\u064A0-9]'), '');
-      if (cleanWord.isEmpty) continue;
+      String word = token.replaceAll(RegExp(r'[^\u0621-\u064A0-9]'), '');
+      if (word.isEmpty) continue;
 
-      if (digitsMap.containsKey(cleanWord)) {
-        streamTokens.add(digitsMap[cleanWord]!);
-      } else if (RegExp(r'^\d+$').hasMatch(cleanWord)) {
-        for (int i = 0; i < cleanWord.length; i++) {
-          streamTokens.add(cleanWord[i]);
+      if (digitsDict.containsKey(word)) {
+        validStream.add(digitsDict[word]!);
+      } else if (RegExp(r'^\d+$').hasMatch(word)) {
+        for (int i = 0; i < word.length; i++) {
+          validStream.add(word[i]);
         }
-      } else if (dialectWords.containsKey(cleanWord)) {
-        streamTokens.addAll(dialectWords[cleanWord]!);
-      } else if (letterMap.containsKey(cleanWord)) {
-        streamTokens.add(letterMap[cleanWord]!);
-      } else {
-        // تفكيك الكلمات غير المعرفة مع إسقاط التاء المربوطة والهاء المتطرفة
-        for (int i = 0; i < cleanWord.length; i++) {
-          String ch = cleanWord[i];
-          if (ch == 'ة' || (ch == 'ه' && i == cleanWord.length - 1)) continue;
-          if (RegExp(r'[\u0621-\u064A]').hasMatch(ch)) {
-            streamTokens.add(ch == 'أ' || ch == 'إ' || ch == 'آ' ? 'أ' : ch);
-          }
-        }
+      } else if (compoundDict.containsKey(word)) {
+        validStream.addAll(compoundDict[word]!);
+      } else if (validLetters.containsKey(word)) {
+        validStream.add(validLetters[word]!);
+      } else if (word.length == 1 && RegExp(r'[\u0621-\u064A]').hasMatch(word)) {
+        validStream.add(word == 'أ' || word == 'إ' || word == 'آ' ? 'أ' : word);
       }
+      // إهمال أي كلمة عامية أخرى (كلام الشارع أو أحاديث جانبية)
     }
 
     List<Map<String, String>> plates = [];
     List<String> currentLetters = [];
     String currentDigits = '';
 
-    for (String item in streamTokens) {
+    for (String item in validStream) {
       if (RegExp(r'^\d$').hasMatch(item)) {
         currentDigits += item;
       } else if (RegExp(r'^[\u0621-\u064A]$').hasMatch(item)) {
@@ -191,7 +150,7 @@ class RealtimePlateExtractor {
     return plates;
   }
 
-  static String _normalizeDigits(String input) {
+  static String _cleanNumbers(String input) {
     const ar = ['٠', '١', '٢', '٣', '٤', '٥', '٦', '٧', '٨', '٩'];
     const en = ['0', '1', '2', '3', '4', '5', '6', '7', '8', '9'];
     for (int i = 0; i < ar.length; i++) {
@@ -211,7 +170,7 @@ class SheekhaHomeScreen extends StatefulWidget {
 class _SheekhaHomeScreenState extends State<SheekhaHomeScreen> {
   int _currentIndex = 3;
   bool _isListening = false;
-  String _currentStatusText = 'اضغط الميكروفون وتحدث بطلاقة وسرعة تامة...';
+  String _currentStatusText = 'الميكروفون مهيأ بعازل الضوضاء الميداني...';
   double _soundLevel = 0.0;
 
   final Map<String, DateTime> _cooldowns = {};
@@ -232,10 +191,10 @@ class _SheekhaHomeScreenState extends State<SheekhaHomeScreen> {
   void initState() {
     super.initState();
     _loadData();
-    _initSpeechEngine();
+    _initNoiseFilteredSpeechEngine();
   }
 
-  Future<void> _initSpeechEngine() async {
+  Future<void> _initNoiseFilteredSpeechEngine() async {
     var micStatus = await Permission.microphone.request();
     if (!micStatus.isGranted) {
       setState(() => _currentStatusText = 'يرجى تفعيل إذن الميكروفون من الإعدادات');
@@ -259,7 +218,7 @@ class _SheekhaHomeScreenState extends State<SheekhaHomeScreen> {
       setState(() {
         _speechEnabled = available;
         _currentStatusText = available
-            ? 'الميكروفون مستعد للرصد الصوتي المباشر'
+            ? 'الميكروفون متصل ومُفلتر للضوضاء - اضغط للرصد'
             : 'تأكد من تفعيل خدمات التعرف الصوتي بالجهاز';
       });
     } catch (e) {
@@ -286,12 +245,12 @@ class _SheekhaHomeScreenState extends State<SheekhaHomeScreen> {
       await _speech.stop();
     } else {
       if (!_speechEnabled) {
-        await _initSpeechEngine();
+        await _initNoiseFilteredSpeechEngine();
         if (!_speechEnabled) return;
       }
       setState(() {
         _isListening = true;
-        _currentStatusText = 'يستمع الآن بشكل دائم وسلس...';
+        _currentStatusText = 'عازل الضوضاء مفعل: يركز على صوتك المباشر فقط...';
       });
       _startListeningSession();
     }
@@ -318,7 +277,8 @@ class _SheekhaHomeScreenState extends State<SheekhaHomeScreen> {
 
         setState(() => _currentStatusText = spoken);
 
-        List<Map<String, String>> plates = RealtimePlateExtractor.parse(spoken);
+        // معالجة فورية مفلترة تعتمد فقط على الحروف والأرقام وتستبعد الضوضاء
+        List<Map<String, String>> plates = FilteredPlateEngine.parseFiltered(spoken);
 
         for (var p in plates) {
           String letters = p['letters']!;
@@ -725,7 +685,7 @@ class _SheekhaHomeScreenState extends State<SheekhaHomeScreen> {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Text('الملف: $_excelFileName', style: const TextStyle(color: Colors.grey, fontSize: 10), overflow: TextOverflow.ellipsis),
-            const Text('باقي ٢٩ يوم (ينتهي ٣/١/٢٠٢٦)', style: TextStyle(color: Colors.grey, fontSize: 9)),
+            const Text('باقي ٢٩ يوم (ينتهي ٣/١/٢٠٢٦)', style: const TextStyle(color: Colors.grey, fontSize: 9)),
           ],
         ),
         actions: const [
@@ -761,7 +721,7 @@ class _SheekhaHomeScreenState extends State<SheekhaHomeScreen> {
                           borderRadius: BorderRadius.circular(12),
                         ),
                         child: Text(
-                          _isListening ? 'مباشر مستمر' : 'متوقف',
+                          _isListening ? 'عازل ضوضاء' : 'متوقف',
                           style: TextStyle(color: _isListening ? const Color(0xFF06D6A0) : Colors.grey, fontSize: 12),
                         ),
                       ),
@@ -772,7 +732,7 @@ class _SheekhaHomeScreenState extends State<SheekhaHomeScreen> {
                             crossAxisAlignment: CrossAxisAlignment.end,
                             children: [
                               Text(
-                                _isListening ? 'استماع مباشر فوري:' : 'اضغط للتسجيل',
+                                _isListening ? 'تركيز على صوتك فقط:' : 'اضغط للتسجيل',
                                 style: TextStyle(color: _isListening ? const Color(0xFF06D6A0) : Colors.grey, fontSize: 11),
                               ),
                               Text(
@@ -942,7 +902,7 @@ class _SheekhaHomeScreenState extends State<SheekhaHomeScreen> {
               child: _records.isEmpty
                   ? const Center(
                       child: Text(
-                        'انطق اللوحات بطلاقة وحرية... الرصد فوري ومباشر',
+                        'عازل الضوضاء الميداني نشط... تحدث باتجاه الهاتف بحرية',
                         textAlign: TextAlign.center,
                         style: TextStyle(color: Colors.grey, fontSize: 13),
                       ),
