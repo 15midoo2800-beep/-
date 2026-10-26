@@ -20,22 +20,17 @@ jobs:
       - name: Set up Flutter
         uses: subosito/flutter-action@v2
         with:
-          flutter-version: '3.19.6'
+          flutter-version: '3.22.0'
           channel: 'stable'
 
-      - name: Create Android Platform & Configure Gradle
+      - name: Create Android Platform & Fix SDK
         run: |
           flutter create . --platforms=android --project-name sheekha
-
-          # فرض إصدار كوتلن 1.9.0 في كل ملفات build.gradle
-          find android/ -name "build.gradle" -exec sed -i "s/ext.kotlin_version = .*/ext.kotlin_version = '1.9.0'/g" {} +
-          find android/ -name "build.gradle" -exec sed -i 's/id "org.jetbrains.kotlin.android" version ".*"/id "org.jetbrains.kotlin.android" version "1.9.0"/g' {} +
-          find android/ -name "build.gradle" -exec sed -i 's/kotlin-gradle-plugin:1\.[0-9]\+\.[0-9]\+/kotlin-gradle-plugin:1.9.0/g' {} +
-
-          # ضبط minSdkVersion إلى 21 لتوافق حزم الصوت والموقع
-          sed -i 's/minSdkVersion .*/minSdkVersion 21/g' android/app/build.gradle || true
-          sed -i 's/minSdkVersion = .*/minSdkVersion = 21/g' android/app/build.gradle || true
           sed -i 's/flutter.minSdkVersion/21/g' android/app/build.gradle || true
+          sed -i 's/minSdkVersion .*/minSdkVersion 21/g' android/app/build.gradle || true
+          
+          # إضافة صلاحيات الـ GPS والميكروفون تلقائياً لملف المانيفيست
+          sed -i '/<manifest/a \    <uses-permission android:name="android.permission.RECORD_AUDIO"/>\n    <uses-permission android:name="android.permission.INTERNET"/>\n    <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION"/>\n    <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION"/>' android/app/src/main/AndroidManifest.xml
 
       - name: Install Dependencies
         run: flutter pub get
