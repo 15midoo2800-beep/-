@@ -30,141 +30,133 @@ class MyApp extends StatelessWidget {
   }
 }
 
-// محرك التدريب الصوتي التكيفي الذكي
-class AdaptiveVoiceEngine {
-  static Map<String, String> customUserMap = {}; // القاموس الشخصي المتعلم من تصحيحاتك
-
-  static final Map<String, String> defaultLetters = {
-    'الف': 'أ', 'ألف': 'أ', 'الأف': 'أ', 'الاف': 'أ', 'أليف': 'أ', 'ا': 'أ', 'أ': 'أ', 'إ': 'أ', 'ء': 'أ',
-    'باء': 'ب', 'با': 'ب', 'به': 'ب', 'بي': 'ب', 'بت': 'ب', 'الباء': 'ب', 'اب': 'ب', 'ب': 'ب',
-    'تاء': 'ت', 'تا': 'ت', 'ته': 'ت', 'تي': 'ت', 'التاء': 'ت', 'ات': 'ت', 'ت': 'ت',
-    'ثاء': 'ث', 'ثا': 'ث', 'ثه': 'ث', 'الثاء': 'ث', 'اث': 'ث', 'ث': 'ث',
-    'جيم': 'ج', 'جا': 'ج', 'جه': 'ج', 'جي': 'ج', 'الجيم': 'ج', 'ديم': 'ج', 'ج': 'ج',
-    'حاء': 'ح', 'حا': 'ح', 'حه': 'ح', 'حي': 'ح', 'الحاء': 'ح', 'اح': 'ح', 'ح': 'ح',
-    'خاء': 'خ', 'خا': 'خ', 'خه': 'خ', 'خي': 'خ', 'الخاء': 'خ', 'اخ': 'خ', 'خ': 'خ',
-    'دال': 'د', 'دا': 'د', 'ده': 'د', 'دي': 'د', 'الدال': 'د', 'اد': 'د', 'د': 'د',
-    'ذال': 'ذ', 'ذا': 'ذ', 'ذه': 'ذ', 'الذال': 'ذ', 'ذ': 'ذ',
-    'راء': 'ر', 'را': 'ر', 'ره': 'ر', 'ري': 'ر', 'الراء': 'ر', 'ار': 'ر', 'ر': 'ر',
-    'زين': 'ز', 'زا': 'ز', 'زه': 'ز', 'زي': 'ز', 'الزين': 'ز', 'زاي': 'ز', 'ز': 'ز',
-    'سين': 'س', 'سا': 'س', 'سه': 'س', 'سي': 'س', 'السين': 'س', 'س': 'س',
-    'شين': 'ش', 'شا': 'ش', 'شه': 'ش', 'شي': 'ش', 'الشين': 'ش', 'ش': 'ش',
-    'صاد': 'ص', 'صا': 'ص', 'صه': 'ص', 'الصاد': 'ص', 'ص': 'ص',
-    'ضاد': 'ض', 'ضا': 'ض', 'ضه': 'ض', 'الضاد': 'ض', 'ض': 'ض',
-    'طاء': 'ط', 'طا': 'ط', 'طه': 'ط', 'طي': 'ط', 'الطاء': 'ط', 'ط': 'ط',
-    'ظاء': 'ظ', 'ظا': 'ظ', 'ظه': 'ظ', 'الظاء': 'ظ', 'ظ': 'ظ',
-    'عين': 'ع', 'عا': 'ع', 'عه': 'ع', 'عي': 'ع', 'العين': 'ع', 'ع': 'ع',
-    'غين': 'غ', 'غاء': 'غ', 'غا': 'غ', 'غه': 'غ', 'الغين': 'غ', 'غ': 'غ',
-    'فاء': 'ف', 'فا': 'ف', 'فه': 'ف', 'في': 'ف', 'الفاء': 'ف', 'ف': 'ف',
-    'قاف': 'ق', 'قا': 'ق', 'قه': 'ق', 'قي': 'ق', 'القاف': 'ق', 'قف': 'ق', 'ق': 'ق',
-    'كاف': 'ك', 'كا': 'ك', 'كه': 'ك', 'كي': 'ك', 'الكاف': 'ك', 'ك': 'ك',
-    'لام': 'ل', 'لا': 'ل', 'له': 'ل', 'لي': 'ل', 'اللام': 'ل', 'ل': 'ل',
-    'ميم': 'م', 'مين': 'م', 'ما': 'م', 'مه': 'م', 'الميم': 'م', 'م': 'م',
-    'نون': 'ن', 'نا': 'ن', 'نه': 'ن', 'ني': 'ن', 'النون': 'ن', 'ن': 'ن',
-    'هاء': 'ه', 'ها': 'ه', 'هه': 'ه', 'الهاء': 'ه', 'هـ': 'ه', 'ه': 'ه',
-    'واو': 'و', 'وا': 'و', 'وه': 'و', 'الواو': 'و', 'و': 'و',
-    'ياء': 'ي', 'يا': 'ي', 'يه': 'ي', 'الياء': 'ي', 'ى': 'ي', 'ي': 'ي',
+// محرك التطابق التام مع الفيديو (حروف + أرقام + أنواع سيارات)
+class VideoMatchEngine {
+  static final Map<String, String> lettersMap = {
+    'الف': 'أ', 'ألف': 'أ', 'ا': 'أ', 'أ': 'أ', 'إ': 'أ',
+    'ب': 'ب', 'به': 'ب', 'باء': 'ب', 'با': 'ب', 'بي': 'ب',
+    'ت': 'ت', 'ته': 'ت', 'تاء': 'ت', 'تا': 'ت', 'تي': 'ت',
+    'ث': 'ث', 'ثه': 'ث', 'ثاء': 'ث', 'ثا': 'ث',
+    'ج': 'ج', 'جه': 'ج', 'جيم': 'ج', 'جا': 'ج', 'جي': 'ج',
+    'ح': 'ح', 'حه': 'ح', 'حاء': 'ح', 'حا': 'ح', 'حي': 'ح',
+    'خ': 'خ', 'خه': 'خ', 'خاء': 'خ', 'خا': 'خ', 'خي': 'خ',
+    'د': 'د', 'ده': 'د', 'دال': 'د', 'دا': 'د', 'دي': 'د',
+    'ذ': 'ذ', 'ذه': 'ذ', 'ذال': 'ذ', 'ذا': 'ذ',
+    'ر': 'ر', 'ره': 'ر', 'راء': 'ر', 'را': 'ر', 'ري': 'ر',
+    'ز': 'ز', 'زه': 'ز', 'زين': 'ز', 'زا': 'ز', 'زاي': 'ز',
+    'س': 'س', 'سه': 'س', 'سين': 'س', 'سا': 'س', 'سي': 'س',
+    'ش': 'ش', 'شه': 'ش', 'شين': 'ش', 'شا': 'ش', 'شي': 'ش',
+    'ص': 'ص', 'صه': 'ص', 'صاد': 'ص', 'صا': 'ص', 'صي': 'ص',
+    'ض': 'ض', 'ضه': 'ض', 'ضاد': 'ض', 'ضا': 'ض', 'ضي': 'ض',
+    'ط': 'ط', 'طه': 'ط', 'طاء': 'ط', 'طا': 'ط', 'طي': 'ط',
+    'ظ': 'ظ', 'ظه': 'ظ', 'ظاء': 'ظ', 'ظا': 'ظ',
+    'ع': 'ع', 'عه': 'ع', 'عين': 'ع', 'عا': 'ع', 'عي': 'ع',
+    'غ': 'غ', 'غه': 'غ', 'غين': 'غ', 'غا': 'غ', 'غاء': 'غ',
+    'ف': 'ف', 'فه': 'ف', 'فاء': 'ف', 'فا': 'ف', 'في': 'ف',
+    'ق': 'ق', 'قه': 'ق', 'قاف': 'ق', 'قا': 'ق', 'قف': 'ق',
+    'ك': 'ك', 'كه': 'ك', 'كاف': 'ك', 'كا': 'ك', 'كي': 'ك',
+    'ل': 'ل', 'له': 'ل', 'لام': 'ل', 'لا': 'ل', 'لي': 'ل',
+    'م': 'م', 'مه': 'م', 'ميم': 'م', 'ما': 'م', 'مين': 'م',
+    'ن': 'ن', 'نه': 'ن', 'نون': 'ن', 'نا': 'ن', 'ني': 'ن',
+    'ه': 'ه', 'هه': 'ه', 'هاء': 'ه', 'ها': 'ه', 'هـ': 'ه',
+    'و': 'و', 'وه': 'و', 'واو': 'و', 'وا': 'و',
+    'ي': 'ي', 'يه': 'ي', 'ياء': 'ي', 'يا': 'ي', 'ى': 'ي',
   };
 
-  static final Map<String, List<String>> compoundDict = {
-    'واوقاف': ['و', 'ق'], 'أوقاف': ['و', 'ق'], 'اوقاف': ['و', 'ق'], 'وقاف': ['و', 'ق'],
-    'واوساط': ['و', 'ص'], 'أوساط': ['و', 'ص'], 'اوساط': ['و', 'ص'], 'وساط': ['و', 'ص'],
-    'نوعين': ['ن', 'ع'], 'نوعان': ['ن', 'ع'], 'نوع': ['ن', 'ع'],
-    'نهاء': ['ن', 'ه'], 'نها': ['ن', 'ه'], 'منهاء': ['م', 'ن', 'ه'], 'منها': ['م', 'ن', 'ه'],
-    'تقديم': ['ك', 'ه', 'ج'], 'كهج': ['ك', 'ه', 'ج'],
-    'خطه': ['خ', 'ط'], 'خطة': ['خ', 'ط'], 'خطف': ['خ', 'ط', 'ف'],
-    'افلام': ['ل', 'ق'], 'أفلام': ['ل', 'ق'], 'فلام': ['ل', 'ق'],
-    'لمن': ['ل', 'م', 'ن'], 'لم': ['ل', 'م'], 'من': ['م', 'ن'], 'منع': ['م', 'ن', 'ع'],
-    'منوعين': ['م', 'ن', 'ع'], 'وعج': ['و', 'ع', 'ج'], 'لفق': ['ل', 'ف', 'ق'],
-    'عقب': ['ع', 'ق', 'ب'], 'ابت': ['أ', 'ب', 'ت'],
-    'بهاء': ['ب', 'ه'], 'مها': ['م', 'ه'], 'سها': ['س', 'ه'],
+  static final Map<String, List<String>> compounds = {
+    'واوقاف': ['و', 'ق'], 'أوقاف': ['و', 'ق'], 'اوقاف': ['و', 'ق'],
+    'واوساط': ['و', 'ص'], 'أوساط': ['و', 'ص'], 'نوعين': ['ن', 'ع'],
+    'نهاء': ['ن', 'ه'], 'تقديم': ['ك', 'ه', 'ج'], 'خطه': ['خ', 'ط'],
+    'خطف': ['خ', 'ط', 'ف'], 'افلام': ['ل', 'ق'], 'لمن': ['ل', 'م', 'ن'],
+    'منوعين': ['م', 'ن', 'ع'], 'وعج': ['و', 'ع', 'ج'], 'عقب': ['ع', 'ق', 'ب'],
   };
 
-  static final Map<String, String> digitsDict = {
-    'صفر': '0', 'زيرو': '0',
-    'واحد': '1', 'واحده': '1', 'واحدة': '1', 'حد': '1',
-    'اتنين': '2', 'اثنين': '2', 'إثنين': '2', 'تنين': '2',
-    'تلاته': '3', 'ثلاثة': '3', 'تلاتة': '3', 'تلات': '3', 'ثلاث': '3', 'تلت': '3',
-    'اربعة': '4', 'اربعه': '4', 'اربع': '4', 'أربع': '4',
+  static final Map<String, String> digits = {
+    'صفر': '0', 'زيرو': '0', 'واحد': '1', 'واحده': '1',
+    'اتنين': '2', 'اثنين': '2', 'تنين': '2', 'تلاته': '3', 'ثلاثة': '3', 'تلات': '3',
+    'اربعة': '4', 'اربعه': '4', 'أربعة': '4', 'اربع': '4',
     'خمسه': '5', 'خمسة': '5', 'خمس': '5',
     'سته': '6', 'ستة': '6', 'ست': '6',
     'سبعه': '7', 'سبعة': '7', 'سبع': '7',
-    'تمانيه': '8', 'ثمانية': '8', 'ثمانيه': '8', 'تمن': '8', 'تمان': '8',
+    'تمانيه': '8', 'ثمانية': '8', 'ثمانيه': '8', 'تمن': '8',
     'تسعه': '9', 'تسعة': '9', 'تسع': '9',
   };
 
-  static List<String> tokenize(String text) {
-    if (text.trim().isEmpty) return [];
+  // معجم أنواع السيارات المدعومة في الفيديو
+  static final List<String> carTypes = [
+    'نقل', 'فان', 'جراند ماكس', 'تلاجة كبيرة', 'ثلاجة كبيرة', 'تلاجة', 'هاي إس',
+    'ملاكي', 'ميكروباص', 'أجرة', 'تاكسي', 'دبابة', 'جامبو', 'نصف نقل', 'ربع نقل'
+  ];
 
-    String cleaned = _cleanNumbers(text);
-    List<String> raw = cleaned.split(RegExp(r'\s+'));
-    List<String> tokens = [];
+  static Map<String, dynamic>? extractPlateAndType(String spokenText) {
+    if (spokenText.trim().isEmpty) return null;
 
-    for (String r in raw) {
-      String w = r.replaceAll(RegExp(r'[^\u0621-\u064A0-9]'), '');
+    String text = _normalizeNumbers(spokenText);
+    String detectedType = 'ملاكي';
+
+    // فحص ما إذا كان نطق المستخدم يحتوي على نوع السيارة
+    for (String type in carTypes) {
+      if (text.contains(type)) {
+        detectedType = type;
+        text = text.replaceAll(type, ' ');
+        break;
+      }
+    }
+
+    List<String> rawTokens = text.split(RegExp(r'\s+'));
+    List<String> stream = [];
+
+    for (String token in rawTokens) {
+      String w = token.replaceAll(RegExp(r'[^\u0621-\u064A0-9]'), '');
       if (w.isEmpty) continue;
 
-      // 1. الأولوية للقاموس الشخصي الذي تدرب عليه التطبيق من صوتك
-      if (customUserMap.containsKey(w)) {
-        tokens.add(customUserMap[w]!);
-        continue;
-      }
-
-      // 2. فحص الأرقام
-      if (digitsDict.containsKey(w)) {
-        tokens.add(digitsDict[w]!);
+      if (digits.containsKey(w)) {
+        stream.add(digits[w]!);
       } else if (RegExp(r'^\d+$').hasMatch(w)) {
-        for (int i = 0; i < w.length; i++) tokens.add(w[i]);
-      } else if (compoundDict.containsKey(w)) {
-        tokens.addAll(compoundDict[w]!);
-      } else if (defaultLetters.containsKey(w)) {
-        tokens.add(defaultLetters[w]!);
+        for (int i = 0; i < w.length; i++) stream.add(w[i]);
+      } else if (compounds.containsKey(w)) {
+        stream.addAll(compounds[w]!);
+      } else if (lettersMap.containsKey(w)) {
+        stream.add(lettersMap[w]!);
       } else {
-        // تفكيك الكلمات المفاجئة
         for (int i = 0; i < w.length; i++) {
           String ch = w[i];
           if (ch == 'ة' || (ch == 'ه' && i == w.length - 1)) continue;
           if (RegExp(r'[\u0621-\u064A]').hasMatch(ch)) {
-            tokens.add(ch == 'أ' || ch == 'إ' || ch == 'آ' ? 'أ' : ch);
+            stream.add(ch == 'أ' || ch == 'إ' || ch == 'آ' ? 'أ' : ch);
           }
         }
       }
     }
-    return tokens;
-  }
 
-  static List<Map<String, String>> extractPlatesDirect(List<String> tokens) {
-    List<Map<String, String>> plates = [];
     List<String> letters = [];
-    String digits = '';
+    String digitsStr = '';
 
-    for (String t in tokens) {
-      if (RegExp(r'^\d$').hasMatch(t)) {
-        digits += t;
-      } else if (RegExp(r'^[\u0621-\u064A]$').hasMatch(t)) {
-        if (digits.length >= 3 && letters.length >= 2) {
-          plates.add({
-            'letters': letters.take(3).join(' '),
-            'digits': digits.substring(0, digits.length > 4 ? 4 : digits.length),
-          });
-          letters = [t];
-          digits = '';
+    for (String item in stream) {
+      if (RegExp(r'^\d$').hasMatch(item)) {
+        digitsStr += item;
+      } else if (RegExp(r'^[\u0621-\u064A]$').hasMatch(item)) {
+        if (digitsStr.length >= 3 && letters.length >= 2) {
+          letters = [item];
+          digitsStr = '';
         } else {
-          if (letters.length < 3) letters.add(t);
+          if (letters.length < 3) letters.add(item);
         }
       }
     }
 
-    if (letters.length >= 2 && digits.length >= 3) {
-      plates.add({
-        'letters': letters.take(3).join(' '),
-        'digits': digits.substring(0, digits.length > 4 ? 4 : digits.length),
-      });
+    if (letters.length >= 2 && digitsStr.length >= 3) {
+      return {
+        'letters': letters.join(' '),
+        'digits': digitsStr.substring(0, digitsStr.length > 4 ? 4 : digitsStr.length),
+        'type': detectedType,
+      };
     }
 
-    return plates;
+    return null;
   }
 
-  static String _cleanNumbers(String input) {
+  static String _normalizeNumbers(String input) {
     const ar = ['٠', '١', '٢', '٣', '٤', '٥', '٦', '٧', '٨', '٩'];
     const en = ['0', '1', '2', '3', '4', '5', '6', '7', '8', '9'];
     for (int i = 0; i < ar.length; i++) {
@@ -184,8 +176,7 @@ class SheekhaHomeScreen extends StatefulWidget {
 class _SheekhaHomeScreenState extends State<SheekhaHomeScreen> {
   int _currentIndex = 3;
   bool _isListening = false;
-  String _currentStatusText = 'اضغط الميكروفون للبدء...';
-  String _lastRawSpoken = '';
+  String _currentStatusText = 'يستمع الآن...';
   double _soundLevel = 0.0;
 
   final Map<String, DateTime> _cooldowns = {};
@@ -233,7 +224,7 @@ class _SheekhaHomeScreenState extends State<SheekhaHomeScreen> {
       setState(() {
         _speechEnabled = available;
         _currentStatusText = available
-            ? 'الميكروفون مستعد - نظام التعلم الشخصي نشط'
+            ? 'الميكروفون مستعد للرصد الفوري والحر'
             : 'تأكد من تفعيل خدمات التعرف الصوتي بالجهاز';
       });
     } catch (e) {
@@ -265,7 +256,7 @@ class _SheekhaHomeScreenState extends State<SheekhaHomeScreen> {
       }
       setState(() {
         _isListening = true;
-        _currentStatusText = 'استماع ذكي متواصل... يفهم نبرتك ويتعلم منها';
+        _currentStatusText = 'يستمع الآن...';
       });
       _startListeningSession();
     }
@@ -288,16 +279,14 @@ class _SheekhaHomeScreenState extends State<SheekhaHomeScreen> {
         String spoken = result.recognizedWords.trim();
         if (spoken.isEmpty) return;
 
-        _lastRawSpoken = spoken;
         setState(() => _currentStatusText = spoken);
 
-        // تحليل لحظي بالاعتماد على قاموسك الشخصي أولاً
-        List<String> tokens = AdaptiveVoiceEngine.tokenize(spoken);
-        List<Map<String, String>> detected = AdaptiveVoiceEngine.extractPlatesDirect(tokens);
-
-        for (var p in detected) {
-          String letters = p['letters']!;
-          String digits = p['digits']!;
+        // فحص مباشر للحروف والأرقام ونوع السيارة
+        var plateData = VideoMatchEngine.extractPlateAndType(spoken);
+        if (plateData != null) {
+          String letters = plateData['letters']!;
+          String digits = plateData['digits']!;
+          String carType = plateData['type']!;
           String key = '$letters-$digits';
 
           DateTime now = DateTime.now();
@@ -306,14 +295,14 @@ class _SheekhaHomeScreenState extends State<SheekhaHomeScreen> {
 
           if (!isRecent) {
             _cooldowns[key] = now;
-            _registerDetectedPlate(letters, digits);
+            _registerDetectedPlate(letters, digits, carType);
           }
         }
       },
     );
   }
 
-  void _registerDetectedPlate(String letters, String digits) {
+  void _registerDetectedPlate(String letters, String digits, String carType) {
     String cleanDigits = digits.trim();
     String cleanLetters = letters.replaceAll(' ', '');
 
@@ -333,7 +322,7 @@ class _SheekhaHomeScreenState extends State<SheekhaHomeScreen> {
         'id': (_records.length + 1).toString(),
         'letters': letters,
         'digits': digits,
-        'type': isWanted ? (match['type'] ?? 'ملاكي') : 'ملاكي',
+        'type': carType != 'ملاكي' ? carType : (isWanted ? (match['type'] ?? 'ملاكي') : 'ملاكي'),
         'district': _currentDistrict,
         'street': _currentStreet,
         'coords': _currentCoordinates,
@@ -351,81 +340,6 @@ class _SheekhaHomeScreenState extends State<SheekhaHomeScreen> {
       SystemSound.play(SystemSoundType.alert);
       _showWantedAlertModal(match, letters, digits);
     }
-  }
-
-  // نافذة تعديل اللوحة وتدريب التطبيق على الحرف الصحيح
-  void _showEditAndTrainDialog(int index) {
-    var record = _records[index];
-    TextEditingController lettersCtrl = TextEditingController(text: record['letters']);
-    TextEditingController digitsCtrl = TextEditingController(text: record['digits']);
-
-    showDialog(
-      context: context,
-      builder: (context) => AlertDialog(
-        backgroundColor: const Color(0xFF1C2541),
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-        title: const Text('تعديل وتدريب التطبيق', style: TextStyle(color: Color(0xFF06D6A0), fontSize: 16), textAlign: TextAlign.center),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            const Text(
-              'إذا عدلت الحروف هنا، سيتعلم التطبيق طريقة نطقك ويفهم قصدك مستقبلاً تلقائياً.',
-              style: TextStyle(color: Colors.grey, fontSize: 11),
-              textAlign: TextAlign.center,
-            ),
-            const SizedBox(height: 12),
-            TextField(
-              controller: lettersCtrl,
-              textDirection: TextDirection.rtl,
-              textAlign: TextAlign.center,
-              style: const TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold),
-              decoration: const InputDecoration(labelText: 'الحروف (مثال: و ق ك)', labelStyle: TextStyle(color: Colors.grey)),
-            ),
-            const SizedBox(height: 8),
-            TextField(
-              controller: digitsCtrl,
-              keyboardType: TextInputType.number,
-              textAlign: TextAlign.center,
-              style: const TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold),
-              decoration: const InputDecoration(labelText: 'الأرقام (مثال: 589)', labelStyle: TextStyle(color: Colors.grey)),
-            ),
-          ],
-        ),
-        actions: [
-          TextButton(onPressed: () => Navigator.pop(context), child: const Text('إلغاء')),
-          ElevatedButton(
-            style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFF06D6A0)),
-            onPressed: () {
-              String oldLetters = record['letters']!;
-              String newLetters = lettersCtrl.text.trim();
-              String newDigits = digitsCtrl.text.trim();
-
-              setState(() {
-                record['letters'] = newLetters;
-                record['digits'] = newDigits;
-              });
-
-              // تدريب القاموس الشخصي تلقائياً
-              if (_lastRawSpoken.isNotEmpty && oldLetters != newLetters) {
-                var words = _lastRawSpoken.split(RegExp(r'\s+'));
-                for (var w in words) {
-                  if (!AdaptiveVoiceEngine.digitsDict.containsKey(w)) {
-                    AdaptiveVoiceEngine.customUserMap[w] = newLetters.replaceAll(' ', '');
-                  }
-                }
-              }
-
-              _saveData();
-              Navigator.pop(context);
-              ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(content: Text('تم الحفظ وتدريب التطبيق على نطقك بنجاح!', textDirection: TextDirection.rtl), backgroundColor: Color(0xFF06D6A0)),
-              );
-            },
-            child: const Text('حفظ وتدريب', style: TextStyle(color: Colors.black, fontWeight: FontWeight.bold)),
-          ),
-        ],
-      ),
-    );
   }
 
   Future<void> _fetchGPSLocation() async {
@@ -467,7 +381,6 @@ class _SheekhaHomeScreenState extends State<SheekhaHomeScreen> {
     final String? savedRecords = prefs.getString('sheekha_historical_records');
     final String? savedDb = prefs.getString('sheekha_wanted_db');
     final String? savedFile = prefs.getString('sheekha_excel_name');
-    final String? savedCustomMap = prefs.getString('sheekha_custom_user_map');
 
     setState(() {
       if (savedRecords != null) {
@@ -479,9 +392,6 @@ class _SheekhaHomeScreenState extends State<SheekhaHomeScreen> {
             json.decode(savedDb).map((x) => Map<String, String>.from(x)));
       }
       if (savedFile != null) _excelFileName = savedFile;
-      if (savedCustomMap != null) {
-        AdaptiveVoiceEngine.customUserMap = Map<String, String>.from(json.decode(savedCustomMap));
-      }
     });
   }
 
@@ -490,7 +400,6 @@ class _SheekhaHomeScreenState extends State<SheekhaHomeScreen> {
     prefs.setString('sheekha_historical_records', json.encode(_records));
     prefs.setString('sheekha_wanted_db', json.encode(_wantedDatabase));
     prefs.setString('sheekha_excel_name', _excelFileName);
-    prefs.setString('sheekha_custom_user_map', json.encode(AdaptiveVoiceEngine.customUserMap));
   }
 
   Future<void> _pickAndParseExcelFile() async {
@@ -764,7 +673,7 @@ class _SheekhaHomeScreenState extends State<SheekhaHomeScreen> {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Text('الملف: $_excelFileName', style: const TextStyle(color: Colors.grey, fontSize: 10), overflow: TextOverflow.ellipsis),
-            Text('القاموس المتعلم: ${AdaptiveVoiceEngine.customUserMap.length} كلمات', style: const TextStyle(color: Color(0xFF06D6A0), fontSize: 9)),
+            const Text('باقي ٢٩ يوم (ينتهي ٣/١/٢٠٢٦)', style: TextStyle(color: Colors.grey, fontSize: 9)),
           ],
         ),
         actions: const [
@@ -800,7 +709,7 @@ class _SheekhaHomeScreenState extends State<SheekhaHomeScreen> {
                           borderRadius: BorderRadius.circular(12),
                         ),
                         child: Text(
-                          _isListening ? 'استماع متكيف' : 'متوقف',
+                          _isListening ? 'يستمع الآن' : 'متوقف',
                           style: TextStyle(color: _isListening ? const Color(0xFF06D6A0) : Colors.grey, fontSize: 12),
                         ),
                       ),
@@ -811,15 +720,11 @@ class _SheekhaHomeScreenState extends State<SheekhaHomeScreen> {
                             crossAxisAlignment: CrossAxisAlignment.end,
                             children: [
                               Text(
-                                _isListening ? 'التقاط ذكي متدفق:' : 'اضغط للتسجيل',
-                                style: TextStyle(color: _isListening ? const Color(0xFF06D6A0) : Colors.grey, fontSize: 11),
-                              ),
-                              Text(
                                 _currentStatusText,
                                 textAlign: TextAlign.right,
                                 maxLines: 2,
                                 overflow: TextOverflow.ellipsis,
-                                style: const TextStyle(color: Colors.white, fontSize: 14, fontWeight: FontWeight.bold),
+                                style: const TextStyle(color: Colors.white, fontSize: 15, fontWeight: FontWeight.bold),
                               ),
                             ],
                           ),
@@ -972,7 +877,7 @@ class _SheekhaHomeScreenState extends State<SheekhaHomeScreen> {
                   Text('الشارع', style: TextStyle(color: Colors.grey, fontSize: 11)),
                   Text('النوع', style: TextStyle(color: Colors.grey, fontSize: 11)),
                   Text('الحالة', style: TextStyle(color: Colors.grey, fontSize: 11)),
-                  Text('اللوحة (اضغط للتعديل)', style: TextStyle(color: Colors.grey, fontSize: 11)),
+                  Text('اللوحة', style: TextStyle(color: Colors.grey, fontSize: 11)),
                 ],
               ),
             ),
@@ -981,7 +886,7 @@ class _SheekhaHomeScreenState extends State<SheekhaHomeScreen> {
               child: _records.isEmpty
                   ? const Center(
                       child: Text(
-                        'الرصد مباشر ومتكيف... اضغط على أي لوحة لتعديلها وتدريب النظام',
+                        'انطق اللوحة ونوع السيارة مباشرة مثل الفيديو...',
                         textAlign: TextAlign.center,
                         style: TextStyle(color: Colors.grey, fontSize: 13),
                       ),
@@ -1032,22 +937,12 @@ class _SheekhaHomeScreenState extends State<SheekhaHomeScreen> {
                                 color: isWanted ? Colors.redAccent : const Color(0xFF06D6A0),
                                 size: 18,
                               ),
-                              // الضغط على اللوحة يفتح نافذة التعديل والتدريب التلقائي
-                              InkWell(
-                                onTap: () => _showEditAndTrainDialog(index),
-                                child: Row(
-                                  children: [
-                                    const Icon(Icons.edit, size: 12, color: Colors.grey),
-                                    const SizedBox(width: 4),
-                                    Text(
-                                      '${r['letters']} ${r['digits']}',
-                                      style: TextStyle(
-                                        color: isWanted ? Colors.redAccent : const Color(0xFF06D6A0),
-                                        fontSize: 16,
-                                        fontWeight: FontWeight.bold,
-                                      ),
-                                    ),
-                                  ],
+                              Text(
+                                '${r['letters']} ${r['digits']}',
+                                style: TextStyle(
+                                  color: isWanted ? Colors.redAccent : const Color(0xFF06D6A0),
+                                  fontSize: 16,
+                                  fontWeight: FontWeight.bold,
                                 ),
                               ),
                             ],
