@@ -11,7 +11,6 @@ import 'dart:math';
 import 'package:permission_handler/permission_handler.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:url_launcher/url_launcher.dart';
-import 'package:flutter/foundation.dart';
 
 void main() => runApp(const MyApp());
 
@@ -31,8 +30,8 @@ class MyApp extends StatelessWidget {
   }
 }
 
-// محرك المعالجة اللحظية للحروف والأرقام السريعة
-class RealtimePlateFastEngine {
+// محرك المعجم التفكيكي الشامل والدقيق للوحات المصرية
+class EgyptianPlateFullEngine {
   static final Map<String, String> validLetters = {
     'الف': 'أ', 'ألف': 'أ', 'الأف': 'أ', 'الاف': 'أ', 'أليف': 'أ', 'ا': 'أ', 'أ': 'أ', 'إ': 'أ', 'ء': 'أ',
     'باء': 'ب', 'با': 'ب', 'به': 'ب', 'بي': 'ب', 'بت': 'ب', 'الباء': 'ب', 'اب': 'ب', 'ب': 'ب',
@@ -78,74 +77,82 @@ class RealtimePlateFastEngine {
     'بهاء': ['ب', 'ه'], 'مها': ['م', 'ه'], 'سها': ['س', 'ه'],
   };
 
-  // معجم الأرقام الشامل بجميع اللهجات وصيغ النطق السريع
-  static final Map<String, String> fastDigitsMap = {
+  static final Map<String, String> digitsDict = {
     'صفر': '0', 'زيرو': '0',
     'واحد': '1', 'واحده': '1', 'واحدة': '1', 'حد': '1',
-    'اتنين': '2', 'اثنين': '2', 'إثنين': '2', 'تنين': '2', 'تنان': '2',
+    'اتنين': '2', 'اثنين': '2', 'إثنين': '2', 'تنين': '2',
     'تلاته': '3', 'ثلاثة': '3', 'تلاتة': '3', 'تلات': '3', 'ثلاث': '3', 'تلت': '3',
-    'اربعة': '4', 'اربعه': '4', 'اربع': '4', 'أربع': '4', 'أربعة': '4',
+    'اربعة': '4', 'اربعه': '4', 'اربع': '4', 'أربع': '4',
     'خمسه': '5', 'خمسة': '5', 'خمس': '5',
     'سته': '6', 'ستة': '6', 'ست': '6',
     'سبعه': '7', 'سبعة': '7', 'سبع': '7',
-    'تمانيه': '8', 'ثمانية': '8', 'ثمانيه': '8', 'تمن': '8', 'تمان': '8', 'ثمان': '8',
+    'تمانيه': '8', 'ثمانية': '8', 'ثمانيه': '8', 'تمن': '8', 'تمان': '8',
     'تسعه': '9', 'تسعة': '9', 'تسع': '9',
   };
 
-  static Map<String, String>? parse(String text) {
-    if (text.isEmpty) return null;
+  static List<Map<String, String>> parseAll(String text) {
+    if (text.trim().isEmpty) return [];
 
-    String cleaned = _normalizeAllNumbers(text);
+    String cleaned = _cleanNumbers(text);
     List<String> rawTokens = cleaned.split(RegExp(r'\s+'));
-    int start = rawTokens.length > 8 ? rawTokens.length - 8 : 0;
-    List<String> tokens = rawTokens.sublist(start);
-
     List<String> stream = [];
 
-    for (String t in tokens) {
-      String w = t.replaceAll(RegExp(r'[^\u0621-\u064A0-9]'), '');
+    for (String token in rawTokens) {
+      String w = token.replaceAll(RegExp(r'[^\u0621-\u064A0-9]'), '');
       if (w.isEmpty) continue;
 
-      // فحص الأرقام فوراً
-      if (fastDigitsMap.containsKey(w)) {
-        stream.add(fastDigitsMap[w]!);
+      if (digitsDict.containsKey(w)) {
+        stream.add(digitsDict[w]!);
       } else if (RegExp(r'^\d+$').hasMatch(w)) {
         for (int i = 0; i < w.length; i++) stream.add(w[i]);
       } else if (compoundDict.containsKey(w)) {
         stream.addAll(compoundDict[w]!);
       } else if (validLetters.containsKey(w)) {
         stream.add(validLetters[w]!);
-      } else if (w.length == 1 && RegExp(r'[\u0621-\u064A]').hasMatch(w)) {
-        stream.add(w == 'أ' || w == 'إ' || w == 'آ' ? 'أ' : w);
-      }
-    }
-
-    List<String> lettersStack = [];
-    String digitsBuffer = '';
-
-    for (String item in stream) {
-      if (RegExp(r'^\d$').hasMatch(item)) {
-        digitsBuffer += item;
-      } else if (RegExp(r'^[\u0621-\u064A]$').hasMatch(item)) {
-        if (digitsBuffer.length >= 3 && lettersStack.length >= 2) {
-          lettersStack = [item];
-          digitsBuffer = '';
-        } else {
-          if (lettersStack.length < 3) lettersStack.add(item);
+      } else {
+        // تفكيك الكلمات مع حذف التاء المربوطة والهاء المتطرفة
+        for (int i = 0; i < w.length; i++) {
+          String ch = w[i];
+          if (ch == 'ة' || (ch == 'ه' && i == w.length - 1)) continue;
+          if (RegExp(r'[\u0621-\u064A]').hasMatch(ch)) {
+            stream.add(ch == 'أ' || ch == 'إ' || ch == 'آ' ? 'أ' : ch);
+          }
         }
       }
     }
 
-    if (lettersStack.length >= 2 && digitsBuffer.length >= 3) {
-      return {
-        'letters': lettersStack.take(3).join(' '),
-        'digits': digitsBuffer.substring(0, digitsBuffer.length > 4 ? 4 : digitsBuffer.length),
-      };
+    List<Map<String, String>> results = [];
+    List<String> currentLetters = [];
+    String currentDigits = '';
+
+    for (String item in stream) {
+      if (RegExp(r'^\d$').hasMatch(item)) {
+        currentDigits += item;
+      } else if (RegExp(r'^[\u0621-\u064A]$').hasMatch(item)) {
+        if (currentDigits.length >= 3 && currentLetters.length >= 2) {
+          results.add({
+            'letters': currentLetters.take(3).join(' '),
+            'digits': currentDigits.substring(0, currentDigits.length > 4 ? 4 : currentDigits.length),
+          });
+          currentLetters = [item];
+          currentDigits = '';
+        } else {
+          if (currentLetters.length < 3) currentLetters.add(item);
+        }
+      }
     }
-    return null;
+
+    if (currentLetters.length >= 2 && currentDigits.length >= 3) {
+      results.add({
+        'letters': currentLetters.take(3).join(' '),
+        'digits': currentDigits.substring(0, currentDigits.length > 4 ? 4 : currentDigits.length),
+      });
+    }
+
+    return results;
   }
 
-  static String _normalizeAllNumbers(String input) {
+  static String _cleanNumbers(String input) {
     const ar = ['٠', '١', '٢', '٣', '٤', '٥', '٦', '٧', '٨', '٩'];
     const en = ['0', '1', '2', '3', '4', '5', '6', '7', '8', '9'];
     for (int i = 0; i < ar.length; i++) {
@@ -153,22 +160,6 @@ class RealtimePlateFastEngine {
     }
     return input;
   }
-}
-
-// دالة المطابقة الخلفية المعزولة (Isolate)
-Map<String, String> _matchPlateInDatabase(Map<String, dynamic> params) {
-  List<Map<String, String>> db = params['db'];
-  String targetDigits = params['digits'];
-  String targetLetters = params['letters'].toString().replaceAll(' ', '');
-
-  for (var car in db) {
-    String dbDigits = (car['digits'] ?? '').trim();
-    String dbLetters = (car['letters'] ?? '').replaceAll(' ', '');
-    if (dbDigits == targetDigits && (dbLetters.isEmpty || dbLetters == targetLetters)) {
-      return car;
-    }
-  }
-  return {};
 }
 
 class SheekhaHomeScreen extends StatefulWidget {
@@ -181,9 +172,10 @@ class SheekhaHomeScreen extends StatefulWidget {
 class _SheekhaHomeScreenState extends State<SheekhaHomeScreen> {
   int _currentIndex = 3;
   bool _isListening = false;
-  String _currentStatusText = 'اضغط الميكروفون لبدء الرصد المباشر...';
+  String _currentStatusText = 'اضغط الميكروفون لبدء الاستماع الكامل...';
   double _soundLevel = 0.0;
 
+  Timer? _debounceTimer;
   final Map<String, DateTime> _cooldowns = {};
   final stt.SpeechToText _speech = stt.SpeechToText();
   bool _speechEnabled = false;
@@ -202,10 +194,10 @@ class _SheekhaHomeScreenState extends State<SheekhaHomeScreen> {
   void initState() {
     super.initState();
     _loadData();
-    _initEngine();
+    _initSpeechEngine();
   }
 
-  Future<void> _initEngine() async {
+  Future<void> _initSpeechEngine() async {
     var micStatus = await Permission.microphone.request();
     if (!micStatus.isGranted) {
       setState(() => _currentStatusText = 'يرجى تفعيل إذن الميكروفون من الإعدادات');
@@ -229,7 +221,7 @@ class _SheekhaHomeScreenState extends State<SheekhaHomeScreen> {
       setState(() {
         _speechEnabled = available;
         _currentStatusText = available
-            ? 'الميكروفون مستعد للالتقاط اللحظي السريع'
+            ? 'الميكروفون مستعد للاستماع الكامل - اضغط للرصد'
             : 'تأكد من تفعيل خدمات التعرف الصوتي بالجهاز';
       });
     } catch (e) {
@@ -253,15 +245,16 @@ class _SheekhaHomeScreenState extends State<SheekhaHomeScreen> {
         _soundLevel = 0.0;
         _currentStatusText = 'تم إيقاف الاستماع';
       });
+      _debounceTimer?.cancel();
       await _speech.stop();
     } else {
       if (!_speechEnabled) {
-        await _initEngine();
+        await _initSpeechEngine();
         if (!_speechEnabled) return;
       }
       setState(() {
         _isListening = true;
-        _currentStatusText = 'يستمع ويكتب الأرقام والحروف فوراً...';
+        _currentStatusText = 'استماع كامل ومستمر لكل ما تنطقه...';
       });
       _startListeningSession();
     }
@@ -270,8 +263,9 @@ class _SheekhaHomeScreenState extends State<SheekhaHomeScreen> {
   void _startListeningSession() async {
     if (!_isListening) return;
 
+    // استخدام ListenMode.dictation ليلتقط الجملة والأرقام بالكامل دون بتر
     await _speech.listen(
-      listenMode: stt.ListenMode.search,
+      listenMode: stt.ListenMode.dictation,
       partialResults: true,
       cancelOnError: false,
       listenFor: const Duration(hours: 2),
@@ -286,46 +280,52 @@ class _SheekhaHomeScreenState extends State<SheekhaHomeScreen> {
 
         setState(() => _currentStatusText = spoken);
 
-        // استخراج اللوحة لحظة نطق الحرف أو الرقم مباشرة
-        var plate = RealtimePlateFastEngine.parse(spoken);
-        if (plate != null) {
-          String letters = plate['letters']!;
-          String digits = plate['digits']!;
-          String key = '$letters-$digits';
+        _debounceTimer?.cancel();
+        // معالجة فورية خفيفة (70ms) تمنع التكرار وتضمن التقاط الأرقام كاملة
+        _debounceTimer = Timer(const Duration(milliseconds: 70), () {
+          if (!mounted) return;
+          List<Map<String, String>> plates = EgyptianPlateFullEngine.parseAll(spoken);
 
-          DateTime now = DateTime.now();
-          bool isRecent = _cooldowns.containsKey(key) &&
-              now.difference(_cooldowns[key]!).inSeconds < 3;
+          for (var p in plates) {
+            String letters = p['letters']!;
+            String digits = p['digits']!;
+            String key = '$letters-$digits';
 
-          if (!isRecent) {
-            _cooldowns[key] = now;
-            _processPlateInBackground(letters, digits);
+            DateTime now = DateTime.now();
+            bool isRecent = _cooldowns.containsKey(key) &&
+                now.difference(_cooldowns[key]!).inSeconds < 4;
+
+            if (!isRecent) {
+              _cooldowns[key] = now;
+              _registerDetectedPlate(letters, digits);
+            }
           }
-        }
+        });
       },
     );
   }
 
-  Future<void> _processPlateInBackground(String letters, String digits) async {
-    Map<String, String> matchedCar = {};
+  void _registerDetectedPlate(String letters, String digits) {
+    String cleanDigits = digits.trim();
+    String cleanLetters = letters.replaceAll(' ', '');
 
-    if (_wantedDatabase.isNotEmpty) {
-      matchedCar = await compute(_matchPlateInDatabase, {
-        'db': _wantedDatabase,
-        'letters': letters,
-        'digits': digits,
-      });
-    }
+    var match = _wantedDatabase.firstWhere(
+      (car) {
+        String dbDigits = (car['digits'] ?? '').trim();
+        String dbLetters = (car['letters'] ?? '').replaceAll(' ', '');
+        return dbDigits == cleanDigits && (dbLetters.isEmpty || dbLetters == cleanLetters);
+      },
+      orElse: () => {},
+    );
 
-    bool isWanted = matchedCar.isNotEmpty;
+    bool isWanted = match.isNotEmpty;
 
-    if (!mounted) return;
     setState(() {
       _records.insert(0, {
         'id': (_records.length + 1).toString(),
         'letters': letters,
         'digits': digits,
-        'type': isWanted ? (matchedCar['type'] ?? 'ملاكي') : 'ملاكي',
+        'type': isWanted ? (match['type'] ?? 'ملاكي') : 'ملاكي',
         'district': _currentDistrict,
         'street': _currentStreet,
         'coords': _currentCoordinates,
@@ -341,7 +341,7 @@ class _SheekhaHomeScreenState extends State<SheekhaHomeScreen> {
     if (isWanted) {
       HapticFeedback.heavyImpact();
       SystemSound.play(SystemSoundType.alert);
-      _showWantedAlertModal(matchedCar, letters, digits);
+      _showWantedAlertModal(match, letters, digits);
     }
   }
 
@@ -712,7 +712,7 @@ class _SheekhaHomeScreenState extends State<SheekhaHomeScreen> {
                           borderRadius: BorderRadius.circular(12),
                         ),
                         child: Text(
-                          _isListening ? 'رصد فوري' : 'متوقف',
+                          _isListening ? 'استماع دائم' : 'متوقف',
                           style: TextStyle(color: _isListening ? const Color(0xFF06D6A0) : Colors.grey, fontSize: 12),
                         ),
                       ),
@@ -723,7 +723,7 @@ class _SheekhaHomeScreenState extends State<SheekhaHomeScreen> {
                             crossAxisAlignment: CrossAxisAlignment.end,
                             children: [
                               Text(
-                                _isListening ? 'التقاط فوري للأرقام والحروف:' : 'اضغط للتسجيل',
+                                _isListening ? 'يستمع لكامل كلامك بطلاقة:' : 'اضغط للتسجيل',
                                 style: TextStyle(color: _isListening ? const Color(0xFF06D6A0) : Colors.grey, fontSize: 11),
                               ),
                               Text(
@@ -762,7 +762,7 @@ class _SheekhaHomeScreenState extends State<SheekhaHomeScreen> {
                             ? baseHeight + (sin(index + _soundLevel) * _soundLevel * 2.2).abs()
                             : baseHeight;
                         return AnimatedContainer(
-                          duration: const Duration(milliseconds: 50),
+                          duration: const Duration(milliseconds: 60),
                           width: 3.5,
                           height: dynamicWave.clamp(5.0, 35.0),
                           decoration: BoxDecoration(
@@ -893,7 +893,7 @@ class _SheekhaHomeScreenState extends State<SheekhaHomeScreen> {
               child: _records.isEmpty
                   ? const Center(
                       child: Text(
-                        'الأرقام والحروف تسقط فوراً... انطق اللوحات بطلاقة وحرية',
+                        'الاستماع مستمر بالكامل... انطق اللوحات بحرية وسلاسة',
                         textAlign: TextAlign.center,
                         style: TextStyle(color: Colors.grey, fontSize: 13),
                       ),
