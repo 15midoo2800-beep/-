@@ -2,7 +2,7 @@ name: Build Flutter APK
 
 on:
   push:
-    branches: [ main ]
+    branches: [ main, master ]
   workflow_dispatch:
 
 jobs:
@@ -20,26 +20,67 @@ jobs:
       - name: Set up Flutter
         uses: subosito/flutter-action@v2
         with:
-          flutter-version: '3.22.0'
+          flutter-version: '3.19.6'
           channel: 'stable'
 
-      - name: Create Android Platform & Fix SDK
+      - name: Generate Android Folder & Force Kotlin 1.9.22
         run: |
+          rm -rf android
           flutter create . --platforms=android --project-name sheekha
-          sed -i 's/flutter.minSdkVersion/21/g' android/app/build.gradle || true
-          sed -i 's/minSdkVersion .*/minSdkVersion 21/g' android/app/build.gradle || true
-          
-          # إضافة صلاحيات الـ GPS والميكروفون تلقائياً لملف المانيفيست
+
+          # 1. كتابة ملف android/build.gradle مباشرة بإصدار Kotlin 1.9.22
+          cat << 'EOF' > android/build.gradle
+          buildscript {
+              ext.kotlin_version = '1.9.22'
+              repositories {
+                  google()
+                  mavenCentral()
+              }
+              dependencies {
+                  classpath 'com.android.tools.build:gradle:7.3.0'
+                  classpath "org.jetbrains.kotlin:kotlin-gradle-plugin:$kotlin_version"
+              }
+          }
+          allprojects {
+              repositories {
+                  google()
+                  mavenCentral()
+              }
+          }
+          rootProject.buildDir = '../build'
+          subprojects {
+              project.buildDir = "${rootProject.buildDir}/${project.name}"
+          }
+          subprojects {
+              project.evaluationDependsOn(':app')
+          }
+          tasks.register("clean", Delete) {
+              delete rootProject.buildDir
+          }
+          EOF
+
+          # 2. تحديث settings.gradle في حال استخدام الصيغة الحديثة
+          if [ -f android/settings.gradle ]; then
+            sed -i 's/1.7.1/1.9.22/g' android/settings.gradle
+            sed -i 's/1.8.22/1.9.22/g' android/settings.gradle
+          fi
+
+          # 3. رفع minSdkVersion إلى 21 وتفعيل Multidex
+          sed -i 's/flutter.minSdkVersion/21/g' android/app/build.gradle
+          sed -i 's/minSdkVersion .*/minSdkVersion 21/g' android/app/build.gradle
+          sed -i 's/compileSdkVersion .*/compileSdkVersion 34/g' android/app/build.gradle
+
+          # 4. حقن أذونات الميكروفون والـ GPS في المانيفيست
           sed -i '/<manifest/a \    <uses-permission android:name="android.permission.RECORD_AUDIO"/>\n    <uses-permission android:name="android.permission.INTERNET"/>\n    <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION"/>\n    <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION"/>' android/app/src/main/AndroidManifest.xml
 
-      - name: Install Dependencies
+      - name: Get Packages
         run: flutter pub get
 
-      - name: Build APK
+      - name: Build Release APK
         run: flutter build apk --release
 
-      - name: Upload APK Artifact
+      - name: Upload APK
         uses: actions/upload-artifact@v4
         with:
-          name: sheekha-app
+          name: sheekha-release-apk
           path: build/app/outputs/flutter-apk/app-release.apk
