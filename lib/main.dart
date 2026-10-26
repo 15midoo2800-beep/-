@@ -42,7 +42,6 @@ class _MyAppState extends State<MyApp> {
   }
 }
 
-// محرك المعالجة المتدفقة الفورية مع معجم الحروف والسيارات الشامل
 class SheekhaFullEngine {
   static final Map<String, String> lettersMap = {
     'الف': 'أ', 'ألف': 'أ', 'ا': 'أ', 'أ': 'أ', 'إ': 'أ', 'آ': 'أ', 'ء': 'أ',
@@ -95,7 +94,6 @@ class SheekhaFullEngine {
     'تسعه': '9', 'تسعة': '9', 'تسع': '9',
   };
 
-  // معجم موسع وشامل لكل أنواع ومسميات السيارات الشائعة
   static final List<String> allCarTypes = [
     'نقل', 'فان', 'جراند ماكس', 'تلاجة كبيرة', 'ثلاجة كبيرة', 'تلاجة', 'ثلاجة',
     'هاي إس', 'هايس', 'ملاكي', 'ميكروباص', 'أجرة', 'اجرة', 'تاكسي', 'دبابة', 'دبابه',
@@ -180,7 +178,6 @@ class SheekhaFullEngine {
     return input;
   }
 
-  // فلترة مرنة للحروف للبحث اليدوي
   static String normalizeFlexible(String input) {
     String res = normalizeDigits(input.trim());
     res = res.replaceAll(RegExp(r'[أإآا]'), 'أ');
@@ -199,7 +196,7 @@ class SheekhaHomeScreen extends StatefulWidget {
 }
 
 class _SheekhaHomeScreenState extends State<SheekhaHomeScreen> {
-  int _currentIndex = 4; // الافتراضي هو صفحة التشييك
+  int _currentIndex = 4; // شاشة التشييك
   bool _isListening = false;
   String _currentStatusText = 'يستمع الآن...';
   double _soundLevel = 0.0;
@@ -213,16 +210,15 @@ class _SheekhaHomeScreenState extends State<SheekhaHomeScreen> {
   String _currentStreet = 'ض 1';
   String _currentCoordinates = '';
   String _selectedNote = 'بدون';
-  String _excelFileName = 'لم يتم اختيار ملف';
+  String _wantedFileName = 'لم يتم رفع ملف السيارات المطلوبة';
+  String _appendFileName = 'لم يتم اختيار ملف';
   String _savedWhatsAppPhone = '00201155661920';
 
   List<Map<String, String>> _records = [];
   List<Map<String, String>> _wantedDatabase = [];
 
-  // خاص بصفحة المرصودة
   final Set<String> _selectedWantedIds = {};
 
-  // خاص بصفحة الفحص اليدوي
   final TextEditingController _manualSearchCtrl = TextEditingController();
   List<Map<String, String>> _manualSearchResults = [];
 
@@ -370,10 +366,112 @@ class _SheekhaHomeScreenState extends State<SheekhaHomeScreen> {
     }
   }
 
-  // 1- تصدير حقيقي لمجلد Download
+  // 1 & 5: استيراد ملف السيارات المطلوبة مع نافذة تحميل تفاعلية
+  Future<void> _pickAndParseWantedDatabaseFile() async {
+    FilePickerResult? result = await FilePicker.platform.pickFiles(
+      type: FileType.custom,
+      allowedExtensions: ['xlsx', 'xls', 'csv'],
+    );
+
+    if (result != null && result.files.single.path != null) {
+      _showLoadingProgressModal('جاري قراءة ومعالجة ملف السيارات المطلوبة...');
+
+      await Future.delayed(const Duration(milliseconds: 100));
+
+      try {
+        var bytes = File(result.files.single.path!).readAsBytesSync();
+        var excel = ex.Excel.decodeBytes(bytes);
+        List<Map<String, String>> extractedCars = [];
+
+        for (var table in excel.tables.keys) {
+          var sheet = excel.tables[table];
+          if (sheet != null) {
+            for (var row in sheet.rows.skip(1)) {
+              if (row.isNotEmpty && row[0] != null) {
+                String col0 = row[0]?.value?.toString() ?? '';
+                String col1 = row.length > 1 ? (row[1]?.value?.toString() ?? '') : '';
+                String col2 = row.length > 2 ? (row[2]?.value?.toString() ?? 'ملاكي') : 'ملاكي';
+                String col3 = row.length > 3 ? (row[3]?.value?.toString() ?? 'مطلوبة') : 'مطلوبة';
+
+                String letters = col0;
+                String digits = col1;
+                if (col1.isEmpty || !RegExp(r'\d').hasMatch(col1)) {
+                  digits = col0.replaceAll(RegExp(r'[^\d]'), '');
+                  letters = col0.replaceAll(RegExp(r'[\d]'), '').trim();
+                }
+
+                if (digits.isNotEmpty) {
+                  extractedCars.add({
+                    'letters': letters,
+                    'digits': digits,
+                    'type': col2,
+                    'owner': col3,
+                    'status': 'مطلوبة'
+                  });
+                }
+              }
+            }
+          }
+        }
+
+        setState(() {
+          _wantedDatabase = extractedCars;
+          _wantedFileName = '${result.files.single.name} (${extractedCars.length})';
+          _saveData();
+        });
+
+        if (mounted) Navigator.pop(context); // إغلاق نافذة التحميل
+
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('تم رفع ملف السيارات المطلوبة بنجاح! تم استخراج ${extractedCars.length} سيارة.', textDirection: TextDirection.rtl),
+              backgroundColor: const Color(0xFF06D6A0),
+              duration: const Duration(seconds: 4),
+            ),
+          );
+        }
+      } catch (e) {
+        if (mounted) Navigator.pop(context);
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text('حدث خطأ أثناء معالجة الملف: $e', textDirection: TextDirection.rtl), backgroundColor: Colors.redAccent),
+          );
+        }
+      }
+    }
+  }
+
+  // نافذة التحميل العامة التفاعلية
+  void _showLoadingProgressModal(String message) {
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (context) => AlertDialog(
+        backgroundColor: const Color(0xFF1C2541),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        content: Padding(
+          padding: const EdgeInsets.symmetric(vertical: 16),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const CircularProgressIndicator(color: Color(0xFF06D6A0)),
+              const SizedBox(height: 20),
+              Text(message, textAlign: TextAlign.center, style: const TextStyle(color: Colors.white, fontSize: 13, fontWeight: FontWeight.bold)),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  // تصدير حقيقي لمجلد Download
   Future<void> _exportExcelDirectlyToDownloads() async {
     try {
       await Permission.storage.request();
+      _showLoadingProgressModal('جاري تصدير السجلات إلى مجلد Download...');
+      await Future.delayed(const Duration(milliseconds: 50));
+
       var excel = ex.Excel.createExcel();
       ex.Sheet sheet = excel['سجلات_الرصد'];
       excel.delete('Sheet1');
@@ -414,16 +512,19 @@ class _SheekhaHomeScreenState extends State<SheekhaHomeScreen> {
       File file = File(filePath);
       await file.writeAsBytes(excel.save()!);
 
+      if (mounted) Navigator.pop(context);
+
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('تم حفظ الملف بنجاح في مجلد Download:\n$fileName', textDirection: TextDirection.rtl),
+            content: Text('تم تصدير ${_records.length} سجل بنجاح في مجلد Download:\n$fileName', textDirection: TextDirection.rtl),
             backgroundColor: const Color(0xFF06D6A0),
             duration: const Duration(seconds: 4),
           ),
         );
       }
     } catch (e) {
+      if (mounted) Navigator.pop(context);
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text('خطأ في التصدير: $e', textDirection: TextDirection.rtl), backgroundColor: Colors.redAccent),
@@ -432,7 +533,7 @@ class _SheekhaHomeScreenState extends State<SheekhaHomeScreen> {
     }
   }
 
-  // 2- اختيار ملف إكسيل والإكمال عليه
+  // 5: استيراد ملف سابق والإكمال عليه مع شاشة التحميل التفاعلية
   Future<void> _pickAndAppendExcelFile() async {
     FilePickerResult? result = await FilePicker.platform.pickFiles(
       type: FileType.custom,
@@ -440,64 +541,78 @@ class _SheekhaHomeScreenState extends State<SheekhaHomeScreen> {
     );
 
     if (result != null && result.files.single.path != null) {
-      var bytes = File(result.files.single.path!).readAsBytesSync();
-      var excel = ex.Excel.decodeBytes(bytes);
-      List<Map<String, String>> importedList = [];
+      _showLoadingProgressModal('جاري تحميل الشيت واستخراج السجلات للإكمال...');
+      await Future.delayed(const Duration(milliseconds: 100));
 
-      for (var table in excel.tables.keys) {
-        var sheet = excel.tables[table];
-        if (sheet != null) {
-          for (var row in sheet.rows.skip(1)) {
-            if (row.isNotEmpty && row[0] != null) {
-              String col0 = row[0]?.value?.toString() ?? '';
-              String col1 = row.length > 1 ? (row[1]?.value?.toString() ?? '') : '';
-              String col2 = row.length > 2 ? (row[2]?.value?.toString() ?? 'ملاكي') : 'ملاكي';
-              String col3 = row.length > 3 ? (row[3]?.value?.toString() ?? 'سجل سابق') : 'سجل سابق';
+      try {
+        var bytes = File(result.files.single.path!).readAsBytesSync();
+        var excel = ex.Excel.decodeBytes(bytes);
+        List<Map<String, String>> importedList = [];
 
-              String digits = col1;
-              String letters = col0;
-              if (col1.isEmpty || !RegExp(r'\d').hasMatch(col1)) {
-                digits = col0.replaceAll(RegExp(r'[^\d]'), '');
-                letters = col0.replaceAll(RegExp(r'[\d]'), '').trim();
-              }
+        for (var table in excel.tables.keys) {
+          var sheet = excel.tables[table];
+          if (sheet != null) {
+            for (var row in sheet.rows.skip(1)) {
+              if (row.isNotEmpty && row[0] != null) {
+                String col0 = row[0]?.value?.toString() ?? '';
+                String col1 = row.length > 1 ? (row[1]?.value?.toString() ?? '') : '';
+                String col2 = row.length > 2 ? (row[2]?.value?.toString() ?? 'ملاكي') : 'ملاكي';
+                String col3 = row.length > 3 ? (row[3]?.value?.toString() ?? 'سجل سابق') : 'سجل سابق';
 
-              if (digits.isNotEmpty) {
-                importedList.add({
-                  'id': (_records.length + importedList.length + 1).toString(),
-                  'letters': letters,
-                  'digits': digits,
-                  'type': col2,
-                  'district': _currentDistrict,
-                  'street': _currentStreet,
-                  'coords': _currentCoordinates,
-                  'note': col3,
-                  'status': 'مطابق',
-                  'time': 'سابق',
-                });
+                String digits = col1;
+                String letters = col0;
+                if (col1.isEmpty || !RegExp(r'\d').hasMatch(col1)) {
+                  digits = col0.replaceAll(RegExp(r'[^\d]'), '');
+                  letters = col0.replaceAll(RegExp(r'[\d]'), '').trim();
+                }
+
+                if (digits.isNotEmpty) {
+                  importedList.add({
+                    'id': (_records.length + importedList.length + 1).toString(),
+                    'letters': letters,
+                    'digits': digits,
+                    'type': col2,
+                    'district': _currentDistrict,
+                    'street': _currentStreet,
+                    'coords': _currentCoordinates,
+                    'note': col3,
+                    'status': 'مطابق',
+                    'time': 'سابق',
+                  });
+                }
               }
             }
           }
         }
-      }
 
-      setState(() {
-        _records.addAll(importedList);
-        _excelFileName = result.files.single.name;
-        _saveData();
-      });
+        setState(() {
+          _records.addAll(importedList);
+          _appendFileName = result.files.single.name;
+          _saveData();
+        });
 
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('تم استيراد ${importedList.length} سجل والإكمال عليه بنجاح', textDirection: TextDirection.rtl),
-            backgroundColor: const Color(0xFF06D6A0),
-          ),
-        );
+        if (mounted) Navigator.pop(context);
+
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('تم استيراد ${importedList.length} سجل بنجاح ومتابعة الإكمال عليها!', textDirection: TextDirection.rtl),
+              backgroundColor: const Color(0xFF06D6A0),
+              duration: const Duration(seconds: 4),
+            ),
+          );
+        }
+      } catch (e) {
+        if (mounted) Navigator.pop(context);
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text('خطأ في استيراد الشيت: $e', textDirection: TextDirection.rtl), backgroundColor: Colors.redAccent),
+          );
+        }
       }
     }
   }
 
-  // تعديل اللوحة والنوع يدوياً
   void _editRecordManually(int index) {
     var rec = _records[index];
     TextEditingController letCtrl = TextEditingController(text: rec['letters']);
@@ -555,7 +670,6 @@ class _SheekhaHomeScreenState extends State<SheekhaHomeScreen> {
     );
   }
 
-  // إرسال تقرير السيارات المطلوبة للواتساب
   void _sendWantedToWhatsApp() async {
     List<Map<String, String>> toSend = _records.where((r) => r['status'] == 'مطلوبة' && _selectedWantedIds.contains(r['id'])).toList();
     if (toSend.isEmpty) {
@@ -590,7 +704,7 @@ class _SheekhaHomeScreenState extends State<SheekhaHomeScreen> {
     }
   }
 
-  // البحث المرن في الفحص اليدوي
+  // 2: فحص يدوي مرن مع البحث في الشيت المرفق للسيارات المطلوبة
   void _executeManualSearch(String query) {
     if (query.trim().isEmpty) {
       setState(() => _manualSearchResults = []);
@@ -598,16 +712,52 @@ class _SheekhaHomeScreenState extends State<SheekhaHomeScreen> {
     }
 
     String normalizedQuery = SheekhaFullEngine.normalizeFlexible(query);
-    List<Map<String, String>> results = [];
+    List<Map<String, String>> matched = [];
 
-    for (var car in _records) {
-      String target = SheekhaFullEngine.normalizeFlexible('${car['letters']} ${car['digits']} ${car['type']}');
+    // أولاً: فحص قاعدة بيانات السيارات المطلوبة (الشيت المرفق)
+    for (var car in _wantedDatabase) {
+      String target = SheekhaFullEngine.normalizeFlexible('${car['letters']} ${car['digits']} ${car['type']} ${car['owner']}');
       if (target.contains(normalizedQuery)) {
-        results.add(car);
+        matched.add({
+          'id': 'مطلوبة',
+          'letters': car['letters'] ?? '',
+          'digits': car['digits'] ?? '',
+          'type': car['type'] ?? 'ملاكي',
+          'district': 'شيت المطلوبين',
+          'street': car['owner'] ?? 'مطلوبة',
+          'coords': '',
+          'note': '⚠️ مسجلة في شيت المطلوبين',
+          'status': 'مطلوبة',
+          'time': 'قاعدة البيانات',
+        });
       }
     }
 
-    setState(() => _manualSearchResults = results);
+    // ثانياً: فحص السجلات الميدانية المرصودة سابقاً
+    for (var car in _records) {
+      String target = SheekhaFullEngine.normalizeFlexible('${car['letters']} ${car['digits']} ${car['type']}');
+      if (target.contains(normalizedQuery)) {
+        if (!matched.any((m) => m['digits'] == car['digits'] && m['letters'] == car['letters'])) {
+          matched.add(car);
+        }
+      }
+    }
+
+    // إذا كانت مطابقة دقيقة لسيارة مطلوبة تظهر نافذة التنبيه الفوري
+    String cleanDigitsOnly = query.replaceAll(RegExp(r'[^\d]'), '');
+    if (cleanDigitsOnly.length >= 3) {
+      var exactMatch = _wantedDatabase.firstWhere(
+        (w) => (w['digits'] ?? '').trim() == cleanDigitsOnly,
+        orElse: () => {},
+      );
+      if (exactMatch.isNotEmpty) {
+        HapticFeedback.heavyImpact();
+        SystemSound.play(SystemSoundType.alert);
+        _showWantedAlertModal(exactMatch, exactMatch['letters'] ?? '', exactMatch['digits'] ?? '');
+      }
+    }
+
+    setState(() => _manualSearchResults = matched);
   }
 
   Future<void> _fetchGPSLocation() async {
@@ -649,6 +799,7 @@ class _SheekhaHomeScreenState extends State<SheekhaHomeScreen> {
     final String? savedRecords = prefs.getString('sheekha_historical_records');
     final String? savedDb = prefs.getString('sheekha_wanted_db');
     final String? savedPhone = prefs.getString('sheekha_wa_phone');
+    final String? savedWantedName = prefs.getString('sheekha_wanted_name');
 
     setState(() {
       if (savedRecords != null) {
@@ -660,6 +811,7 @@ class _SheekhaHomeScreenState extends State<SheekhaHomeScreen> {
             json.decode(savedDb).map((x) => Map<String, String>.from(x)));
       }
       if (savedPhone != null) _savedWhatsAppPhone = savedPhone;
+      if (savedWantedName != null) _wantedFileName = savedWantedName;
     });
   }
 
@@ -668,6 +820,7 @@ class _SheekhaHomeScreenState extends State<SheekhaHomeScreen> {
     prefs.setString('sheekha_historical_records', json.encode(_records));
     prefs.setString('sheekha_wanted_db', json.encode(_wantedDatabase));
     prefs.setString('sheekha_wa_phone', _savedWhatsAppPhone);
+    prefs.setString('sheekha_wanted_name', _wantedFileName);
   }
 
   void _showWantedAlertModal(Map<String, String> car, String letters, String digits) {
@@ -677,14 +830,14 @@ class _SheekhaHomeScreenState extends State<SheekhaHomeScreen> {
       builder: (context) => AlertDialog(
         backgroundColor: Colors.white,
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20), side: const BorderSide(color: Colors.redAccent, width: 3)),
-        title: const Text('🚨 تم رصد لوحة مطلوبة!', style: TextStyle(color: Colors.red, fontWeight: FontWeight.bold), textAlign: TextAlign.center),
+        title: const Text('🚨 تم رصد سيارة مطلوبة!', style: TextStyle(color: Colors.red, fontWeight: FontWeight.bold), textAlign: TextAlign.center),
         content: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
             Text('$letters $digits', style: const TextStyle(fontSize: 24, fontWeight: FontWeight.bold, color: Colors.black87)),
             const SizedBox(height: 8),
             Text('النوع: ${car['type'] ?? 'ملاكي'}', style: const TextStyle(color: Colors.black54)),
-            Text('المالك: ${car['owner'] ?? 'مطلوبة'}', style: const TextStyle(color: Colors.black54)),
+            Text('الجهة/المالك: ${car['owner'] ?? 'مطلوبة'}', style: const TextStyle(color: Colors.black54)),
           ],
         ),
         actions: [
@@ -704,8 +857,27 @@ class _SheekhaHomeScreenState extends State<SheekhaHomeScreen> {
       appBar: AppBar(
         backgroundColor: Colors.transparent,
         elevation: 0,
-        title: const Text('SHEEKHA', style: TextStyle(letterSpacing: 2, fontWeight: FontWeight.bold, color: Color(0xFF06D6A0))),
+        // 1: زر رفع ملف السيارات المطلوبة متاح دائماً بالأعلى
+        leading: IconButton(
+          icon: const Icon(Icons.upload_file, color: Color(0xFF06D6A0), size: 28),
+          tooltip: 'رفع شيت السيارات المطلوبة',
+          onPressed: _pickAndParseWantedDatabaseFile,
+        ),
+        title: Column(
+          crossAxisAlignment: CrossAxisAlignment.center,
+          children: [
+            const Text('SHEEKHA', style: TextStyle(letterSpacing: 2, fontWeight: FontWeight.bold, color: Color(0xFF06D6A0), fontSize: 18)),
+            Text(
+              _wantedFileName,
+              style: const TextStyle(color: Colors.grey, fontSize: 10),
+              overflow: TextOverflow.ellipsis,
+            ),
+          ],
+        ),
         centerTitle: true,
+        actions: const [
+          SizedBox(width: 48), // لموازنة أيقونة الرفع
+        ],
       ),
       body: _buildCurrentTabBody(),
       bottomNavigationBar: BottomNavigationBar(
@@ -742,7 +914,7 @@ class _SheekhaHomeScreenState extends State<SheekhaHomeScreen> {
     }
   }
 
-  // 3- خانة التشييك: فقط الاستماع وسجلاته
+  // 3: خانة التشييك - نقية ومخصصة للاستماع فقط وسجلاته
   Widget _buildCheckingTab() {
     return Padding(
       padding: const EdgeInsets.all(12.0),
@@ -753,8 +925,8 @@ class _SheekhaHomeScreenState extends State<SheekhaHomeScreen> {
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              Text('السجلات المرصودة: ${_records.length}', style: const TextStyle(color: Colors.grey, fontSize: 13)),
-              const Text('اضغط على أي لوحة أو نوع لتعديلها', style: TextStyle(color: Color(0xFF06D6A0), fontSize: 11)),
+              Text('السجلات: ${_records.length}', style: const TextStyle(color: Colors.grey, fontSize: 13)),
+              const Text('اضغط على اللوحة أو النوع لتعديلهما', style: TextStyle(color: Color(0xFF06D6A0), fontSize: 11)),
             ],
           ),
           const SizedBox(height: 8),
@@ -764,7 +936,7 @@ class _SheekhaHomeScreenState extends State<SheekhaHomeScreen> {
     );
   }
 
-  // 2- خانة التسجيل: التحكم بالشارع والحي وتصدير واستيراد الإكسيل
+  // خانة التسجيل - الإعدادات الميدانية والإكمال والتصدير
   Widget _buildRegistrationTab() {
     return Padding(
       padding: const EdgeInsets.all(12.0),
@@ -829,7 +1001,7 @@ class _SheekhaHomeScreenState extends State<SheekhaHomeScreen> {
                       child: OutlinedButton.icon(
                         style: OutlinedButton.styleFrom(side: const BorderSide(color: Color(0xFF06D6A0))),
                         onPressed: _pickAndAppendExcelFile,
-                        icon: const Icon(Icons.upload_file, color: Color(0xFF06D6A0), size: 18),
+                        icon: const Icon(Icons.add_to_photos, color: Color(0xFF06D6A0), size: 18),
                         label: const Text('استيراد وإكمال شيت', style: TextStyle(color: Color(0xFF06D6A0), fontSize: 11)),
                       ),
                     ),
@@ -845,7 +1017,7 @@ class _SheekhaHomeScreenState extends State<SheekhaHomeScreen> {
     );
   }
 
-  // 5- خانة المرصودة (المطلوبة فقط + وتثبيت رقم الواتساب وإرساله)
+  // خانة المرصودة - المطلوبة فقط + إرسال للواتساب
   Widget _buildWantedRecordsTab() {
     List<Map<String, String>> wantedList = _records.where((r) => r['status'] == 'مطلوبة').toList();
 
@@ -962,7 +1134,7 @@ class _SheekhaHomeScreenState extends State<SheekhaHomeScreen> {
     );
   }
 
-  // 6- خانة الفحص اليدوي المرن
+  // 2: خانة الفحص اليدوي (يفحص في الشيت المرفق + السجلات)
   Widget _buildManualSearchTab() {
     return Padding(
       padding: const EdgeInsets.all(12.0),
@@ -974,7 +1146,7 @@ class _SheekhaHomeScreenState extends State<SheekhaHomeScreen> {
             textDirection: TextDirection.rtl,
             style: const TextStyle(color: Colors.white),
             decoration: InputDecoration(
-              hintText: 'اكتب حروف أو أرقام أو نوع (مثال: أ ن د أو 2718 أو نقل)',
+              hintText: 'اكتب حروف أو أرقام للفحص الفوري في شيت المطلوبين...',
               hintStyle: const TextStyle(color: Colors.grey, fontSize: 12),
               prefixIcon: const Icon(Icons.search, color: Color(0xFF06D6A0)),
               filled: true,
@@ -985,7 +1157,7 @@ class _SheekhaHomeScreenState extends State<SheekhaHomeScreen> {
           const SizedBox(height: 10),
           Expanded(
             child: _manualSearchResults.isEmpty
-                ? const Center(child: Text('اكتب للبحث المرن في السجلات المسجلة', style: TextStyle(color: Colors.grey)))
+                ? const Center(child: Text('اكتب للبحث والفحص الفوري ضد شيت السيارات المطلوبة', style: TextStyle(color: Colors.grey)))
                 : _buildRecordsListView(_manualSearchResults),
           ),
         ],
@@ -993,7 +1165,6 @@ class _SheekhaHomeScreenState extends State<SheekhaHomeScreen> {
     );
   }
 
-  // 7- خانة الإعدادات: لغة + واتساب الدعم الفني والاشتراك
   Widget _buildSettingsTab() {
     return ListView(
       padding: const EdgeInsets.all(16),
@@ -1029,7 +1200,6 @@ class _SheekhaHomeScreenState extends State<SheekhaHomeScreen> {
           subtitle: const Text('واتساب: 00201155661920', style: TextStyle(color: Colors.grey, fontSize: 11)),
           trailing: const Icon(Icons.arrow_forward_ios, color: Colors.grey, size: 16),
           onTap: () async {
-            const phone = '00201155661920';
             const url = 'https://wa.me/201155661920?text=مرحباً، أود الاستفسار وتجديد اشتراك تطبيق SHEEKHA';
             if (await canLaunchUrl(Uri.parse(url))) {
               await launchUrl(Uri.parse(url), mode: LaunchMode.externalApplication);
@@ -1107,13 +1277,13 @@ class _SheekhaHomeScreenState extends State<SheekhaHomeScreen> {
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
               InkWell(onTap: coords.isNotEmpty ? () => _openGoogleMaps(coords) : null, child: Icon(Icons.map_outlined, color: coords.isNotEmpty ? const Color(0xFF06D6A0) : Colors.grey, size: 18)),
-              InkWell(onTap: () => setState(() => _records.removeAt(index)), child: const Icon(Icons.delete_outline, color: Colors.redAccent, size: 18)),
+              InkWell(onTap: () => setState(() => list.removeAt(index)), child: const Icon(Icons.delete_outline, color: Colors.redAccent, size: 18)),
               Text(r['note'] ?? '+', style: const TextStyle(color: Colors.amber, fontSize: 11)),
               Text(r['street'] ?? '', style: const TextStyle(color: Colors.white70, fontSize: 11)),
-              // الضغط لتعديل النوع
+              // تعديل النوع يدوياً
               InkWell(onTap: () => _editRecordManually(index), child: Text(r['type'] ?? '-', style: const TextStyle(color: Color(0xFF06D6A0), fontSize: 12, decoration: TextDecoration.underline))),
               Icon(isWanted ? Icons.warning_amber_rounded : Icons.check_circle, color: isWanted ? Colors.redAccent : const Color(0xFF06D6A0), size: 18),
-              // الضغط لتعديل اللوحة
+              // تعديل اللوحة يدوياً
               InkWell(
                 onTap: () => _editRecordManually(index),
                 child: Text('${r['letters']} ${r['digits']}', style: TextStyle(color: isWanted ? Colors.redAccent : Colors.white, fontSize: 16, fontWeight: FontWeight.bold)),
