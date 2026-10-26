@@ -31,8 +31,8 @@ class MyApp extends StatelessWidget {
   }
 }
 
-// محرك آلة الحالات (State Machine) فائق السرعة
-class StateMachinePlateParser {
+// محرك المعالجة اللحظية للحروف والأرقام السريعة
+class RealtimePlateFastEngine {
   static final Map<String, String> validLetters = {
     'الف': 'أ', 'ألف': 'أ', 'الأف': 'أ', 'الاف': 'أ', 'أليف': 'أ', 'ا': 'أ', 'أ': 'أ', 'إ': 'أ', 'ء': 'أ',
     'باء': 'ب', 'با': 'ب', 'به': 'ب', 'بي': 'ب', 'بت': 'ب', 'الباء': 'ب', 'اب': 'ب', 'ب': 'ب',
@@ -78,24 +78,26 @@ class StateMachinePlateParser {
     'بهاء': ['ب', 'ه'], 'مها': ['م', 'ه'], 'سها': ['س', 'ه'],
   };
 
-  static final Map<String, String> digitsDict = {
-    'صفر': '0', 'زيرو': '0', 'واحد': '1', 'واحده': '1',
-    'اتنين': '2', 'اثنين': '2', 'إثنين': '2', 'تنين': '2',
-    'تلاته': '3', 'ثلاثة': '3', 'تلاتة': '3', 'تلات': '3', 'ثلاث': '3',
-    'اربعة': '4', 'اربعه': '4', 'اربع': '4', 'أربع': '4',
+  // معجم الأرقام الشامل بجميع اللهجات وصيغ النطق السريع
+  static final Map<String, String> fastDigitsMap = {
+    'صفر': '0', 'زيرو': '0',
+    'واحد': '1', 'واحده': '1', 'واحدة': '1', 'حد': '1',
+    'اتنين': '2', 'اثنين': '2', 'إثنين': '2', 'تنين': '2', 'تنان': '2',
+    'تلاته': '3', 'ثلاثة': '3', 'تلاتة': '3', 'تلات': '3', 'ثلاث': '3', 'تلت': '3',
+    'اربعة': '4', 'اربعه': '4', 'اربع': '4', 'أربع': '4', 'أربعة': '4',
     'خمسه': '5', 'خمسة': '5', 'خمس': '5',
     'سته': '6', 'ستة': '6', 'ست': '6',
     'سبعه': '7', 'سبعة': '7', 'سبع': '7',
-    'تمانيه': '8', 'ثمانية': '8', 'ثمانيه': '8', 'تمن': '8',
+    'تمانيه': '8', 'ثمانية': '8', 'ثمانيه': '8', 'تمن': '8', 'تمان': '8', 'ثمان': '8',
     'تسعه': '9', 'تسعة': '9', 'تسع': '9',
   };
 
   static Map<String, String>? parse(String text) {
     if (text.isEmpty) return null;
 
-    String cleaned = _cleanNumbers(text);
+    String cleaned = _normalizeAllNumbers(text);
     List<String> rawTokens = cleaned.split(RegExp(r'\s+'));
-    int start = rawTokens.length > 7 ? rawTokens.length - 7 : 0;
+    int start = rawTokens.length > 8 ? rawTokens.length - 8 : 0;
     List<String> tokens = rawTokens.sublist(start);
 
     List<String> stream = [];
@@ -104,8 +106,9 @@ class StateMachinePlateParser {
       String w = t.replaceAll(RegExp(r'[^\u0621-\u064A0-9]'), '');
       if (w.isEmpty) continue;
 
-      if (digitsDict.containsKey(w)) {
-        stream.add(digitsDict[w]!);
+      // فحص الأرقام فوراً
+      if (fastDigitsMap.containsKey(w)) {
+        stream.add(fastDigitsMap[w]!);
       } else if (RegExp(r'^\d+$').hasMatch(w)) {
         for (int i = 0; i < w.length; i++) stream.add(w[i]);
       } else if (compoundDict.containsKey(w)) {
@@ -117,7 +120,6 @@ class StateMachinePlateParser {
       }
     }
 
-    // منطق الـ State Machine
     List<String> lettersStack = [];
     String digitsBuffer = '';
 
@@ -143,7 +145,7 @@ class StateMachinePlateParser {
     return null;
   }
 
-  static String _cleanNumbers(String input) {
+  static String _normalizeAllNumbers(String input) {
     const ar = ['٠', '١', '٢', '٣', '٤', '٥', '٦', '٧', '٨', '٩'];
     const en = ['0', '1', '2', '3', '4', '5', '6', '7', '8', '9'];
     for (int i = 0; i < ar.length; i++) {
@@ -153,7 +155,7 @@ class StateMachinePlateParser {
   }
 }
 
-// دالة بحث منعزلة في خيط خلفي (Isolate) لمنع أي تجميد للواجهة
+// دالة المطابقة الخلفية المعزولة (Isolate)
 Map<String, String> _matchPlateInDatabase(Map<String, dynamic> params) {
   List<Map<String, String>> db = params['db'];
   String targetDigits = params['digits'];
@@ -227,7 +229,7 @@ class _SheekhaHomeScreenState extends State<SheekhaHomeScreen> {
       setState(() {
         _speechEnabled = available;
         _currentStatusText = available
-            ? 'الميكروفون مستعد - المعالجة في الخيط الخلفي نشطة'
+            ? 'الميكروفون مستعد للالتقاط اللحظي السريع'
             : 'تأكد من تفعيل خدمات التعرف الصوتي بالجهاز';
       });
     } catch (e) {
@@ -259,7 +261,7 @@ class _SheekhaHomeScreenState extends State<SheekhaHomeScreen> {
       }
       setState(() {
         _isListening = true;
-        _currentStatusText = 'استماع فوري متواصل... انطق بحرية تامة';
+        _currentStatusText = 'يستمع ويكتب الأرقام والحروف فوراً...';
       });
       _startListeningSession();
     }
@@ -284,8 +286,8 @@ class _SheekhaHomeScreenState extends State<SheekhaHomeScreen> {
 
         setState(() => _currentStatusText = spoken);
 
-        // استخراج فوري عبر آلة الحالات
-        var plate = StateMachinePlateParser.parse(spoken);
+        // استخراج اللوحة لحظة نطق الحرف أو الرقم مباشرة
+        var plate = RealtimePlateFastEngine.parse(spoken);
         if (plate != null) {
           String letters = plate['letters']!;
           String digits = plate['digits']!;
@@ -304,7 +306,6 @@ class _SheekhaHomeScreenState extends State<SheekhaHomeScreen> {
     );
   }
 
-  // معالجة المطابقة في خيط منفصل تماماً عن الواجهة
   Future<void> _processPlateInBackground(String letters, String digits) async {
     Map<String, String> matchedCar = {};
 
@@ -722,7 +723,7 @@ class _SheekhaHomeScreenState extends State<SheekhaHomeScreen> {
                             crossAxisAlignment: CrossAxisAlignment.end,
                             children: [
                               Text(
-                                _isListening ? 'الكتابة اللحظية المباشرة:' : 'اضغط للتسجيل',
+                                _isListening ? 'التقاط فوري للأرقام والحروف:' : 'اضغط للتسجيل',
                                 style: TextStyle(color: _isListening ? const Color(0xFF06D6A0) : Colors.grey, fontSize: 11),
                               ),
                               Text(
@@ -892,7 +893,7 @@ class _SheekhaHomeScreenState extends State<SheekhaHomeScreen> {
               child: _records.isEmpty
                   ? const Center(
                       child: Text(
-                        'المعالجة في الخلفية مفعلة... انطق اللوحات بطلاقة وحرية',
+                        'الأرقام والحروف تسقط فوراً... انطق اللوحات بطلاقة وحرية',
                         textAlign: TextAlign.center,
                         style: TextStyle(color: Colors.grey, fontSize: 13),
                       ),
