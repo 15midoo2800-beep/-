@@ -55,14 +55,14 @@ class SheekhaFullEngine {
     'ذال': 'ذ', 'ذه': 'ذ', 'ذا': 'ذ', 'ذ': 'ذ',
     'راء': 'ر', 'ره': 'ر', 'را': 'ر', 'ري': 'ر', 'ر': 'ر',
     'زين': 'ز', 'زه': 'ز', 'زا': 'ز', 'زاي': 'ز', 'ز': 'ز',
-    'سين': 'س', 'سه': 'س', 'سا': 'س', 'سي': 'س', 'س': 'س',
+    'سين': 'س', 'سه': 'س', 'سين': 'س', 'سا': 'س', 'سي': 'س', 'س': 'س',
     'شين': 'ش', 'شه': 'ش', 'شا': 'ش', 'شي': 'ش', 'ش': 'ش',
     'صاد': 'ص', 'صه': 'ص', 'صا': 'ص', 'صي': 'ص', 'ص': 'ص',
     'ضاد': 'ض', 'ضه': 'ض', 'ضا': 'ض', 'ضي': 'ض', 'ض': 'ض',
-    'طاء': 'ط', 'طه': 'ط', 'طا': 'ط', 'طي': 'ط', 'ط': 'ط',
+    'طاء': 'ط', 'طه': 'ط', 'طاء': 'ط', 'طا': 'ط', 'طي': 'ط', 'ط': 'ط',
     'ظاء': 'ظ', 'ظه': 'ظ', 'ظا': 'ظ', 'ظ': 'ظ',
-    'عين': 'ع', 'عه': 'ع', 'عا': 'ع', 'عي': 'ع', 'ع': 'ع',
-    'غين': 'غ', 'غه': 'غ', 'غا': 'غ', 'غاء': 'غ', 'غ': 'غ',
+    'عين': 'ع', 'عه': 'ع', 'عين': 'ع', 'عا': 'ع', 'عي': 'ع', 'ع': 'ع',
+    'غين': 'غ', 'غه': 'غ', 'غين': 'غ', 'غا': 'غ', 'غاء': 'غ', 'غ': 'غ',
     'فاء': 'ف', 'فه': 'ف', 'فا': 'ف', 'في': 'ف', 'ف': 'ف',
     'قاف': 'ق', 'قه': 'ق', 'قا': 'ق', 'قف': 'ق', 'ق': 'ق',
     'كاف': 'ك', 'كه': 'ك', 'كا': 'ك', 'كي': 'ك', 'ك': 'ك',
@@ -326,7 +326,7 @@ class _SheekhaHomeScreenState extends State<SheekhaHomeScreen> {
     );
   }
 
-  void _registerDetectedPlate(String letters, String digits, String carType) {
+  void _registerDetectedPlate(String letters, String digits, String spokenType) {
     String cleanDigits = digits.trim();
     String cleanLetters = letters.replaceAll(' ', '');
 
@@ -341,12 +341,17 @@ class _SheekhaHomeScreenState extends State<SheekhaHomeScreen> {
 
     bool isWanted = match.isNotEmpty;
 
+    // اعتماد نوع السيارة القادم من الشيت المرفق إن وجدت، ثم المنطوق صوتياً
+    String finalCarType = isWanted && (match['type'] ?? '').isNotEmpty && match['type'] != 'ملاكي'
+        ? match['type']!
+        : (spokenType != 'ملاكي' ? spokenType : (match['type'] ?? 'ملاكي'));
+
     setState(() {
       _records.insert(0, {
         'id': (_records.length + 1).toString(),
         'letters': letters,
         'digits': digits,
-        'type': carType != 'ملاكي' ? carType : (isWanted ? (match['type'] ?? 'ملاكي') : 'ملاكي'),
+        'type': finalCarType,
         'district': _currentDistrict,
         'street': _currentStreet,
         'coords': _currentCoordinates,
@@ -374,7 +379,7 @@ class _SheekhaHomeScreenState extends State<SheekhaHomeScreen> {
     );
 
     if (result != null && result.files.single.path != null) {
-      _showLoadingProgressModal('جاري قراءة ومعالجة ملف السيارات المطلوبة...');
+      _showLoadingProgressModal('جاري قراءة ملف السيارات المطلوبة واستخراج أنواعها...');
       await Future.delayed(const Duration(milliseconds: 100));
 
       try {
@@ -387,10 +392,10 @@ class _SheekhaHomeScreenState extends State<SheekhaHomeScreen> {
           if (sheet != null) {
             for (var row in sheet.rows.skip(1)) {
               if (row.isNotEmpty && row[0] != null) {
-                String col0 = row[0]?.value?.toString() ?? '';
-                String col1 = row.length > 1 ? (row[1]?.value?.toString() ?? '') : '';
-                String col2 = row.length > 2 ? (row[2]?.value?.toString() ?? 'ملاكي') : 'ملاكي';
-                String col3 = row.length > 3 ? (row[3]?.value?.toString() ?? 'مطلوبة') : 'مطلوبة';
+                String col0 = row[0]?.value?.toString().trim() ?? '';
+                String col1 = row.length > 1 ? (row[1]?.value?.toString().trim() ?? '') : '';
+                String col2 = row.length > 2 ? (row[2]?.value?.toString().trim() ?? '') : '';
+                String col3 = row.length > 3 ? (row[3]?.value?.toString().trim() ?? '') : '';
 
                 String letters = col0;
                 String digits = col1;
@@ -399,12 +404,16 @@ class _SheekhaHomeScreenState extends State<SheekhaHomeScreen> {
                   letters = col0.replaceAll(RegExp(r'[\d]'), '').trim();
                 }
 
+                // استخراج نوع السيارة بدقة من أي عمود متاح بالشيت
+                String carType = col2.isNotEmpty ? col2 : (col3.isNotEmpty ? col3 : 'ملاكي');
+                String owner = col3.isNotEmpty && col3 != carType ? col3 : (col2.isNotEmpty && col2 != carType ? col2 : 'مطلوبة');
+
                 if (digits.isNotEmpty) {
                   extractedCars.add({
                     'letters': letters,
                     'digits': digits,
-                    'type': col2,
-                    'owner': col3,
+                    'type': carType,
+                    'owner': owner,
                     'status': 'مطلوبة'
                   });
                 }
@@ -424,7 +433,7 @@ class _SheekhaHomeScreenState extends State<SheekhaHomeScreen> {
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
-              content: Text('تم رفع ملف السيارات المطلوبة بنجاح! تم استخراج ${extractedCars.length} سيارة.', textDirection: TextDirection.rtl),
+              content: Text('تم رفع ملف السيارات المطلوبة بنجاح! تم استخراج ${extractedCars.length} سيارة بأنواعها.', textDirection: TextDirection.rtl),
               backgroundColor: const Color(0xFF06D6A0),
               duration: const Duration(seconds: 4),
             ),
@@ -721,7 +730,6 @@ class _SheekhaHomeScreenState extends State<SheekhaHomeScreen> {
     }
   }
 
-  // 2: فحص يدوي بزر مخصص دون تعليق الهاتف
   void _executeManualSearchAction() {
     String query = _manualSearchCtrl.text.trim();
     if (query.isEmpty) {
@@ -864,28 +872,50 @@ class _SheekhaHomeScreenState extends State<SheekhaHomeScreen> {
     prefs.setString('sheekha_districts_list', json.encode(_districts));
   }
 
+  // إظهار نوع السيارة المستخرج من الشيت في نافذة التنبيه بوضوح
   void _showWantedAlertModal(Map<String, String> car, String letters, String digits) {
+    String carType = (car['type'] ?? '').isNotEmpty ? car['type']! : 'ملاكي';
+
     showDialog(
       context: context,
       barrierDismissible: false,
       builder: (context) => AlertDialog(
         backgroundColor: Colors.white,
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20), side: const BorderSide(color: Colors.redAccent, width: 3)),
-        title: const Text('🚨 تم رصد سيارة مطلوبة!', style: TextStyle(color: Colors.red, fontWeight: FontWeight.bold), textAlign: TextAlign.center),
+        title: const Text('🚨 تم رصد سيارة مطلوبة!', style: TextStyle(color: Colors.red, fontWeight: FontWeight.bold, fontSize: 18), textAlign: TextAlign.center),
         content: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Text('$letters $digits', style: const TextStyle(fontSize: 24, fontWeight: FontWeight.bold, color: Colors.black87)),
-            const SizedBox(height: 8),
-            Text('النوع: ${car['type'] ?? 'ملاكي'}', style: const TextStyle(color: Colors.black54)),
-            Text('الجهة/المالك: ${car['owner'] ?? 'مطلوبة'}', style: const TextStyle(color: Colors.black54)),
+            Container(
+              padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 16),
+              decoration: BoxDecoration(color: Colors.red.shade50, borderRadius: BorderRadius.circular(10)),
+              child: Text('$letters $digits', style: const TextStyle(fontSize: 26, fontWeight: FontWeight.bold, color: Colors.black87)),
+            ),
+            const SizedBox(height: 14),
+            Container(
+              padding: const EdgeInsets.all(8),
+              decoration: BoxDecoration(color: Colors.amber.shade50, borderRadius: BorderRadius.circular(8), border: Border.all(color: Colors.amber.shade300)),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  const Icon(Icons.directions_car, color: Colors.black87, size: 20),
+                  const SizedBox(width: 6),
+                  Text('النوع: $carType', style: const TextStyle(color: Colors.black87, fontSize: 16, fontWeight: FontWeight.bold)),
+                ],
+              ),
+            ),
+            const SizedBox(height: 10),
+            Text('الجهة/المالك: ${car['owner'] ?? 'مطلوبة'}', style: const TextStyle(color: Colors.black87, fontSize: 14, fontWeight: FontWeight.w600)),
           ],
         ),
         actions: [
-          ElevatedButton(
-            style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
-            onPressed: () => Navigator.pop(context),
-            child: const Text('إغلاق ومتابعة', style: TextStyle(color: Colors.white)),
+          SizedBox(
+            width: double.infinity,
+            child: ElevatedButton(
+              style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
+              onPressed: () => Navigator.pop(context),
+              child: const Text('إغلاق ومتابعة الرصد', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+            ),
           )
         ],
       ),
@@ -1070,7 +1100,6 @@ class _SheekhaHomeScreenState extends State<SheekhaHomeScreen> {
     );
   }
 
-  // 1: تنسيق خانة المرصودة مع فصل الزر للأسفل
   Widget _buildWantedRecordsTab() {
     List<Map<String, String>> wantedList = _records.where((r) => r['status'] == 'مطلوبة').toList();
 
@@ -1084,7 +1113,6 @@ class _SheekhaHomeScreenState extends State<SheekhaHomeScreen> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
-                // سطر الرقم
                 InkWell(
                   onTap: _showSetWhatsAppPhoneDialog,
                   child: Container(
@@ -1116,7 +1144,6 @@ class _SheekhaHomeScreenState extends State<SheekhaHomeScreen> {
                   ),
                 ),
                 const SizedBox(height: 12),
-                // زر الإرسال المستقل للأسفل بكامل العرض
                 ElevatedButton.icon(
                   style: ElevatedButton.styleFrom(
                     backgroundColor: const Color(0xFF25D366),
@@ -1175,7 +1202,7 @@ class _SheekhaHomeScreenState extends State<SheekhaHomeScreen> {
                               crossAxisAlignment: CrossAxisAlignment.end,
                               children: [
                                 Text('${car['letters']} ${car['digits']}', style: const TextStyle(color: Colors.redAccent, fontSize: 18, fontWeight: FontWeight.bold)),
-                                Text('النوع: ${car['type']} | الشارع: ${car['street']}', style: const TextStyle(color: Colors.white70, fontSize: 11)),
+                                Text('النوع: ${car['type']} | الشارع: ${car['street']}', style: const TextStyle(color: Colors.white70, fontSize: 12, fontWeight: FontWeight.bold)),
                                 Text('الجهة/المالك: ${car['owner']}', style: const TextStyle(color: Colors.amber, fontSize: 11)),
                               ],
                             ),
@@ -1219,7 +1246,6 @@ class _SheekhaHomeScreenState extends State<SheekhaHomeScreen> {
     );
   }
 
-  // 2: خانة الفحص اليدوي بزر مخصص لمنع الثقل والتعليق
   Widget _buildManualSearchTab() {
     return Padding(
       padding: const EdgeInsets.all(12.0),
@@ -1233,7 +1259,6 @@ class _SheekhaHomeScreenState extends State<SheekhaHomeScreen> {
             ),
             child: Row(
               children: [
-                // زر البحث المخصص
                 ElevatedButton.icon(
                   style: ElevatedButton.styleFrom(
                     backgroundColor: const Color(0xFF06D6A0),
@@ -1411,7 +1436,21 @@ class _SheekhaHomeScreenState extends State<SheekhaHomeScreen> {
               InkWell(onTap: () => setState(() => list.removeAt(index)), child: const Icon(Icons.delete_outline, color: Colors.redAccent, size: 18)),
               Text(r['note'] ?? '+', style: const TextStyle(color: Colors.amber, fontSize: 11)),
               Text(r['street'] ?? '', style: const TextStyle(color: Colors.white70, fontSize: 11)),
-              InkWell(onTap: () => _editRecordManually(index), child: Text(r['type'] ?? '-', style: const TextStyle(color: Color(0xFF06D6A0), fontSize: 12, decoration: TextDecoration.underline))),
+              // عرض نوع السيارة مع إمكانية التعديل
+              InkWell(
+                onTap: () => _editRecordManually(index),
+                child: Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                  decoration: BoxDecoration(
+                    color: isWanted ? Colors.redAccent.withOpacity(0.3) : const Color(0xFF06D6A0).withOpacity(0.15),
+                    borderRadius: BorderRadius.circular(6),
+                  ),
+                  child: Text(
+                    r['type'] ?? 'ملاكي',
+                    style: TextStyle(color: isWanted ? Colors.white : const Color(0xFF06D6A0), fontSize: 12, fontWeight: FontWeight.bold),
+                  ),
+                ),
+              ),
               Icon(isWanted ? Icons.warning_amber_rounded : Icons.check_circle, color: isWanted ? Colors.redAccent : const Color(0xFF06D6A0), size: 18),
               InkWell(
                 onTap: () => _editRecordManually(index),
