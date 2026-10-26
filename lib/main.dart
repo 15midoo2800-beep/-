@@ -30,8 +30,8 @@ class MyApp extends StatelessWidget {
   }
 }
 
-// محرك المعجم التفكيكي المعزول صوتياً
-class FilteredPlateEngine {
+// محرك المعالجة المباشرة فائق السرعة
+class UltraFastPlateEngine {
   static final Map<String, String> validLetters = {
     'الف': 'أ', 'ألف': 'أ', 'الأف': 'أ', 'الاف': 'أ', 'أليف': 'أ', 'ا': 'أ', 'أ': 'أ', 'إ': 'أ', 'ء': 'أ',
     'باء': 'ب', 'با': 'ب', 'به': 'ب', 'بي': 'ب', 'بت': 'ب', 'الباء': 'ب', 'اب': 'ب', 'ب': 'ب',
@@ -89,15 +89,20 @@ class FilteredPlateEngine {
     'تسعه': '9', 'تسعة': '9', 'تسع': '9',
   };
 
-  // استخراج مع فلترة الأصوات والكلمات الدخيلة غير التابعة للوحات
-  static List<Map<String, String>> parseFiltered(String text) {
-    if (text.trim().isEmpty) return [];
+  // معالجة النافذة السريعة للكلمات الأخيرة فقط
+  static Map<String, String>? parseImmediate(String text) {
+    if (text.trim().isEmpty) return null;
 
     String cleaned = _cleanNumbers(text);
     List<String> rawTokens = cleaned.split(RegExp(r'\s+'));
+    
+    // فحص آخر 8 كلمات فقط لضمان أقصى سرعة فورية
+    int start = rawTokens.length > 8 ? rawTokens.length - 8 : 0;
+    List<String> windowTokens = rawTokens.sublist(start);
+
     List<String> validStream = [];
 
-    for (String token in rawTokens) {
+    for (String token in windowTokens) {
       String word = token.replaceAll(RegExp(r'[^\u0621-\u064A0-9]'), '');
       if (word.isEmpty) continue;
 
@@ -114,10 +119,8 @@ class FilteredPlateEngine {
       } else if (word.length == 1 && RegExp(r'[\u0621-\u064A]').hasMatch(word)) {
         validStream.add(word == 'أ' || word == 'إ' || word == 'آ' ? 'أ' : word);
       }
-      // إهمال أي كلمة عامية أخرى (كلام الشارع أو أحاديث جانبية)
     }
 
-    List<Map<String, String>> plates = [];
     List<String> currentLetters = [];
     String currentDigits = '';
 
@@ -126,10 +129,7 @@ class FilteredPlateEngine {
         currentDigits += item;
       } else if (RegExp(r'^[\u0621-\u064A]$').hasMatch(item)) {
         if (currentDigits.length >= 3 && currentLetters.length >= 2) {
-          plates.add({
-            'letters': currentLetters.take(3).join(' '),
-            'digits': currentDigits.substring(0, currentDigits.length > 4 ? 4 : currentDigits.length),
-          });
+          // اكتمال لوحة سابقة
           currentLetters = [item];
           currentDigits = '';
         } else {
@@ -141,13 +141,13 @@ class FilteredPlateEngine {
     }
 
     if (currentLetters.length >= 2 && currentDigits.length >= 3) {
-      plates.add({
+      return {
         'letters': currentLetters.take(3).join(' '),
         'digits': currentDigits.substring(0, currentDigits.length > 4 ? 4 : currentDigits.length),
-      });
+      };
     }
 
-    return plates;
+    return null;
   }
 
   static String _cleanNumbers(String input) {
@@ -170,7 +170,7 @@ class SheekhaHomeScreen extends StatefulWidget {
 class _SheekhaHomeScreenState extends State<SheekhaHomeScreen> {
   int _currentIndex = 3;
   bool _isListening = false;
-  String _currentStatusText = 'الميكروفون مهيأ بعازل الضوضاء الميداني...';
+  String _currentStatusText = 'الميكروفون مهيأ للرصد فائق السرعة...';
   double _soundLevel = 0.0;
 
   final Map<String, DateTime> _cooldowns = {};
@@ -191,10 +191,10 @@ class _SheekhaHomeScreenState extends State<SheekhaHomeScreen> {
   void initState() {
     super.initState();
     _loadData();
-    _initNoiseFilteredSpeechEngine();
+    _initSpeechEngine();
   }
 
-  Future<void> _initNoiseFilteredSpeechEngine() async {
+  Future<void> _initSpeechEngine() async {
     var micStatus = await Permission.microphone.request();
     if (!micStatus.isGranted) {
       setState(() => _currentStatusText = 'يرجى تفعيل إذن الميكروفون من الإعدادات');
@@ -218,7 +218,7 @@ class _SheekhaHomeScreenState extends State<SheekhaHomeScreen> {
       setState(() {
         _speechEnabled = available;
         _currentStatusText = available
-            ? 'الميكروفون متصل ومُفلتر للضوضاء - اضغط للرصد'
+            ? 'الميكروفون متصل ومستعد - اضغط للرصد السريع'
             : 'تأكد من تفعيل خدمات التعرف الصوتي بالجهاز';
       });
     } catch (e) {
@@ -245,12 +245,12 @@ class _SheekhaHomeScreenState extends State<SheekhaHomeScreen> {
       await _speech.stop();
     } else {
       if (!_speechEnabled) {
-        await _initNoiseFilteredSpeechEngine();
+        await _initSpeechEngine();
         if (!_speechEnabled) return;
       }
       setState(() {
         _isListening = true;
-        _currentStatusText = 'عازل الضوضاء مفعل: يركز على صوتك المباشر فقط...';
+        _currentStatusText = 'الرصد فائق السرعة نشط... انطق اللوحات مباشرة';
       });
       _startListeningSession();
     }
@@ -277,17 +277,16 @@ class _SheekhaHomeScreenState extends State<SheekhaHomeScreen> {
 
         setState(() => _currentStatusText = spoken);
 
-        // معالجة فورية مفلترة تعتمد فقط على الحروف والأرقام وتستبعد الضوضاء
-        List<Map<String, String>> plates = FilteredPlateEngine.parseFiltered(spoken);
-
-        for (var p in plates) {
-          String letters = p['letters']!;
-          String digits = p['digits']!;
+        // التقاط مباشر بدون أي تأخير زمني إطلاقاً (Instant Zero-Delay)
+        var plate = UltraFastPlateEngine.parseImmediate(spoken);
+        if (plate != null) {
+          String letters = plate['letters']!;
+          String digits = plate['digits']!;
           String key = '$letters-$digits';
 
           DateTime now = DateTime.now();
           bool isRecent = _cooldowns.containsKey(key) &&
-              now.difference(_cooldowns[key]!).inSeconds < 4;
+              now.difference(_cooldowns[key]!).inSeconds < 3;
 
           if (!isRecent) {
             _cooldowns[key] = now;
@@ -363,7 +362,7 @@ class _SheekhaHomeScreenState extends State<SheekhaHomeScreen> {
       _saveData();
     });
 
-    HapticFeedback.mediumImpact();
+    HapticFeedback.lightImpact();
 
     if (isWanted) {
       HapticFeedback.heavyImpact();
@@ -721,7 +720,7 @@ class _SheekhaHomeScreenState extends State<SheekhaHomeScreen> {
                           borderRadius: BorderRadius.circular(12),
                         ),
                         child: Text(
-                          _isListening ? 'عازل ضوضاء' : 'متوقف',
+                          _isListening ? 'رصد فوري' : 'متوقف',
                           style: TextStyle(color: _isListening ? const Color(0xFF06D6A0) : Colors.grey, fontSize: 12),
                         ),
                       ),
@@ -732,7 +731,7 @@ class _SheekhaHomeScreenState extends State<SheekhaHomeScreen> {
                             crossAxisAlignment: CrossAxisAlignment.end,
                             children: [
                               Text(
-                                _isListening ? 'تركيز على صوتك فقط:' : 'اضغط للتسجيل',
+                                _isListening ? 'الاستماع السريع المباشر:' : 'اضغط للتسجيل',
                                 style: TextStyle(color: _isListening ? const Color(0xFF06D6A0) : Colors.grey, fontSize: 11),
                               ),
                               Text(
@@ -902,7 +901,7 @@ class _SheekhaHomeScreenState extends State<SheekhaHomeScreen> {
               child: _records.isEmpty
                   ? const Center(
                       child: Text(
-                        'عازل الضوضاء الميداني نشط... تحدث باتجاه الهاتف بحرية',
+                        'الرصد فوري وسريع... انطق الحروف والأرقام مباشرة',
                         textAlign: TextAlign.center,
                         style: TextStyle(color: Colors.grey, fontSize: 13),
                       ),
