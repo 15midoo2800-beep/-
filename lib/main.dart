@@ -30,8 +30,8 @@ class MyApp extends StatelessWidget {
   }
 }
 
-// محرك المعالجة المباشرة فائق السرعة
-class UltraFastPlateEngine {
+// محرك فرز فوري لحظي بدون أي تأخير
+class LightningFastEngine {
   static final Map<String, String> validLetters = {
     'الف': 'أ', 'ألف': 'أ', 'الأف': 'أ', 'الاف': 'أ', 'أليف': 'أ', 'ا': 'أ', 'أ': 'أ', 'إ': 'أ', 'ء': 'أ',
     'باء': 'ب', 'با': 'ب', 'به': 'ب', 'بي': 'ب', 'بت': 'ب', 'الباء': 'ب', 'اب': 'ب', 'ب': 'ب',
@@ -51,7 +51,7 @@ class UltraFastPlateEngine {
     'طاء': 'ط', 'طا': 'ط', 'طه': 'ط', 'طي': 'ط', 'الطاء': 'ط', 'ط': 'ط',
     'ظاء': 'ظ', 'ظا': 'ظ', 'ظه': 'ظ', 'الظاء': 'ظ', 'ظ': 'ظ',
     'عين': 'ع', 'عا': 'ع', 'عه': 'ع', 'عي': 'ع', 'العين': 'ع', 'ع': 'ع',
-    'غين': 'غ', 'غا': 'غ', 'غه': 'غ', 'الغين': 'غ', 'غ': 'غ',
+    'غين': 'غ', 'غاء': 'غ', 'غا': 'غ', 'غه': 'غ', 'الغين': 'غ', 'غ': 'غ',
     'فاء': 'ف', 'فا': 'ف', 'فه': 'ف', 'في': 'ف', 'الفاء': 'ف', 'ف': 'ف',
     'قاف': 'ق', 'قا': 'ق', 'قه': 'ق', 'قي': 'ق', 'القاف': 'ق', 'قف': 'ق', 'ق': 'ق',
     'كاف': 'ك', 'كا': 'ك', 'كه': 'ك', 'كي': 'ك', 'الكاف': 'ك', 'ك': 'ك',
@@ -89,15 +89,12 @@ class UltraFastPlateEngine {
     'تسعه': '9', 'تسعة': '9', 'تسع': '9',
   };
 
-  // معالجة النافذة السريعة للكلمات الأخيرة فقط
-  static Map<String, String>? parseImmediate(String text) {
+  static Map<String, String>? parseFast(String text) {
     if (text.trim().isEmpty) return null;
 
     String cleaned = _cleanNumbers(text);
     List<String> rawTokens = cleaned.split(RegExp(r'\s+'));
-    
-    // فحص آخر 8 كلمات فقط لضمان أقصى سرعة فورية
-    int start = rawTokens.length > 8 ? rawTokens.length - 8 : 0;
+    int start = rawTokens.length > 7 ? rawTokens.length - 7 : 0;
     List<String> windowTokens = rawTokens.sublist(start);
 
     List<String> validStream = [];
@@ -129,7 +126,6 @@ class UltraFastPlateEngine {
         currentDigits += item;
       } else if (RegExp(r'^[\u0621-\u064A]$').hasMatch(item)) {
         if (currentDigits.length >= 3 && currentLetters.length >= 2) {
-          // اكتمال لوحة سابقة
           currentLetters = [item];
           currentDigits = '';
         } else {
@@ -170,7 +166,7 @@ class SheekhaHomeScreen extends StatefulWidget {
 class _SheekhaHomeScreenState extends State<SheekhaHomeScreen> {
   int _currentIndex = 3;
   bool _isListening = false;
-  String _currentStatusText = 'الميكروفون مهيأ للرصد فائق السرعة...';
+  String _currentStatusText = 'اضغط الميكروفون للبدء الفوري السريع...';
   double _soundLevel = 0.0;
 
   final Map<String, DateTime> _cooldowns = {};
@@ -191,10 +187,10 @@ class _SheekhaHomeScreenState extends State<SheekhaHomeScreen> {
   void initState() {
     super.initState();
     _loadData();
-    _initSpeechEngine();
+    _initFastSpeechEngine();
   }
 
-  Future<void> _initSpeechEngine() async {
+  Future<void> _initFastSpeechEngine() async {
     var micStatus = await Permission.microphone.request();
     if (!micStatus.isGranted) {
       setState(() => _currentStatusText = 'يرجى تفعيل إذن الميكروفون من الإعدادات');
@@ -218,7 +214,7 @@ class _SheekhaHomeScreenState extends State<SheekhaHomeScreen> {
       setState(() {
         _speechEnabled = available;
         _currentStatusText = available
-            ? 'الميكروفون متصل ومستعد - اضغط للرصد السريع'
+            ? 'الميكروفون مستعد للالتقاط الخاطف - اضغط للرصد'
             : 'تأكد من تفعيل خدمات التعرف الصوتي بالجهاز';
       });
     } catch (e) {
@@ -245,12 +241,12 @@ class _SheekhaHomeScreenState extends State<SheekhaHomeScreen> {
       await _speech.stop();
     } else {
       if (!_speechEnabled) {
-        await _initSpeechEngine();
+        await _initFastSpeechEngine();
         if (!_speechEnabled) return;
       }
       setState(() {
         _isListening = true;
-        _currentStatusText = 'الرصد فائق السرعة نشط... انطق اللوحات مباشرة';
+        _currentStatusText = 'يستمع الآن ويكتب فوراً بسرعة البرق...';
       });
       _startListeningSession();
     }
@@ -259,8 +255,9 @@ class _SheekhaHomeScreenState extends State<SheekhaHomeScreen> {
   void _startListeningSession() async {
     if (!_isListening) return;
 
+    // استخدام ListenMode.search يرفع سرعة الاستجابة ويلغي تأخير التدقيق النحوي
     await _speech.listen(
-      listenMode: stt.ListenMode.dictation,
+      listenMode: stt.ListenMode.search,
       partialResults: true,
       cancelOnError: false,
       listenFor: const Duration(hours: 2),
@@ -275,10 +272,11 @@ class _SheekhaHomeScreenState extends State<SheekhaHomeScreen> {
         String spoken = result.recognizedWords.trim();
         if (spoken.isEmpty) return;
 
+        // كتابة فورية على الشاشة دون أي انتظار
         setState(() => _currentStatusText = spoken);
 
-        // التقاط مباشر بدون أي تأخير زمني إطلاقاً (Instant Zero-Delay)
-        var plate = UltraFastPlateEngine.parseImmediate(spoken);
+        // فحص سريع لحظي
+        var plate = LightningFastEngine.parseFast(spoken);
         if (plate != null) {
           String letters = plate['letters']!;
           String digits = plate['digits']!;
@@ -502,7 +500,7 @@ class _SheekhaHomeScreenState extends State<SheekhaHomeScreen> {
           ],
         ),
         content: Column(
-          mainAxisSize: MainAxisSize.min,
+          mainAxisSize: minAxisSize,
           children: [
             Container(
               padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 20),
@@ -536,6 +534,8 @@ class _SheekhaHomeScreenState extends State<SheekhaHomeScreen> {
       ),
     );
   }
+
+  static const MainAxisSize minAxisSize = MainAxisSize.min;
 
   Widget _infoRowLight(String label, String value) {
     return Padding(
@@ -720,7 +720,7 @@ class _SheekhaHomeScreenState extends State<SheekhaHomeScreen> {
                           borderRadius: BorderRadius.circular(12),
                         ),
                         child: Text(
-                          _isListening ? 'رصد فوري' : 'متوقف',
+                          _isListening ? 'التقاط فوري' : 'متوقف',
                           style: TextStyle(color: _isListening ? const Color(0xFF06D6A0) : Colors.grey, fontSize: 12),
                         ),
                       ),
@@ -731,7 +731,7 @@ class _SheekhaHomeScreenState extends State<SheekhaHomeScreen> {
                             crossAxisAlignment: CrossAxisAlignment.end,
                             children: [
                               Text(
-                                _isListening ? 'الاستماع السريع المباشر:' : 'اضغط للتسجيل',
+                                _isListening ? 'يكتب فوراً بدون تأخير:' : 'اضغط للتسجيل',
                                 style: TextStyle(color: _isListening ? const Color(0xFF06D6A0) : Colors.grey, fontSize: 11),
                               ),
                               Text(
@@ -770,7 +770,7 @@ class _SheekhaHomeScreenState extends State<SheekhaHomeScreen> {
                             ? baseHeight + (sin(index + _soundLevel) * _soundLevel * 2.2).abs()
                             : baseHeight;
                         return AnimatedContainer(
-                          duration: const Duration(milliseconds: 80),
+                          duration: const Duration(milliseconds: 60),
                           width: 3.5,
                           height: dynamicWave.clamp(5.0, 35.0),
                           decoration: BoxDecoration(
@@ -901,7 +901,7 @@ class _SheekhaHomeScreenState extends State<SheekhaHomeScreen> {
               child: _records.isEmpty
                   ? const Center(
                       child: Text(
-                        'الرصد فوري وسريع... انطق الحروف والأرقام مباشرة',
+                        'الكتابة والرصد لحظيان... انطق الحروف والأرقام مباشرة',
                         textAlign: TextAlign.center,
                         style: TextStyle(color: Colors.grey, fontSize: 13),
                       ),
