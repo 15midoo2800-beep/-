@@ -30,9 +30,11 @@ class MyApp extends StatelessWidget {
   }
 }
 
-// محرك التدفق اللحظي للوحات
-class LiveStreamPlateEngine {
-  static final Map<String, String> validLetters = {
+// محرك التدريب الصوتي التكيفي الذكي
+class AdaptiveVoiceEngine {
+  static Map<String, String> customUserMap = {}; // القاموس الشخصي المتعلم من تصحيحاتك
+
+  static final Map<String, String> defaultLetters = {
     'الف': 'أ', 'ألف': 'أ', 'الأف': 'أ', 'الاف': 'أ', 'أليف': 'أ', 'ا': 'أ', 'أ': 'أ', 'إ': 'أ', 'ء': 'أ',
     'باء': 'ب', 'با': 'ب', 'به': 'ب', 'بي': 'ب', 'بت': 'ب', 'الباء': 'ب', 'اب': 'ب', 'ب': 'ب',
     'تاء': 'ت', 'تا': 'ت', 'ته': 'ت', 'تي': 'ت', 'التاء': 'ت', 'ات': 'ت', 'ت': 'ت',
@@ -90,7 +92,6 @@ class LiveStreamPlateEngine {
     'تسعه': '9', 'تسعة': '9', 'تسع': '9',
   };
 
-  // تفكيك لحظي مباشر وتحويل فوري إلى قائمة رموز
   static List<String> tokenize(String text) {
     if (text.trim().isEmpty) return [];
 
@@ -102,15 +103,23 @@ class LiveStreamPlateEngine {
       String w = r.replaceAll(RegExp(r'[^\u0621-\u064A0-9]'), '');
       if (w.isEmpty) continue;
 
+      // 1. الأولوية للقاموس الشخصي الذي تدرب عليه التطبيق من صوتك
+      if (customUserMap.containsKey(w)) {
+        tokens.add(customUserMap[w]!);
+        continue;
+      }
+
+      // 2. فحص الأرقام
       if (digitsDict.containsKey(w)) {
         tokens.add(digitsDict[w]!);
       } else if (RegExp(r'^\d+$').hasMatch(w)) {
         for (int i = 0; i < w.length; i++) tokens.add(w[i]);
       } else if (compoundDict.containsKey(w)) {
         tokens.addAll(compoundDict[w]!);
-      } else if (validLetters.containsKey(w)) {
-        tokens.add(validLetters[w]!);
+      } else if (defaultLetters.containsKey(w)) {
+        tokens.add(defaultLetters[w]!);
       } else {
+        // تفكيك الكلمات المفاجئة
         for (int i = 0; i < w.length; i++) {
           String ch = w[i];
           if (ch == 'ة' || (ch == 'ه' && i == w.length - 1)) continue;
@@ -123,7 +132,6 @@ class LiveStreamPlateEngine {
     return tokens;
   }
 
-  // التقاط مباشر للوحات الكاملة أثناء الحديث
   static List<Map<String, String>> extractPlatesDirect(List<String> tokens) {
     List<Map<String, String>> plates = [];
     List<String> letters = [];
@@ -176,7 +184,8 @@ class SheekhaHomeScreen extends StatefulWidget {
 class _SheekhaHomeScreenState extends State<SheekhaHomeScreen> {
   int _currentIndex = 3;
   bool _isListening = false;
-  String _currentStatusText = 'اضغط الميكروفون لبدء الرصد المباشر...';
+  String _currentStatusText = 'اضغط الميكروفون للبدء...';
+  String _lastRawSpoken = '';
   double _soundLevel = 0.0;
 
   final Map<String, DateTime> _cooldowns = {};
@@ -224,7 +233,7 @@ class _SheekhaHomeScreenState extends State<SheekhaHomeScreen> {
       setState(() {
         _speechEnabled = available;
         _currentStatusText = available
-            ? 'الميكروفون مستعد للرصد المباشر واللحظي'
+            ? 'الميكروفون مستعد - نظام التعلم الشخصي نشط'
             : 'تأكد من تفعيل خدمات التعرف الصوتي بالجهاز';
       });
     } catch (e) {
@@ -256,7 +265,7 @@ class _SheekhaHomeScreenState extends State<SheekhaHomeScreen> {
       }
       setState(() {
         _isListening = true;
-        _currentStatusText = 'الرصد المباشر نشط... انطق اللوحات بطلاقة';
+        _currentStatusText = 'استماع ذكي متواصل... يفهم نبرتك ويتعلم منها';
       });
       _startListeningSession();
     }
@@ -279,11 +288,12 @@ class _SheekhaHomeScreenState extends State<SheekhaHomeScreen> {
         String spoken = result.recognizedWords.trim();
         if (spoken.isEmpty) return;
 
+        _lastRawSpoken = spoken;
         setState(() => _currentStatusText = spoken);
 
-        // تحليل فوري مباشر على الكلمات اللحظية بدون مؤقت وبدون انتظار صمت
-        List<String> tokens = LiveStreamPlateEngine.tokenize(spoken);
-        List<Map<String, String>> detected = LiveStreamPlateEngine.extractPlatesDirect(tokens);
+        // تحليل لحظي بالاعتماد على قاموسك الشخصي أولاً
+        List<String> tokens = AdaptiveVoiceEngine.tokenize(spoken);
+        List<Map<String, String>> detected = AdaptiveVoiceEngine.extractPlatesDirect(tokens);
 
         for (var p in detected) {
           String letters = p['letters']!;
@@ -343,6 +353,81 @@ class _SheekhaHomeScreenState extends State<SheekhaHomeScreen> {
     }
   }
 
+  // نافذة تعديل اللوحة وتدريب التطبيق على الحرف الصحيح
+  void _showEditAndTrainDialog(int index) {
+    var record = _records[index];
+    TextEditingController lettersCtrl = TextEditingController(text: record['letters']);
+    TextEditingController digitsCtrl = TextEditingController(text: record['digits']);
+
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        backgroundColor: const Color(0xFF1C2541),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        title: const Text('تعديل وتدريب التطبيق', style: TextStyle(color: Color(0xFF06D6A0), fontSize: 16), textAlign: TextAlign.center),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const Text(
+              'إذا عدلت الحروف هنا، سيتعلم التطبيق طريقة نطقك ويفهم قصدك مستقبلاً تلقائياً.',
+              style: TextStyle(color: Colors.grey, fontSize: 11),
+              textAlign: TextAlign.center,
+            ),
+            const SizedBox(height: 12),
+            TextField(
+              controller: lettersCtrl,
+              textDirection: TextDirection.rtl,
+              textAlign: TextAlign.center,
+              style: const TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold),
+              decoration: const InputDecoration(labelText: 'الحروف (مثال: و ق ك)', labelStyle: TextStyle(color: Colors.grey)),
+            ),
+            const SizedBox(height: 8),
+            TextField(
+              controller: digitsCtrl,
+              keyboardType: TextInputType.number,
+              textAlign: TextAlign.center,
+              style: const TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold),
+              decoration: const InputDecoration(labelText: 'الأرقام (مثال: 589)', labelStyle: TextStyle(color: Colors.grey)),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(context), child: const Text('إلغاء')),
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFF06D6A0)),
+            onPressed: () {
+              String oldLetters = record['letters']!;
+              String newLetters = lettersCtrl.text.trim();
+              String newDigits = digitsCtrl.text.trim();
+
+              setState(() {
+                record['letters'] = newLetters;
+                record['digits'] = newDigits;
+              });
+
+              // تدريب القاموس الشخصي تلقائياً
+              if (_lastRawSpoken.isNotEmpty && oldLetters != newLetters) {
+                var words = _lastRawSpoken.split(RegExp(r'\s+'));
+                for (var w in words) {
+                  if (!AdaptiveVoiceEngine.digitsDict.containsKey(w)) {
+                    AdaptiveVoiceEngine.customUserMap[w] = newLetters.replaceAll(' ', '');
+                  }
+                }
+              }
+
+              _saveData();
+              Navigator.pop(context);
+              ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(content: Text('تم الحفظ وتدريب التطبيق على نطقك بنجاح!', textDirection: TextDirection.rtl), backgroundColor: Color(0xFF06D6A0)),
+              );
+            },
+            child: const Text('حفظ وتدريب', style: TextStyle(color: Colors.black, fontWeight: FontWeight.bold)),
+          ),
+        ],
+      ),
+    );
+  }
+
   Future<void> _fetchGPSLocation() async {
     bool serviceEnabled = await Geolocator.isLocationServiceEnabled();
     if (!serviceEnabled) {
@@ -382,6 +467,7 @@ class _SheekhaHomeScreenState extends State<SheekhaHomeScreen> {
     final String? savedRecords = prefs.getString('sheekha_historical_records');
     final String? savedDb = prefs.getString('sheekha_wanted_db');
     final String? savedFile = prefs.getString('sheekha_excel_name');
+    final String? savedCustomMap = prefs.getString('sheekha_custom_user_map');
 
     setState(() {
       if (savedRecords != null) {
@@ -393,6 +479,9 @@ class _SheekhaHomeScreenState extends State<SheekhaHomeScreen> {
             json.decode(savedDb).map((x) => Map<String, String>.from(x)));
       }
       if (savedFile != null) _excelFileName = savedFile;
+      if (savedCustomMap != null) {
+        AdaptiveVoiceEngine.customUserMap = Map<String, String>.from(json.decode(savedCustomMap));
+      }
     });
   }
 
@@ -401,6 +490,7 @@ class _SheekhaHomeScreenState extends State<SheekhaHomeScreen> {
     prefs.setString('sheekha_historical_records', json.encode(_records));
     prefs.setString('sheekha_wanted_db', json.encode(_wantedDatabase));
     prefs.setString('sheekha_excel_name', _excelFileName);
+    prefs.setString('sheekha_custom_user_map', json.encode(AdaptiveVoiceEngine.customUserMap));
   }
 
   Future<void> _pickAndParseExcelFile() async {
@@ -674,7 +764,7 @@ class _SheekhaHomeScreenState extends State<SheekhaHomeScreen> {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Text('الملف: $_excelFileName', style: const TextStyle(color: Colors.grey, fontSize: 10), overflow: TextOverflow.ellipsis),
-            const Text('باقي ٢٩ يوم (ينتهي ٣/١/٢٠٢٦)', style: const TextStyle(color: Colors.grey, fontSize: 9)),
+            Text('القاموس المتعلم: ${AdaptiveVoiceEngine.customUserMap.length} كلمات', style: const TextStyle(color: Color(0xFF06D6A0), fontSize: 9)),
           ],
         ),
         actions: const [
@@ -710,7 +800,7 @@ class _SheekhaHomeScreenState extends State<SheekhaHomeScreen> {
                           borderRadius: BorderRadius.circular(12),
                         ),
                         child: Text(
-                          _isListening ? 'رصد متدفق' : 'متوقف',
+                          _isListening ? 'استماع متكيف' : 'متوقف',
                           style: TextStyle(color: _isListening ? const Color(0xFF06D6A0) : Colors.grey, fontSize: 12),
                         ),
                       ),
@@ -721,7 +811,7 @@ class _SheekhaHomeScreenState extends State<SheekhaHomeScreen> {
                             crossAxisAlignment: CrossAxisAlignment.end,
                             children: [
                               Text(
-                                _isListening ? 'يرصد الحروف والأرقام مباشرة:' : 'اضغط للتسجيل',
+                                _isListening ? 'التقاط ذكي متدفق:' : 'اضغط للتسجيل',
                                 style: TextStyle(color: _isListening ? const Color(0xFF06D6A0) : Colors.grey, fontSize: 11),
                               ),
                               Text(
@@ -882,7 +972,7 @@ class _SheekhaHomeScreenState extends State<SheekhaHomeScreen> {
                   Text('الشارع', style: TextStyle(color: Colors.grey, fontSize: 11)),
                   Text('النوع', style: TextStyle(color: Colors.grey, fontSize: 11)),
                   Text('الحالة', style: TextStyle(color: Colors.grey, fontSize: 11)),
-                  Text('اللوحة', style: TextStyle(color: Colors.grey, fontSize: 11)),
+                  Text('اللوحة (اضغط للتعديل)', style: TextStyle(color: Colors.grey, fontSize: 11)),
                 ],
               ),
             ),
@@ -891,7 +981,7 @@ class _SheekhaHomeScreenState extends State<SheekhaHomeScreen> {
               child: _records.isEmpty
                   ? const Center(
                       child: Text(
-                        'الرصد مباشر ومتدفق... انطق اللوحات بطلاقة وحرية',
+                        'الرصد مباشر ومتكيف... اضغط على أي لوحة لتعديلها وتدريب النظام',
                         textAlign: TextAlign.center,
                         style: TextStyle(color: Colors.grey, fontSize: 13),
                       ),
@@ -942,12 +1032,22 @@ class _SheekhaHomeScreenState extends State<SheekhaHomeScreen> {
                                 color: isWanted ? Colors.redAccent : const Color(0xFF06D6A0),
                                 size: 18,
                               ),
-                              Text(
-                                '${r['letters']} ${r['digits']}',
-                                style: TextStyle(
-                                  color: isWanted ? Colors.redAccent : const Color(0xFF06D6A0),
-                                  fontSize: 16,
-                                  fontWeight: FontWeight.bold,
+                              // الضغط على اللوحة يفتح نافذة التعديل والتدريب التلقائي
+                              InkWell(
+                                onTap: () => _showEditAndTrainDialog(index),
+                                child: Row(
+                                  children: [
+                                    const Icon(Icons.edit, size: 12, color: Colors.grey),
+                                    const SizedBox(width: 4),
+                                    Text(
+                                      '${r['letters']} ${r['digits']}',
+                                      style: TextStyle(
+                                        color: isWanted ? Colors.redAccent : const Color(0xFF06D6A0),
+                                        fontSize: 16,
+                                        fontWeight: FontWeight.bold,
+                                      ),
+                                    ),
+                                  ],
                                 ),
                               ),
                             ],
