@@ -11,29 +11,16 @@ dependencies:
   flutter:
     sdk: flutter
 
-  # الأيقونات الأساسية
   cupertino_icons: ^1.0.6
-
-  # حفظ البيانات والأرشيف محلياً على الهاتف
   shared_preferences: ^2.2.2
-
-  # التعرف الصوتي المباشر
-  speech_to_text: ^6.6.1
-
-  # إدارة أذونات الميكروفون والموقع
-  permission_handler: ^11.3.0
-
-  # اختيار ملفات الإكسيل من الجهاز
-  file_picker: ^8.0.0
-
-  # قراءة ومعالجة ملفات الإكسيل للسيارات المطلوبة
+  speech_to_text: ^6.6.0
+  
+  # إصدارات مستقرة متوافقة مع Kotlin 1.7.1 الموجود في السيرفر بدون أخطاء
+  permission_handler: 10.4.5
+  file_picker: 5.5.0
   excel: ^4.0.2
-
-  # تحديد الموقع الجغرافي الدقيق عبر GPS
-  geolocator: ^11.0.0
-
-  # فتح الموقع مباشرة في خرائط Google
-  url_launcher: ^6.2.5
+  geolocator: 9.0.2
+  url_launcher: 6.1.14
 
 dev_dependencies:
   flutter_test:
