@@ -112,8 +112,9 @@ class SheekhaFullEngine {
 
   static final Map<String, List<String>> compounds = {
     'واوقاف': ['و', 'ق'], 'أوقاف': ['و', 'ق'], 'اوقاف': ['و', 'ق'],
-    'واوساط': ['و', 'ص'], 'أوساط': ['و', 'ص'], 'نوعين': ['ن', 'ع'],
-    'نهاء': ['ن', 'ه'], 'تقديم': ['ك', 'ه', 'ج'], 'خطه': ['خ', 'ط'],
+    'واوساط': ['و', 'ص'], 'أوساط': ['و', 'ص'], 'اوساط': ['و', 'ص'],
+    'اوصاد': ['أ', 'و', 'ص'], 'أوصاد': ['أ', 'و', 'ص'], 'اوص': ['أ', 'و', 'ص'], 'أوص': ['أ', 'و', 'ص'],
+    'نوعين': ['ن', 'ع'], 'نهاء': ['ن', 'ه'], 'تقديم': ['ك', 'ه', 'ج'], 'خطه': ['خ', 'ط'],
     'خطف': ['خ', 'ط', 'ف'], 'افلام': ['ل', 'ق'], 'لمن': ['ل', 'م', 'ن'],
     'منوعين': ['م', 'ن', 'ع'], 'وعج': ['و', 'ع', 'ج'], 'عقب': ['ع', 'ق', 'ب'],
   };
@@ -130,29 +131,10 @@ class SheekhaFullEngine {
     'تسعه': '9', 'تسعة': '9', 'تسع': '9',
   };
 
-  static final List<String> allCarTypes = [
-    'نقل', 'فان', 'جراند ماكس', 'تلاجة كبيرة', 'ثلاجة كبيرة', 'تلاجة', 'ثلاجة',
-    'هاي إس', 'هايس', 'ملاكي', 'ميكروباص', 'أجرة', 'اجرة', 'تاكسي', 'دبابة', 'دبابه',
-    'جامبو', 'نصف نقل', 'ربع نقل', 'شفروليه', 'شيفروليه', 'تويوتا', 'هيونداي',
-    'كيا', 'نيسان', 'ميتسوبيشي', 'سوزوكي', 'فولكس', 'مرسيدس', 'بي ام', 'بي إم',
-    'لوري', 'تريلا', 'تريلة', 'مقطورة', 'قلاب', 'جرار', 'ونش', 'أتوبيس', 'اتوبيس',
-    'سوزوكي فان', 'تمناية', 'كبوت', 'بيك اب', 'بيك أب', 'بوكس'
-  ];
-
   static Map<String, dynamic>? parsePlateAndType(String text) {
     if (text.trim().isEmpty) return null;
 
     String normalized = normalizeDigits(text);
-    String detectedType = 'ملاكي';
-
-    for (String type in allCarTypes) {
-      if (normalized.contains(type)) {
-        detectedType = type;
-        normalized = normalized.replaceAll(type, ' ');
-        break;
-      }
-    }
-
     List<String> rawTokens = normalized.split(RegExp(r'\s+'));
     List<String> stream = [];
 
@@ -198,7 +180,7 @@ class SheekhaFullEngine {
       return {
         'letters': letters.join(' '),
         'digits': digitsStr.substring(0, digitsStr.length > 4 ? 4 : digitsStr.length),
-        'type': detectedType,
+        'type': 'ملاكي',
       };
     }
 
@@ -216,9 +198,10 @@ class SheekhaFullEngine {
 
   static String normalizeFlexible(String input) {
     String res = normalizeDigits(input.trim());
-    res = res.replaceAll(RegExp(r'[أإآا]'), 'أ');
+    res = res.replaceAll(RegExp(r'[أإآا]'), 'ا');
     res = res.replaceAll(RegExp(r'[يى]'), 'ي');
     res = res.replaceAll(RegExp(r'[ةه]'), 'ه');
+    res = res.replaceAll(RegExp(r'\s+'), '');
     return res;
   }
 }
@@ -362,15 +345,16 @@ class _SheekhaHomeScreenState extends State<SheekhaHomeScreen> {
     );
   }
 
+  // مطابقة فائقة الدقة تتطابق تماماً مع بيانات الشيت
   void _registerDetectedPlate(String letters, String digits, String spokenType) {
-    String cleanDigits = digits.trim();
-    String cleanLetters = letters.replaceAll(' ', '');
+    String cleanDigits = SheekhaFullEngine.normalizeDigits(digits.trim());
+    String normalizedSearchLetters = SheekhaFullEngine.normalizeFlexible(letters);
 
     var match = _wantedDatabase.firstWhere(
       (car) {
-        String dbDigits = (car['digits'] ?? '').trim();
-        String dbLetters = (car['letters'] ?? '').replaceAll(' ', '');
-        return dbDigits == cleanDigits && (dbLetters.isEmpty || dbLetters == cleanLetters);
+        String dbDigits = SheekhaFullEngine.normalizeDigits((car['digits'] ?? '').trim());
+        String dbLetters = SheekhaFullEngine.normalizeFlexible(car['letters'] ?? '');
+        return dbDigits == cleanDigits && (dbLetters.isEmpty || dbLetters == normalizedSearchLetters);
       },
       orElse: () => {},
     );
@@ -408,7 +392,7 @@ class _SheekhaHomeScreenState extends State<SheekhaHomeScreen> {
     }
   }
 
-  // 1: قراءة الشيت لاستخراج الأعمدة الأربعة (اللوحة، النوع، البنك، الشاص)
+  // قراءة شيت السيارات المطلوبة متوافق 100% مع شيت "تشييك طه معادلة الصياد"
   Future<void> _pickAndParseWantedDatabaseFile() async {
     FilePickerResult? result = await FilePicker.platform.pickFiles(
       type: FileType.custom,
@@ -424,40 +408,39 @@ class _SheekhaHomeScreenState extends State<SheekhaHomeScreen> {
         var excel = ex.Excel.decodeBytes(bytes);
         List<Map<String, String>> extractedCars = [];
 
-        for (var table in excel.tables.keys) {
-          var sheet = excel.tables[table];
-          if (sheet != null) {
-            for (var row in sheet.rows.skip(1)) {
-              if (row.isNotEmpty && row[0] != null) {
-                String col0 = row[0]?.value?.toString().trim() ?? '';
-                String col1 = row.length > 1 ? (row[1]?.value?.toString().trim() ?? '') : '';
-                String col2 = row.length > 2 ? (row[2]?.value?.toString().trim() ?? '') : '';
-                String col3 = row.length > 3 ? (row[3]?.value?.toString().trim() ?? '') : '';
-                String col4 = row.length > 4 ? (row[4]?.value?.toString().trim() ?? '') : '';
+        // إعطاء الأولوية لصفحة 'بيانات' إن وجدت لأنها تحتوي على السجلات الحقيقية
+        List<String> targetSheets = excel.tables.keys.toList();
+        if (targetSheets.contains('بيانات')) {
+          targetSheets = ['بيانات'];
+        }
 
-                String letters = col0;
-                String digits = col1;
-                if (col1.isEmpty || !RegExp(r'\d').hasMatch(col1)) {
-                  digits = col0.replaceAll(RegExp(r'[^\d]'), '');
-                  letters = col0.replaceAll(RegExp(r'[\d]'), '').trim();
-                }
+        for (var tableName in targetSheets) {
+          var sheet = excel.tables[tableName];
+          if (sheet == null) continue;
 
-                // استخراج التفاصيل الرباعية: اللوحة، النوع، البنك، رقم الشاص
-                String carType = col2.isNotEmpty ? col2 : 'ملاكي';
-                String bankOwner = col3.isNotEmpty ? col3 : 'غير متوفر';
-                String shassis = col4.isNotEmpty ? col4 : 'غير متوفر';
+          for (var row in sheet.rows.skip(1)) {
+            if (row.isEmpty) continue;
 
-                if (digits.isNotEmpty) {
-                  extractedCars.add({
-                    'letters': letters,
-                    'digits': digits,
-                    'type': carType,
-                    'owner': bankOwner,
-                    'shassis': shassis,
-                    'status': 'مطلوبة'
-                  });
-                }
-              }
+            String col0 = row.isNotEmpty && row[0] != null ? row[0]!.value.toString().trim() : '';
+            String col1 = row.length > 1 && row[1] != null ? row[1]!.value.toString().trim() : '';
+            String col2 = row.length > 2 && row[2] != null ? row[2]!.value.toString().trim() : '';
+            String col3 = row.length > 3 && row[3] != null ? row[3]!.value.toString().trim() : '';
+
+            if (col0.isEmpty || col0 == 'اللوحة' || col0 == 'اللوحه') continue;
+
+            // استخراج الأرقام والحروف من عمود اللوحة بدقة
+            String digits = col0.replaceAll(RegExp(r'[^\d]'), '');
+            String letters = col0.replaceAll(RegExp(r'[\d]'), '').trim();
+
+            if (digits.length >= 3) {
+              extractedCars.add({
+                'letters': letters,
+                'digits': digits,
+                'type': col1.isNotEmpty ? col1 : 'ملاكي',
+                'owner': col2.isNotEmpty ? col2 : 'غير متوفر',
+                'shassis': col3.isNotEmpty ? col3 : 'غير متوفر',
+                'status': 'مطلوبة'
+              });
             }
           }
         }
@@ -475,8 +458,8 @@ class _SheekhaHomeScreenState extends State<SheekhaHomeScreen> {
             SnackBar(
               content: Text(
                 AppStrings.isAr
-                    ? 'تم رفع ملف السيارات المطلوبة بنجاح! تم استخراج ${extractedCars.length} سيارة.'
-                    : 'Loaded ${extractedCars.length} wanted cars successfully.',
+                    ? 'تم استخراج ${extractedCars.length} سيارة مطلوبة بنجاح مع كامل بياناتها!'
+                    : 'Extracted ${extractedCars.length} wanted cars successfully.',
                 textDirection: AppStrings.isAr ? TextDirection.rtl : TextDirection.ltr,
               ),
               backgroundColor: const Color(0xFF06D6A0),
@@ -535,7 +518,7 @@ class _SheekhaHomeScreenState extends State<SheekhaHomeScreen> {
         ex.TextCellValue('الحي'),
         ex.TextCellValue('الشارع'),
         ex.TextCellValue('رقم الشاص'),
-        ex.TextCellValue('البنك (الجهة طالبة)'),
+        ex.TextCellValue('البنك / الجهة'),
         ex.TextCellValue('رابط الخريطة'),
         ex.TextCellValue('ملاحظات'),
         ex.TextCellValue('الوقت'),
@@ -790,7 +773,6 @@ class _SheekhaHomeScreenState extends State<SheekhaHomeScreen> {
     }
   }
 
-  // 4: إضافة السيارة المطلوبة إلى قائمة المرصودة تلقائياً عند الرصد من الفحص اليدوي وعرض التنبيه
   void _executeManualSearchAction() {
     String query = _manualSearchCtrl.text.trim();
     if (query.isEmpty) {
@@ -805,7 +787,7 @@ class _SheekhaHomeScreenState extends State<SheekhaHomeScreen> {
 
     // فحص شيت المطلوبات
     for (var car in _wantedDatabase) {
-      String target = SheekhaFullEngine.normalizeFlexible('${car['letters']} ${car['digits']} ${car['type']} ${car['owner']} ${car['shassis']}');
+      String target = SheekhaFullEngine.normalizeFlexible('${car['letters']}${car['digits']} ${car['type']} ${car['owner']} ${car['shassis']}');
       if (target.contains(normalizedQuery)) {
         matched.add({
           'id': 'مطلوبة',
@@ -825,7 +807,7 @@ class _SheekhaHomeScreenState extends State<SheekhaHomeScreen> {
 
     // فحص السجلات السابقة
     for (var car in _records) {
-      String target = SheekhaFullEngine.normalizeFlexible('${car['letters']} ${car['digits']} ${car['type']}');
+      String target = SheekhaFullEngine.normalizeFlexible('${car['letters']}${car['digits']} ${car['type']}');
       if (target.contains(normalizedQuery)) {
         if (!matched.any((m) => m['digits'] == car['digits'] && m['letters'] == car['letters'])) {
           matched.add(car);
@@ -833,15 +815,19 @@ class _SheekhaHomeScreenState extends State<SheekhaHomeScreen> {
       }
     }
 
-    // فحص المطابقة الدقيقة والتنبيه التلقائي مع الإدراج
-    String cleanDigitsOnly = query.replaceAll(RegExp(r'[^\d]'), '');
+    // مطابقة تامة مع تنبيه وإضافة فورية
+    String cleanDigitsOnly = SheekhaFullEngine.normalizeDigits(query.replaceAll(RegExp(r'[^\d]'), ''));
     if (cleanDigitsOnly.length >= 3) {
       var exactMatch = _wantedDatabase.firstWhere(
-        (w) => (w['digits'] ?? '').trim() == cleanDigitsOnly,
+        (w) {
+          String wDigits = SheekhaFullEngine.normalizeDigits((w['digits'] ?? '').trim());
+          String wLetters = SheekhaFullEngine.normalizeFlexible(w['letters'] ?? '');
+          return wDigits == cleanDigitsOnly && (normalizedQuery.isEmpty || normalizedQuery.contains(wLetters));
+        },
         orElse: () => {},
       );
+
       if (exactMatch.isNotEmpty) {
-        // إدراج تلقائي في المرصودة
         String lts = exactMatch['letters'] ?? '';
         String dgs = exactMatch['digits'] ?? '';
         String typ = exactMatch['type'] ?? 'ملاكي';
@@ -929,7 +915,7 @@ class _SheekhaHomeScreenState extends State<SheekhaHomeScreen> {
     prefs.setString('rased_districts_list', json.encode(_districts));
   }
 
-  // 1: نافذة التنبيه التي تعرض البيانات الأربعة بالتفصيل الكامل
+  // نافذة التنبيه التي تعرض اللوحة، النوع، البنك، الشاص بدقة الشيت
   void _showWantedAlertModal(Map<String, String> car, String letters, String digits) {
     String carType = (car['type'] ?? '').isNotEmpty ? car['type']! : 'ملاكي';
     String bankOwner = (car['owner'] ?? '').isNotEmpty ? car['owner']! : 'غير متوفر';
@@ -960,22 +946,28 @@ class _SheekhaHomeScreenState extends State<SheekhaHomeScreen> {
               ),
             ),
             const SizedBox(height: 14),
-            Text(
-              AppStrings.isAr ? 'النوع / الموديل: $carType' : 'Type: $carType',
-              textAlign: TextAlign.right,
-              style: const TextStyle(color: Colors.black87, fontSize: 14, fontWeight: FontWeight.bold),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Expanded(child: Text(carType, textAlign: TextAlign.right, style: const TextStyle(color: Colors.black87, fontSize: 14, fontWeight: FontWeight.bold))),
+                Text(AppStrings.isAr ? 'النوع / الموديل: ' : 'Type: ', style: const TextStyle(color: Colors.grey, fontSize: 13)),
+              ],
             ),
-            const SizedBox(height: 8),
-            Text(
-              AppStrings.isAr ? 'الجهة الطالبة / البنك: $bankOwner' : 'Requesting Entity / Bank: $bankOwner',
-              textAlign: TextAlign.right,
-              style: const TextStyle(color: Colors.indigo, fontSize: 13, fontWeight: FontWeight.bold),
+            const Divider(),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Expanded(child: Text(bankOwner, textAlign: TextAlign.right, style: const TextStyle(color: Colors.indigo, fontSize: 13, fontWeight: FontWeight.bold))),
+                Text(AppStrings.isAr ? 'الجهة الطالبة / البنك: ' : 'Bank: ', style: const TextStyle(color: Colors.grey, fontSize: 13)),
+              ],
             ),
-            const SizedBox(height: 8),
-            Text(
-              AppStrings.isAr ? 'رقم الشاصي / الشاص: $shassis' : 'Chassis No.: $shassis',
-              textAlign: TextAlign.right,
-              style: const TextStyle(color: Colors.black54, fontSize: 12, fontWeight: FontWeight.bold),
+            const Divider(),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Expanded(child: Text(shassis, textAlign: TextAlign.right, style: const TextStyle(color: Colors.black87, fontSize: 12, fontWeight: FontWeight.bold))),
+                Text(AppStrings.isAr ? 'رقم الشاصي: ' : 'Chassis: ', style: const TextStyle(color: Colors.grey, fontSize: 13)),
+              ],
             ),
           ],
         ),
