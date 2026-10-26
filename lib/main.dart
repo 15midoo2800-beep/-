@@ -14,7 +14,6 @@ import 'package:url_launcher/url_launcher.dart';
 
 void main() => runApp(const MyApp());
 
-// قاموس الترجمة للغتين
 class AppStrings {
   static bool isAr = true;
 
@@ -46,7 +45,6 @@ class AppStrings {
   static String get langSetting => isAr ? 'لغة التطبيق / Language' : 'App Language / اللغة';
   static String get supportSetting => isAr ? 'التواصل مع الدعم وتحديد الاشتراك' : 'Support & Subscription';
   static String get supportSub => isAr ? 'واتساب: 00201155661920' : 'WhatsApp: 00201155661920';
-  static String get gpsSetting => isAr ? 'تفعيل رصد الموقع (GPS)' : 'Enable GPS Tracking';
 }
 
 class MyApp extends StatefulWidget {
@@ -95,7 +93,7 @@ class SheekhaFullEngine {
     'زين': 'ز', 'زه': 'ز', 'زا': 'ز', 'زاي': 'ز', 'ز': 'ز',
     'سين': 'س', 'سه': 'س', 'سين': 'س', 'سا': 'س', 'سي': 'س', 'س': 'س',
     'شين': 'ش', 'شه': 'ش', 'شين': 'ش', 'شا': 'ش', 'شي': 'ش', 'ش': 'ش',
-    'صاد': 'ص', 'صه': 'ص', 'صا': 'ص', 'صي': 'ص', 'ص': 'ص',
+    'صاد': 'ص', 'صاه': 'ص', 'صا': 'ص', 'صي': 'ص', 'ص': 'ص',
     'ضاد': 'ض', 'ضه': 'ض', 'ضا': 'ض', 'ضي': 'ض', 'ض': 'ض',
     'طاء': 'ط', 'طه': 'ط', 'طاء': 'ط', 'طا': 'ط', 'طي': 'ط', 'ط': 'ط',
     'ظاء': 'ظ', 'ظه': 'ظ', 'ظا': 'ظ', 'ظ': 'ظ',
@@ -216,23 +214,12 @@ class SheekhaFullEngine {
     return input;
   }
 
-  // توحيد الحروف والهمزات بدون قيود لمطابقة دقيقة ومرنة
-  static String normalizePlateLetters(String input) {
-    String res = normalizeDigits(input.trim());
-    res = res.replaceAll(RegExp(r'[أإآاء]'), 'ا');
-    res = res.replaceAll(RegExp(r'[يى]'), 'ي');
-    res = res.replaceAll(RegExp(r'[ةه]'), 'ه');
-    res = res.replaceAll(RegExp(r'[\u064B-\u065F\u0640\s]'), '');
-    return res;
-  }
-
   static String normalizeFlexible(String input) {
     String res = normalizeDigits(input.trim());
-    res = res.replaceAll(RegExp(r'[أإآا]'), 'ا');
+    res = res.replaceAll(RegExp(r'[أإآا]'), 'أ');
     res = res.replaceAll(RegExp(r'[يى]'), 'ي');
     res = res.replaceAll(RegExp(r'[ةه]'), 'ه');
-    res = res.replaceAll(RegExp(r'\s+'), ' ');
-    return res.trim();
+    return res;
   }
 }
 
@@ -262,7 +249,6 @@ class _SheekhaHomeScreenState extends State<SheekhaHomeScreen> {
   String _wantedFileName = 'لم يتم رفع ملف السيارات المطلوبة';
   String _appendFileName = 'لم يتم اختيار ملف';
   String _savedWhatsAppPhone = '00201155661920';
-  bool _isGpsEnabled = true;
 
   List<Map<String, String>> _records = [];
   List<Map<String, String>> _wantedDatabase = [];
@@ -376,35 +362,24 @@ class _SheekhaHomeScreenState extends State<SheekhaHomeScreen> {
     );
   }
 
-  Map<String, String>? _checkPlateInWantedDb(String letters, String digits) {
-    String normDigits = SheekhaFullEngine.normalizeDigits(digits).trim();
-    String normLetters = SheekhaFullEngine.normalizePlateLetters(letters);
+  void _registerDetectedPlate(String letters, String digits, String spokenType) {
+    String cleanDigits = digits.trim();
+    String cleanLetters = letters.replaceAll(' ', '');
 
-    for (var car in _wantedDatabase) {
-      String dbDigits = SheekhaFullEngine.normalizeDigits(car['digits'] ?? '').trim();
-      String dbLetters = SheekhaFullEngine.normalizePlateLetters(car['letters'] ?? '');
+    var match = _wantedDatabase.firstWhere(
+      (car) {
+        String dbDigits = (car['digits'] ?? '').trim();
+        String dbLetters = (car['letters'] ?? '').replaceAll(' ', '');
+        return dbDigits == cleanDigits && (dbLetters.isEmpty || dbLetters == cleanLetters);
+      },
+      orElse: () => {},
+    );
 
-      if (dbDigits == normDigits) {
-        if (normLetters.isEmpty || dbLetters.isEmpty || dbLetters == normLetters) {
-          return car;
-        }
-      }
-    }
-    return null;
-  }
+    bool isWanted = match.isNotEmpty;
 
-  void _registerDetectedPlate(String letters, String digits, String spokenType) async {
-    var match = _checkPlateInWantedDb(letters, digits);
-    bool isWanted = match != null && match.isNotEmpty;
-
-    String finalCarType = isWanted && (match['model'] ?? match['type'] ?? '').isNotEmpty && match['model'] != 'ملاكي'
-        ? (match['model'] ?? match['type']!)
-        : (spokenType != 'ملاكي' ? spokenType : (match?['type'] ?? 'ملاكي'));
-
-    String coords = _currentCoordinates;
-    if (_isGpsEnabled && coords.isEmpty) {
-      coords = await _fetchGPSLocationSilent();
-    }
+    String finalCarType = isWanted && (match['type'] ?? '').isNotEmpty && match['type'] != 'ملاكي'
+        ? match['type']!
+        : (spokenType != 'ملاكي' ? spokenType : (match['type'] ?? 'ملاكي'));
 
     setState(() {
       _records.insert(0, {
@@ -414,11 +389,11 @@ class _SheekhaHomeScreenState extends State<SheekhaHomeScreen> {
         'type': finalCarType,
         'district': _currentDistrict,
         'street': _currentStreet,
-        'coords': coords,
+        'coords': _currentCoordinates,
         'note': _selectedNote == 'بدون' ? '+' : _selectedNote,
         'status': isWanted ? 'مطلوبة' : 'مطابق',
-        'owner': match?['owner'] ?? 'غير محدد',
-        'chassis': match?['chassis'] ?? '',
+        'owner': match['owner'] ?? 'غير محدد',
+        'shassis': match['shassis'] ?? 'غير متوفر',
         'time': TimeOfDay.now().format(context),
       });
       _saveData();
@@ -429,10 +404,11 @@ class _SheekhaHomeScreenState extends State<SheekhaHomeScreen> {
     if (isWanted) {
       HapticFeedback.heavyImpact();
       SystemSound.play(SystemSoundType.alert);
-      _showWantedAlertModal(match!, letters, digits);
+      _showWantedAlertModal(match, letters, digits);
     }
   }
 
+  // 1: قراءة الشيت لاستخراج الأعمدة الأربعة (اللوحة، النوع، البنك، الشاص)
   Future<void> _pickAndParseWantedDatabaseFile() async {
     FilePickerResult? result = await FilePicker.platform.pickFiles(
       type: FileType.custom,
@@ -466,25 +442,18 @@ class _SheekhaHomeScreenState extends State<SheekhaHomeScreen> {
                   letters = col0.replaceAll(RegExp(r'[\d]'), '').trim();
                 }
 
-                String carModel = col2.isNotEmpty ? col2 : 'غير محدد';
-                String owner = col3.isNotEmpty ? col3 : 'غير محدد';
-                String chassis = col4.isNotEmpty ? col4 : '';
-
-                // إذا كان العمود الثاني هو رقم الشاص تلقائياً
-                if (chassis.isEmpty && col2.length > 10 && RegExp(r'[A-Za-z0-9]').hasMatch(col2)) {
-                  chassis = col2;
-                  carModel = col3.isNotEmpty ? col3 : 'غير محدد';
-                  owner = col4.isNotEmpty ? col4 : 'غير محدد';
-                }
+                // استخراج التفاصيل الرباعية: اللوحة، النوع، البنك، رقم الشاص
+                String carType = col2.isNotEmpty ? col2 : 'ملاكي';
+                String bankOwner = col3.isNotEmpty ? col3 : 'غير متوفر';
+                String shassis = col4.isNotEmpty ? col4 : 'غير متوفر';
 
                 if (digits.isNotEmpty) {
                   extractedCars.add({
                     'letters': letters,
                     'digits': digits,
-                    'type': carModel,
-                    'model': carModel,
-                    'owner': owner,
-                    'chassis': chassis,
+                    'type': carType,
+                    'owner': bankOwner,
+                    'shassis': shassis,
                     'status': 'مطلوبة'
                   });
                 }
@@ -565,6 +534,8 @@ class _SheekhaHomeScreenState extends State<SheekhaHomeScreen> {
         ex.TextCellValue('النوع'),
         ex.TextCellValue('الحي'),
         ex.TextCellValue('الشارع'),
+        ex.TextCellValue('رقم الشاص'),
+        ex.TextCellValue('البنك (الجهة طالبة)'),
         ex.TextCellValue('رابط الخريطة'),
         ex.TextCellValue('ملاحظات'),
         ex.TextCellValue('الوقت'),
@@ -581,6 +552,8 @@ class _SheekhaHomeScreenState extends State<SheekhaHomeScreen> {
           ex.TextCellValue(r['type'] ?? ''),
           ex.TextCellValue(r['district'] ?? ''),
           ex.TextCellValue(r['street'] ?? ''),
+          ex.TextCellValue(r['shassis'] ?? 'غير متوفر'),
+          ex.TextCellValue(r['owner'] ?? 'غير متوفر'),
           ex.TextCellValue(mapLink),
           ex.TextCellValue(r['note'] ?? ''),
           ex.TextCellValue(r['time'] ?? ''),
@@ -650,6 +623,7 @@ class _SheekhaHomeScreenState extends State<SheekhaHomeScreen> {
                 String col1 = row.length > 1 ? (row[1]?.value?.toString() ?? '') : '';
                 String col2 = row.length > 2 ? (row[2]?.value?.toString() ?? 'ملاكي') : 'ملاكي';
                 String col3 = row.length > 3 ? (row[3]?.value?.toString() ?? 'سجل سابق') : 'سجل سابق';
+                String col4 = row.length > 4 ? (row[4]?.value?.toString() ?? 'غير متوفر') : 'غير متوفر';
 
                 String digits = col1;
                 String letters = col0;
@@ -667,7 +641,9 @@ class _SheekhaHomeScreenState extends State<SheekhaHomeScreen> {
                     'district': _currentDistrict,
                     'street': _currentStreet,
                     'coords': _currentCoordinates,
-                    'note': col3,
+                    'owner': col3,
+                    'shassis': col4,
+                    'note': 'سجل سابق',
                     'status': 'مطابق',
                     'time': 'سابق',
                   });
@@ -749,40 +725,14 @@ class _SheekhaHomeScreenState extends State<SheekhaHomeScreen> {
           TextButton(onPressed: () => Navigator.pop(context), child: Text(AppStrings.isAr ? 'إلغاء' : 'Cancel')),
           ElevatedButton(
             style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFF06D6A0)),
-            onPressed: () async {
-              String newLetters = letCtrl.text.trim();
-              String newDigits = digCtrl.text.trim();
-              String newType = typCtrl.text.trim();
-
-              Navigator.pop(context);
-
-              // التحقق الفوري هل السيارة أصبحت مطلوبة بعد التعديل
-              var match = _checkPlateInWantedDb(newLetters, newDigits);
-              bool isWanted = match != null && match.isNotEmpty;
-
-              String coords = rec['coords'] ?? '';
-              if (_isGpsEnabled && coords.isEmpty) {
-                coords = await _fetchGPSLocationSilent();
-              }
-
+            onPressed: () {
               setState(() {
-                rec['letters'] = newLetters;
-                rec['digits'] = newDigits;
-                rec['type'] = isWanted ? (match['model'] ?? match['type'] ?? newType) : newType;
-                rec['status'] = isWanted ? 'مطلوبة' : 'مطابق';
-                if (coords.isNotEmpty) rec['coords'] = coords;
-                if (isWanted) {
-                  rec['owner'] = match['owner'] ?? 'غير محدد';
-                  rec['chassis'] = match['chassis'] ?? '';
-                }
+                rec['letters'] = letCtrl.text.trim();
+                rec['digits'] = digCtrl.text.trim();
+                rec['type'] = typCtrl.text.trim();
               });
               _saveData();
-
-              if (isWanted) {
-                HapticFeedback.heavyImpact();
-                SystemSound.play(SystemSoundType.alert);
-                _showWantedAlertModal(match, newLetters, newDigits);
-              }
+              Navigator.pop(context);
             },
             child: Text(AppStrings.isAr ? 'حفظ التعديل' : 'Save', style: const TextStyle(color: Colors.black, fontWeight: FontWeight.bold)),
           ),
@@ -810,6 +760,8 @@ class _SheekhaHomeScreenState extends State<SheekhaHomeScreen> {
     for (var car in toSend) {
       buffer.writeln('🚗 لوحة: ${car['letters']} ${car['digits']}');
       buffer.writeln('📋 النوع: ${car['type']}');
+      buffer.writeln('🔑 الشاص: ${car['shassis']}');
+      buffer.writeln('🏦 البنك / الجهة: ${car['owner']}');
       buffer.writeln('📍 الموقع: ${car['district']} - ${car['street']}');
       if ((car['coords'] ?? '').isNotEmpty) {
         buffer.writeln('🗺 الخريطة: https://maps.google.com/?q=${car['coords']}');
@@ -838,6 +790,7 @@ class _SheekhaHomeScreenState extends State<SheekhaHomeScreen> {
     }
   }
 
+  // 4: إضافة السيارة المطلوبة إلى قائمة المرصودة تلقائياً عند الرصد من الفحص اليدوي وعرض التنبيه
   void _executeManualSearchAction() {
     String query = _manualSearchCtrl.text.trim();
     if (query.isEmpty) {
@@ -847,29 +800,22 @@ class _SheekhaHomeScreenState extends State<SheekhaHomeScreen> {
 
     setState(() => _isManualSearching = true);
 
-    String normalizedQueryLetters = SheekhaFullEngine.normalizePlateLetters(query);
-    String queryDigits = SheekhaFullEngine.normalizeDigits(query).replaceAll(RegExp(r'[^\d]'), '');
-
+    String normalizedQuery = SheekhaFullEngine.normalizeFlexible(query);
     List<Map<String, String>> matched = [];
 
-    // البحث في قاعدة بيانات المطلوبين
+    // فحص شيت المطلوبات
     for (var car in _wantedDatabase) {
-      String dbDigits = SheekhaFullEngine.normalizeDigits(car['digits'] ?? '').trim();
-      String dbLetters = SheekhaFullEngine.normalizePlateLetters(car['letters'] ?? '');
-
-      bool digitsMatch = queryDigits.isNotEmpty && dbDigits.contains(queryDigits);
-      bool lettersMatch = normalizedQueryLetters.isNotEmpty && (dbLetters.contains(normalizedQueryLetters) || normalizedQueryLetters.contains(dbLetters));
-
-      if ((queryDigits.isNotEmpty && digitsMatch && (normalizedQueryLetters.isEmpty || lettersMatch)) ||
-          (queryDigits.isEmpty && lettersMatch)) {
+      String target = SheekhaFullEngine.normalizeFlexible('${car['letters']} ${car['digits']} ${car['type']} ${car['owner']} ${car['shassis']}');
+      if (target.contains(normalizedQuery)) {
         matched.add({
           'id': 'مطلوبة',
           'letters': car['letters'] ?? '',
           'digits': car['digits'] ?? '',
-          'type': car['model'] ?? car['type'] ?? 'ملاكي',
+          'type': car['type'] ?? 'ملاكي',
           'district': 'شيت المطلوبين',
           'street': car['owner'] ?? 'مطلوبة',
           'coords': '',
+          'shassis': car['shassis'] ?? 'غير متوفر',
           'note': '⚠️ مسجلة في شيت المطلوبين',
           'status': 'مطلوبة',
           'time': 'قاعدة البيانات',
@@ -877,31 +823,31 @@ class _SheekhaHomeScreenState extends State<SheekhaHomeScreen> {
       }
     }
 
-    // البحث في السجلات المسجلة أيضاً
+    // فحص السجلات السابقة
     for (var car in _records) {
       String target = SheekhaFullEngine.normalizeFlexible('${car['letters']} ${car['digits']} ${car['type']}');
-      if (target.contains(SheekhaFullEngine.normalizeFlexible(query))) {
+      if (target.contains(normalizedQuery)) {
         if (!matched.any((m) => m['digits'] == car['digits'] && m['letters'] == car['letters'])) {
           matched.add(car);
         }
       }
     }
 
-    // إظهار التنبيه فقط إذا كانت هناك مطابقة مباشرة - دون إضافتها للمرصودة
-    var directMatch = _wantedDatabase.firstWhere(
-      (w) {
-        String wDigits = SheekhaFullEngine.normalizeDigits(w['digits'] ?? '').trim();
-        String wLetters = SheekhaFullEngine.normalizePlateLetters(w['letters'] ?? '');
-        return queryDigits.isNotEmpty && wDigits == queryDigits &&
-            (normalizedQueryLetters.isEmpty || wLetters == normalizedQueryLetters);
-      },
-      orElse: () => {},
-    );
+    // فحص المطابقة الدقيقة والتنبيه التلقائي مع الإدراج
+    String cleanDigitsOnly = query.replaceAll(RegExp(r'[^\d]'), '');
+    if (cleanDigitsOnly.length >= 3) {
+      var exactMatch = _wantedDatabase.firstWhere(
+        (w) => (w['digits'] ?? '').trim() == cleanDigitsOnly,
+        orElse: () => {},
+      );
+      if (exactMatch.isNotEmpty) {
+        // إدراج تلقائي في المرصودة
+        String lts = exactMatch['letters'] ?? '';
+        String dgs = exactMatch['digits'] ?? '';
+        String typ = exactMatch['type'] ?? 'ملاكي';
 
-    if (directMatch.isNotEmpty) {
-      HapticFeedback.heavyImpact();
-      SystemSound.play(SystemSoundType.alert);
-      _showWantedAlertModal(directMatch, directMatch['letters'] ?? '', directMatch['digits'] ?? '');
+        _registerDetectedPlate(lts, dgs, typ);
+      }
     }
 
     setState(() {
@@ -910,46 +856,30 @@ class _SheekhaHomeScreenState extends State<SheekhaHomeScreen> {
     });
   }
 
-  Future<String> _fetchGPSLocationSilent() async {
-    if (!_isGpsEnabled) return '';
-    try {
-      bool serviceEnabled = await Geolocator.isLocationServiceEnabled();
-      if (!serviceEnabled) return '';
-
-      LocationPermission permission = await Geolocator.checkPermission();
-      if (permission == LocationPermission.denied) {
-        permission = await Geolocator.requestPermission();
-        if (permission == LocationPermission.denied) return '';
-      }
-
-      Position pos = await Geolocator.getCurrentPosition(desiredAccuracy: LocationAccuracy.high);
-      return '${pos.latitude.toStringAsFixed(6)},${pos.longitude.toStringAsFixed(6)}';
-    } catch (_) {
-      return '';
-    }
-  }
-
   Future<void> _fetchGPSLocation() async {
-    if (!_isGpsEnabled) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('الـ GPS ملغي حالياً. يمكنك تفعيله من الإعدادات'), backgroundColor: Colors.amber),
-      );
-      return;
+    bool serviceEnabled = await Geolocator.isLocationServiceEnabled();
+    if (!serviceEnabled) return;
+
+    LocationPermission permission = await Geolocator.checkPermission();
+    if (permission == LocationPermission.denied) {
+      permission = await Geolocator.requestPermission();
+      if (permission == LocationPermission.denied) return;
     }
 
-    String coords = await _fetchGPSLocationSilent();
-    if (coords.isNotEmpty) {
-      setState(() => _currentCoordinates = coords);
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('GPS Signal Captured ✓'), backgroundColor: Color(0xFF06D6A0)),
-      );
-    }
+    Position pos = await Geolocator.getCurrentPosition(desiredAccuracy: LocationAccuracy.high);
+    setState(() {
+      _currentCoordinates = '${pos.latitude.toStringAsFixed(6)},${pos.longitude.toStringAsFixed(6)}';
+    });
+
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(content: Text('GPS Signal Captured ✓'), backgroundColor: Color(0xFF06D6A0)),
+    );
   }
 
   void _openGoogleMaps(String coords) async {
     if (coords.isEmpty) return;
     Uri geoUri = Uri.parse('geo:$coords?q=$coords');
-    Uri webUri = Uri.parse('https://www.google.com/maps/search/?api=1&query=$coords');
+    Uri webUri = Uri.parse('https://maps.google.com/?q=$coords');
 
     try {
       if (await canLaunchUrl(geoUri)) {
@@ -969,7 +899,6 @@ class _SheekhaHomeScreenState extends State<SheekhaHomeScreen> {
     final String? savedPhone = prefs.getString('rased_wa_phone');
     final String? savedWantedName = prefs.getString('rased_wanted_name');
     final String? savedDistricts = prefs.getString('rased_districts_list');
-    final bool? savedGps = prefs.getBool('rased_gps_status');
 
     setState(() {
       if (savedRecords != null) {
@@ -982,7 +911,6 @@ class _SheekhaHomeScreenState extends State<SheekhaHomeScreen> {
       }
       if (savedPhone != null) _savedWhatsAppPhone = savedPhone;
       if (savedWantedName != null) _wantedFileName = savedWantedName;
-      if (savedGps != null) _isGpsEnabled = savedGps;
       if (savedDistricts != null) {
         List<String> loadedDistricts = List<String>.from(json.decode(savedDistricts));
         for (var d in loadedDistricts) {
@@ -999,112 +927,72 @@ class _SheekhaHomeScreenState extends State<SheekhaHomeScreen> {
     prefs.setString('rased_wa_phone', _savedWhatsAppPhone);
     prefs.setString('rased_wanted_name', _wantedFileName);
     prefs.setString('rased_districts_list', json.encode(_districts));
-    prefs.setBool('rased_gps_status', _isGpsEnabled);
   }
 
-  // نافذة التنبيه مرتبة ومفصلة: اللوحة أولاً، النوع/الموديل، الجهة المالكة، رقم الشاص
+  // 1: نافذة التنبيه التي تعرض البيانات الأربعة بالتفصيل الكامل
   void _showWantedAlertModal(Map<String, String> car, String letters, String digits) {
-    String carModel = car['model'] ?? car['type'] ?? 'غير محدد';
-    String owner = car['owner'] ?? 'غير محدد';
-    String chassis = car['chassis'] ?? 'غير متوفر';
+    String carType = (car['type'] ?? '').isNotEmpty ? car['type']! : 'ملاكي';
+    String bankOwner = (car['owner'] ?? '').isNotEmpty ? car['owner']! : 'غير متوفر';
+    String shassis = (car['shassis'] ?? '').isNotEmpty ? car['shassis']! : 'غير متوفر';
 
     showDialog(
       context: context,
       barrierDismissible: false,
-      builder: (BuildContext ctx) {
-        return Dialog(
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-          backgroundColor: Colors.white,
-          child: Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 24),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                const Text(
-                  '🚨 تم رصد سيارة\n!مطلوبة',
-                  textAlign: TextAlign.center,
-                  style: TextStyle(
-                    color: Color(0xFFE53935),
-                    fontSize: 22,
-                    fontWeight: FontWeight.bold,
-                    height: 1.3,
-                  ),
-                ),
-                const SizedBox(height: 16),
-                
-                // 1- رقم اللوحة
-                Text(
-                  '$letters $digits',
-                  style: const TextStyle(
-                    fontSize: 26,
-                    fontWeight: FontWeight.bold,
-                    color: Colors.black87,
-                  ),
-                ),
-                const SizedBox(height: 16),
-                const Divider(color: Colors.black12, thickness: 1),
-                const SizedBox(height: 10),
-
-                // 2- نوع أو موديل السيارة (كيا - نيسان..)
-                _buildAlertRow('النوع / الموديل:', carModel),
-                const SizedBox(height: 8),
-
-                // 3- الجهة المالكة
-                _buildAlertRow('الجهة المالكة:', owner),
-                const SizedBox(height: 8),
-
-                // 4- رقم الشاص
-                _buildAlertRow('رقم الشاص:', chassis),
-
-                const SizedBox(height: 24),
-                SizedBox(
-                  width: double.infinity,
-                  child: ElevatedButton(
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: const Color(0xFFE53935),
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                      padding: const EdgeInsets.symmetric(vertical: 12),
-                    ),
-                    onPressed: () => Navigator.of(ctx).pop(),
-                    child: const Text(
-                      'إغلاق ومتابعة',
-                      style: TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.bold),
-                    ),
-                  ),
-                ),
-              ],
-            ),
-          ),
-        );
-      },
-    );
-  }
-
-  Widget _buildAlertRow(String label, String value) {
-    return Row(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(
-          label,
-          style: const TextStyle(
-            color: Colors.black54,
-            fontSize: 14,
-            fontWeight: FontWeight.w600,
-          ),
+      builder: (context) => AlertDialog(
+        backgroundColor: Colors.white,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20), side: const BorderSide(color: Colors.redAccent, width: 3)),
+        title: Text(
+          AppStrings.isAr ? '🚨 تم رصد سيارة مطلوبة!' : '🚨 Wanted Car Detected!',
+          style: const TextStyle(color: Colors.red, fontWeight: FontWeight.bold, fontSize: 18),
+          textAlign: TextAlign.center,
         ),
-        const SizedBox(width: 8),
-        Expanded(
-          child: Text(
-            value.isEmpty ? 'غير متوفر' : value,
-            textAlign: TextAlign.start,
-            style: const TextStyle(
-              color: Colors.black87,
-              fontSize: 14,
-              fontWeight: FontWeight.bold,
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Container(
+              padding: const EdgeInsets.symmetric(vertical: 10),
+              decoration: BoxDecoration(color: Colors.red.shade50, borderRadius: BorderRadius.circular(12)),
+              child: Text(
+                '$letters $digits',
+                textAlign: TextAlign.center,
+                style: const TextStyle(fontSize: 28, fontWeight: FontWeight.bold, color: Colors.black87),
+              ),
             ),
-          ),
+            const SizedBox(height: 14),
+            Text(
+              AppStrings.isAr ? 'النوع / الموديل: $carType' : 'Type: $carType',
+              textAlign: TextAlign.right,
+              style: const TextStyle(color: Colors.black87, fontSize: 14, fontWeight: FontWeight.bold),
+            ),
+            const SizedBox(height: 8),
+            Text(
+              AppStrings.isAr ? 'الجهة الطالبة / البنك: $bankOwner' : 'Requesting Entity / Bank: $bankOwner',
+              textAlign: TextAlign.right,
+              style: const TextStyle(color: Colors.indigo, fontSize: 13, fontWeight: FontWeight.bold),
+            ),
+            const SizedBox(height: 8),
+            Text(
+              AppStrings.isAr ? 'رقم الشاصي / الشاص: $shassis' : 'Chassis No.: $shassis',
+              textAlign: TextAlign.right,
+              style: const TextStyle(color: Colors.black54, fontSize: 12, fontWeight: FontWeight.bold),
+            ),
+          ],
         ),
-      ],
+        actions: [
+          SizedBox(
+            width: double.infinity,
+            child: ElevatedButton(
+              style: ElevatedButton.styleFrom(backgroundColor: Colors.red, padding: const EdgeInsets.symmetric(vertical: 12)),
+              onPressed: () => Navigator.pop(context),
+              child: Text(
+                AppStrings.isAr ? 'إغلاق ومتابعة الرصد' : 'Close',
+                style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
+              ),
+            ),
+          )
+        ],
+      ),
     );
   }
 
@@ -1376,14 +1264,14 @@ class _SheekhaHomeScreenState extends State<SheekhaHomeScreen> {
                             ),
                             InkWell(
                               onTap: () => _openGoogleMaps(car['coords'] ?? ''),
-                              child: Icon(Icons.map, color: (car['coords'] ?? '').isNotEmpty ? const Color(0xFF06D6A0) : Colors.grey, size: 24),
+                              child: const Icon(Icons.map, color: Color(0xFF06D6A0), size: 24),
                             ),
                             Column(
                               crossAxisAlignment: CrossAxisAlignment.end,
                               children: [
                                 Text('${car['letters']} ${car['digits']}', style: const TextStyle(color: Colors.redAccent, fontSize: 18, fontWeight: FontWeight.bold)),
                                 Text('النوع: ${car['type']} | الشارع: ${car['street']}', style: const TextStyle(color: Colors.white70, fontSize: 12, fontWeight: FontWeight.bold)),
-                                Text('الجهة/المالك: ${car['owner']}', style: const TextStyle(color: Colors.amber, fontSize: 11)),
+                                Text('الجهة/البنك: ${car['owner']}', style: const TextStyle(color: Colors.amber, fontSize: 11)),
                               ],
                             ),
                           ],
@@ -1490,19 +1378,6 @@ class _SheekhaHomeScreenState extends State<SheekhaHomeScreen> {
     return ListView(
       padding: const EdgeInsets.all(16),
       children: [
-        SwitchListTile(
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-          tileColor: const Color(0xFF1C2541),
-          secondary: const Icon(Icons.location_on, color: Color(0xFF06D6A0)),
-          title: Text(AppStrings.gpsSetting, style: const TextStyle(color: Colors.white)),
-          value: _isGpsEnabled,
-          activeColor: const Color(0xFF06D6A0),
-          onChanged: (val) {
-            setState(() => _isGpsEnabled = val);
-            _saveData();
-          },
-        ),
-        const SizedBox(height: 12),
         ListTile(
           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
           tileColor: const Color(0xFF1C2541),
@@ -1625,10 +1500,7 @@ class _SheekhaHomeScreenState extends State<SheekhaHomeScreen> {
           child: Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              InkWell(
-                onTap: coords.isNotEmpty ? () => _openGoogleMaps(coords) : null,
-                child: Icon(Icons.map_outlined, color: coords.isNotEmpty ? const Color(0xFF06D6A0) : Colors.grey, size: 18),
-              ),
+              InkWell(onTap: coords.isNotEmpty ? () => _openGoogleMaps(coords) : null, child: Icon(Icons.map_outlined, color: coords.isNotEmpty ? const Color(0xFF06D6A0) : Colors.grey, size: 18)),
               InkWell(onTap: () => setState(() => list.removeAt(index)), child: const Icon(Icons.delete_outline, color: Colors.redAccent, size: 18)),
               Text(r['note'] ?? '+', style: const TextStyle(color: Colors.amber, fontSize: 11)),
               Text(r['street'] ?? '', style: const TextStyle(color: Colors.white70, fontSize: 11)),
