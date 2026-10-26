@@ -23,10 +23,10 @@ jobs:
           flutter-version: '3.19.6'
           channel: 'stable'
 
-      - name: Generate Android Files & Inject Configurations
+      - name: Configure Android Project, Brand Name & Icon
         run: |
           rm -rf android
-          flutter create . --platforms=android --project-name sheekha
+          flutter create . --platforms=android --project-name rased
 
           # 1. ضبط إصدار كوتلن بدقة إلى 1.9.22
           if [ -f android/settings.gradle ]; then
@@ -37,20 +37,69 @@ jobs:
             sed -i -E "s/ext\.kotlin_version = '[^']+'/ext.kotlin_version = '1.9.22'/g" android/build.gradle
           fi
 
-          # 2. ضبط minSdkVersion إلى 21 لدعم حزم الصوت والموقع
+          # 2. ضبط minSdkVersion إلى 21
           sed -i 's/flutter.minSdkVersion/21/g' android/app/build.gradle || true
           sed -i 's/minSdkVersion [0-9]*/minSdkVersion 21/g' android/app/build.gradle || true
 
-          # 3. إضافة أذونات الصوت، الإنترنت، الـ GPS، وحفظ الملفات
+          # 3. تثبيت اسم التطبيق تحت الأيقونة على شاشة الهاتف ليكون "رصد"
+          sed -i 's/android:label="[^"]*"/android:label="رصد"/g' android/app/src/main/AndroidManifest.xml
+
+          # 4. إضافة أذونات الصوت، الإنترنت، الـ GPS، وحفظ الملفات
           sed -i '/<manifest/a \    <uses-permission android:name="android.permission.RECORD_AUDIO"/>\n    <uses-permission android:name="android.permission.INTERNET"/>\n    <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION"/>\n    <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION"/>\n    <uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE"/>\n    <uses-permission android:name="android.permission.WRITE_EXTERNAL_STORAGE"/>' android/app/src/main/AndroidManifest.xml
 
-          # 4. إضافة دعم استقبال ومشاركة ملفات الإكسيل (Open with / Share to)
+          # 5. إضافة دعم استقبال ومشاركة ملفات الإكسيل (Open with / Share to)
           sed -i '/<\/activity>/i \        <intent-filter>\n            <action android:name="android.intent.action.VIEW" />\n            <category android:name="android.intent.category.DEFAULT" />\n            <category android:name="android.intent.category.BROWSABLE" />\n            <data android:scheme="content" />\n            <data android:scheme="file" />\n            <data android:mimeType="*/*" />\n            <data android:pathPattern=".*\\.xlsx" />\n            <data android:pathPattern=".*\\.xls" />\n            <data android:pathPattern=".*\\.csv" />\n        </intent-filter>' android/app/src/main/AndroidManifest.xml
+
+          # 6. توليد وحقن أيقونة رادار رصد الخضراء المضيئة بدقة عالية في كافة مجلدات الأيقونات
+          python3 -c "
+          import os, base64, zlib
+
+          # توليد صورة PNG بدقة للأيقونة الخضراء للرادار
+          def generate_radar_png():
+              width, height = 192, 192
+              raw_data = bytearray()
+              cx, cy = 96, 96
+              for y in range(height):
+                  raw_data.append(0) # Filter type
+                  for x in range(width):
+                      dx = x - cx
+                      dy = y - cy
+                      dist = (dx*dx + dy*dy)**0.5
+                      # خلفية داكنة مع حلقات رادار خضراء نيون
+                      if dist > 90:
+                          raw_data.extend([11, 19, 43, 255]) # Obsidian Blue
+                      elif abs(dist - 75) < 3 or abs(dist - 55) < 3 or abs(dist - 35) < 3 or abs(dist - 15) < 3:
+                          raw_data.extend([6, 214, 160, 255]) # Neon Green Radar Arc
+                      elif dist < 8:
+                          raw_data.extend([6, 214, 160, 255]) # Center Beacon
+                      elif (dx > 0 and abs(dy - dx*0.5) < 2 and dist < 75):
+                          raw_data.extend([6, 214, 160, 255]) # Scanning Line
+                      else:
+                          raw_data.extend([11, 19, 43, 255])
+              
+              def chunk(tag, data):
+                  import struct
+                  return struct.pack('>I', len(data)) + tag + data + struct.pack('>I', zlib.crc32(tag + data) & 0xffffffff)
+
+              header = b'\x89PNG\r\n\x1a\n'
+              ihdr = chunk(b'IHDR', (192).to_bytes(4, 'big') + (192).to_bytes(4, 'big') + b'\x08\x06\x00\x00\x00')
+              idat = chunk(b'IDAT', zlib.compress(bytes(raw_data)))
+              iend = chunk(b'IEND', b'')
+              return header + ihdr + idat + iend
+
+          png_bytes = generate_radar_png()
+          folders = ['mipmap-mdpi', 'mipmap-hdpi', 'mipmap-xhdpi', 'mipmap-xxhdpi', 'mipmap-xxxhdpi']
+          for f in folders:
+              p = os.path.join('android/app/src/main/res', f)
+              os.makedirs(p, exist_ok=True)
+              with open(os.path.join(p, 'ic_launcher.png'), 'wb') as icon_file:
+                  icon_file.write(png_bytes)
+          "
 
       - name: Install Dependencies
         run: flutter pub get
 
-      - name: Build Obfuscated APK (تشفير الكود وعزل الرموز)
+      - name: Build Obfuscated APK (تشفير الكود)
         run: |
           mkdir -p build/app/outputs/symbols
           flutter build apk --release --obfuscate --split-debug-info=build/app/outputs/symbols
@@ -58,5 +107,5 @@ jobs:
       - name: Upload APK Artifact
         uses: actions/upload-artifact@v4
         with:
-          name: sheekha-app
+          name: rased-app
           path: build/app/outputs/flutter-apk/app-release.apk
