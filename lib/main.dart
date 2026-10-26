@@ -45,33 +45,33 @@ class _MyAppState extends State<MyApp> {
 class SheekhaFullEngine {
   static final Map<String, String> lettersMap = {
     'الف': 'أ', 'ألف': 'أ', 'ا': 'أ', 'أ': 'أ', 'إ': 'أ', 'آ': 'أ', 'ء': 'أ',
-    'ب': 'ب', 'به': 'ب', 'باء': 'ب', 'با': 'ب', 'بي': 'ب',
-    'ت': 'ت', 'ته': 'ت', 'تاء': 'ت', 'تا': 'ت', 'تي': 'ت',
-    'ث': 'ث', 'ثه': 'ث', 'ثاء': 'ث', 'ثا': 'ث',
-    'ج': 'ج', 'جه': 'ج', 'جيم': 'ج', 'جا': 'ج', 'جي': 'ج',
-    'ح': 'ح', 'حه': 'ح', 'حاء': 'ح', 'حا': 'ح', 'حي': 'ح',
-    'خ': 'خ', 'خه': 'خ', 'خاء': 'خ', 'خا': 'خ', 'خي': 'خ',
-    'د': 'د', 'ده': 'د', 'دال': 'د', 'دا': 'د', 'دي': 'د',
-    'ذ': 'ذ', 'ذه': 'ذ', 'ذال': 'ذ', 'ذا': 'ذ',
-    'ر': 'ر', 'ره': 'ر', 'راء': 'ر', 'را': 'ر', 'ري': 'ر',
-    'ز': 'ز', 'زه': 'ز', 'زين': 'ز', 'زا': 'ز', 'زاي': 'ز',
-    'س': 'س', 'سه': 'س', 'سين': 'س', 'سا': 'س', 'سي': 'س',
-    'ش': 'ش', 'شه': 'ش', 'شين': 'ش', 'شا': 'ش', 'شي': 'ش',
-    'ص': 'ص', 'صه': 'ص', 'صاد': 'ص', 'صا': 'ص', 'صي': 'ص',
-    'ض': 'ض', 'ضه': 'ض', 'ضاد': 'ض', 'ضا': 'ض', 'ضي': 'ض',
-    'ط': 'ط', 'طه': 'ط', 'طاء': 'ط', 'طا': 'ط', 'طي': 'ط',
-    'ظ': 'ظ', 'ظه': 'ظ', 'ظاء': 'ظ', 'ظا': 'ظ',
-    'ع': 'ع', 'عه': 'ع', 'عين': 'ع', 'عا': 'ع', 'عي': 'ع',
-    'غ': 'غ', 'غه': 'غ', 'غين': 'غ', 'غا': 'غ', 'غاء': 'غ',
-    'ف': 'ف', 'فه': 'ف', 'فاء': 'ف', 'فا': 'ف', 'في': 'ف',
-    'ق': 'ق', 'قه': 'ق', 'قاف': 'ق', 'قا': 'ق', 'قف': 'ق',
-    'ك': 'ك', 'كه': 'ك', 'كاف': 'ك', 'كا': 'ك', 'كي': 'ك',
-    'ل': 'ل', 'له': 'ل', 'لام': 'ل', 'لا': 'ل', 'لي': 'ل',
-    'م': 'م', 'مه': 'م', 'ميم': 'م', 'ما': 'م', 'مين': 'م',
-    'ن': 'ن', 'نه': 'ن', 'نون': 'ن', 'نا': 'ن', 'ني': 'ن',
-    'ه': 'ه', 'هه': 'ه', 'هاء': 'ه', 'ها': 'ه', 'هـ': 'ه',
-    'و': 'و', 'وه': 'و', 'واو': 'و', 'وا': 'و',
-    'ي': 'ي', 'يه': 'ي', 'ياء': 'ي', 'يا': 'ي', 'ى': 'ي',
+    'باء': 'ب', 'به': 'ب', 'با': 'ب', 'بي': 'ب', 'ب': 'ب',
+    'تاء': 'ت', 'ته': 'ت', 'تا': 'ت', 'تي': 'ت', 'ت': 'ت',
+    'ثاء': 'ث', 'ثه': 'ث', 'ثا': 'ث', 'ث': 'ث',
+    'جيم': 'ج', 'جه': 'ج', 'جا': 'ج', 'جي': 'ج', 'ج': 'ج',
+    'حاء': 'ح', 'حه': 'ح', 'حا': 'ح', 'حي': 'ح', 'ح': 'ح',
+    'خاء': 'خ', 'خه': 'خ', 'خا': 'خ', 'خي': 'خ', 'خ': 'خ',
+    'دال': 'د', 'ده': 'د', 'دا': 'د', 'دي': 'د', 'د': 'د',
+    'ذال': 'ذ', 'ذه': 'ذ', 'ذا': 'ذ', 'ذ': 'ذ',
+    'راء': 'ر', 'ره': 'ر', 'را': 'ر', 'ري': 'ر', 'ر': 'ر',
+    'زين': 'ز', 'زه': 'ز', 'زا': 'ز', 'زاي': 'ز', 'ز': 'ز',
+    'سين': 'س', 'سه': 'س', 'سا': 'س', 'سي': 'س', 'س': 'س',
+    'شين': 'ش', 'شه': 'ش', 'شا': 'ش', 'شي': 'ش', 'ش': 'ش',
+    'صاد': 'ص', 'صه': 'ص', 'صا': 'ص', 'صي': 'ص', 'ص': 'ص',
+    'ضاد': 'ض', 'ضه': 'ض', 'ضا': 'ض', 'ضي': 'ض', 'ض': 'ض',
+    'طاء': 'ط', 'طه': 'ط', 'طا': 'ط', 'طي': 'ط', 'ط': 'ط',
+    'ظاء': 'ظ', 'ظه': 'ظ', 'ظا': 'ظ', 'ظ': 'ظ',
+    'عين': 'ع', 'عه': 'ع', 'عا': 'ع', 'عي': 'ع', 'ع': 'ع',
+    'غين': 'غ', 'غه': 'غ', 'غا': 'غ', 'غاء': 'غ', 'غ': 'غ',
+    'فاء': 'ف', 'فه': 'ف', 'فا': 'ف', 'في': 'ف', 'ف': 'ف',
+    'قاف': 'ق', 'قه': 'ق', 'قا': 'ق', 'قف': 'ق', 'ق': 'ق',
+    'كاف': 'ك', 'كه': 'ك', 'كا': 'ك', 'كي': 'ك', 'ك': 'ك',
+    'لام': 'ل', 'له': 'ل', 'لا': 'ل', 'لي': 'ل', 'ل': 'ل',
+    'ميم': 'م', 'مه': 'م', 'ما': 'م', 'مين': 'م', 'م': 'م',
+    'نون': 'ن', 'نه': 'ن', 'نا': 'ن', 'ني': 'ن', 'ن': 'ن',
+    'هاء': 'ه', 'هه': 'ه', 'ها': 'ه', 'هـ': 'ه', 'ه': 'ه',
+    'واو': 'و', 'وه': 'و', 'وا': 'و', 'و': 'و',
+    'ياء': 'ي', 'يه': 'ي', 'يا': 'ي', 'ى': 'ي', 'ي': 'ي',
   };
 
   static final Map<String, List<String>> compounds = {
@@ -196,7 +196,7 @@ class SheekhaHomeScreen extends StatefulWidget {
 }
 
 class _SheekhaHomeScreenState extends State<SheekhaHomeScreen> {
-  int _currentIndex = 4; // شاشة التشييك الافتراضية
+  int _currentIndex = 4;
   bool _isListening = false;
   String _currentStatusText = 'يستمع الآن...';
   double _soundLevel = 0.0;
@@ -221,6 +221,7 @@ class _SheekhaHomeScreenState extends State<SheekhaHomeScreen> {
 
   final TextEditingController _manualSearchCtrl = TextEditingController();
   List<Map<String, String>> _manualSearchResults = [];
+  bool _isManualSearching = false;
 
   @override
   void initState() {
@@ -462,7 +463,6 @@ class _SheekhaHomeScreenState extends State<SheekhaHomeScreen> {
     );
   }
 
-  // 2 & 6: حفظ الإكسيل باسم الحي وتضمين رابط الخريطة المباشر
   Future<void> _exportExcelDirectlyToDownloads() async {
     try {
       await Permission.storage.request();
@@ -507,7 +507,6 @@ class _SheekhaHomeScreenState extends State<SheekhaHomeScreen> {
         downloadDir = await Directory('/storage/emulated/0/Downloads').create(recursive: true);
       }
 
-      // حفظ الملف باسم الحي مع التاريخ والوقت
       DateTime now = DateTime.now();
       String dateStr = '${now.year}-${now.month.toString().padLeft(2, '0')}-${now.day.toString().padLeft(2, '0')}_${now.hour}${now.minute}';
       String safeDistrict = _currentDistrict.replaceAll(RegExp(r'[^\w\s\u0621-\u064A]'), '_').trim();
@@ -675,7 +674,6 @@ class _SheekhaHomeScreenState extends State<SheekhaHomeScreen> {
     );
   }
 
-  // 3: توجيه مباشر لتطبيق WhatsApp مع البيانات المحددة
   void _sendWantedToWhatsApp() async {
     List<Map<String, String>> toSend = _records.where((r) => r['status'] == 'مطلوبة' && _selectedWantedIds.contains(r['id'])).toList();
     if (toSend.isEmpty) {
@@ -723,11 +721,15 @@ class _SheekhaHomeScreenState extends State<SheekhaHomeScreen> {
     }
   }
 
-  void _executeManualSearch(String query) {
-    if (query.trim().isEmpty) {
+  // 2: فحص يدوي بزر مخصص دون تعليق الهاتف
+  void _executeManualSearchAction() {
+    String query = _manualSearchCtrl.text.trim();
+    if (query.isEmpty) {
       setState(() => _manualSearchResults = []);
       return;
     }
+
+    setState(() => _isManualSearching = true);
 
     String normalizedQuery = SheekhaFullEngine.normalizeFlexible(query);
     List<Map<String, String>> matched = [];
@@ -772,10 +774,12 @@ class _SheekhaHomeScreenState extends State<SheekhaHomeScreen> {
       }
     }
 
-    setState(() => _manualSearchResults = matched);
+    setState(() {
+      _manualSearchResults = matched;
+      _isManualSearching = false;
+    });
   }
 
-  // 4: التقاط الـ GPS بدون إظهار الإحداثيات الطويلة
   Future<void> _fetchGPSLocation() async {
     bool serviceEnabled = await Geolocator.isLocationServiceEnabled();
     if (!serviceEnabled) {
@@ -801,7 +805,6 @@ class _SheekhaHomeScreenState extends State<SheekhaHomeScreen> {
     );
   }
 
-  // 5: فتح تطبيق الخرائط مباشرة
   void _openGoogleMaps(String coords) async {
     if (coords.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -988,7 +991,6 @@ class _SheekhaHomeScreenState extends State<SheekhaHomeScreen> {
                   children: [
                     Expanded(child: _controlCard('ملاحظات', _selectedNote, Icons.edit, Colors.amber, _showNotesMenu)),
                     const SizedBox(width: 6),
-                    // 4: خانة الشارع مع زر GPS أنيق وإمكانية النسخ بدون إزاحة
                     Expanded(
                       child: InkWell(
                         onTap: _showStreetDialog,
@@ -1068,6 +1070,7 @@ class _SheekhaHomeScreenState extends State<SheekhaHomeScreen> {
     );
   }
 
+  // 1: تنسيق خانة المرصودة مع فصل الزر للأسفل
   Widget _buildWantedRecordsTab() {
     List<Map<String, String>> wantedList = _records.where((r) => r['status'] == 'مطلوبة').toList();
 
@@ -1076,28 +1079,60 @@ class _SheekhaHomeScreenState extends State<SheekhaHomeScreen> {
       child: Column(
         children: [
           Container(
-            padding: const EdgeInsets.all(12),
+            padding: const EdgeInsets.all(14),
             decoration: BoxDecoration(color: const Color(0xFF1C2541), borderRadius: BorderRadius.circular(16)),
             child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    TextButton.icon(
-                      onPressed: _showSetWhatsAppPhoneDialog,
-                      icon: const Icon(Icons.phone, color: Color(0xFF06D6A0), size: 16),
-                      label: Text('الرقم: $_savedWhatsAppPhone', style: const TextStyle(color: Colors.white, fontSize: 12)),
+                // سطر الرقم
+                InkWell(
+                  onTap: _showSetWhatsAppPhoneDialog,
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFF0B132B),
+                      borderRadius: BorderRadius.circular(10),
+                      border: Border.all(color: Colors.white24),
                     ),
-                    ElevatedButton.icon(
-                      style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFF25D366)),
-                      onPressed: _sendWantedToWhatsApp,
-                      icon: const Icon(Icons.send, color: Colors.white, size: 16),
-                      label: const Text('إرسال للواتساب', style: TextStyle(color: Colors.white, fontSize: 12, fontWeight: FontWeight.bold)),
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        const Icon(Icons.edit, color: Color(0xFF06D6A0), size: 16),
+                        Row(
+                          children: [
+                            Text(
+                              _savedWhatsAppPhone,
+                              style: const TextStyle(color: Colors.white, fontSize: 14, fontWeight: FontWeight.bold),
+                              textDirection: TextDirection.ltr,
+                            ),
+                            const SizedBox(width: 8),
+                            const Icon(Icons.phone, color: Color(0xFF06D6A0), size: 18),
+                            const SizedBox(width: 4),
+                            const Text('رقم الإرسال:', style: TextStyle(color: Colors.grey, fontSize: 12)),
+                          ],
+                        ),
+                      ],
                     ),
-                  ],
+                  ),
                 ),
-                const SizedBox(height: 4),
-                const Text('حدد السيارات المراد إرسالها أو اضغط إرسال للكل مباشرة', style: TextStyle(color: Colors.grey, fontSize: 11)),
+                const SizedBox(height: 12),
+                // زر الإرسال المستقل للأسفل بكامل العرض
+                ElevatedButton.icon(
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: const Color(0xFF25D366),
+                    padding: const EdgeInsets.symmetric(vertical: 12),
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                  ),
+                  onPressed: _sendWantedToWhatsApp,
+                  icon: const Icon(Icons.send, color: Colors.white, size: 20),
+                  label: const Text('إرسال للواتساب', style: TextStyle(color: Colors.white, fontSize: 15, fontWeight: FontWeight.bold)),
+                ),
+                const SizedBox(height: 8),
+                const Text(
+                  'حدد السيارات المراد إرسالها من القائمة أو اضغط إرسال للكل مباشرة',
+                  textAlign: TextAlign.center,
+                  style: TextStyle(color: Colors.grey, fontSize: 11),
+                ),
               ],
             ),
           ),
@@ -1132,7 +1167,6 @@ class _SheekhaHomeScreenState extends State<SheekhaHomeScreen> {
                                 });
                               },
                             ),
-                            // 5: فتح موقع السيارة مباشرة على تطبيق الخرائط
                             InkWell(
                               onTap: () => _openGoogleMaps(car['coords'] ?? ''),
                               child: const Icon(Icons.map, color: Color(0xFF06D6A0), size: 24),
@@ -1185,29 +1219,61 @@ class _SheekhaHomeScreenState extends State<SheekhaHomeScreen> {
     );
   }
 
+  // 2: خانة الفحص اليدوي بزر مخصص لمنع الثقل والتعليق
   Widget _buildManualSearchTab() {
     return Padding(
       padding: const EdgeInsets.all(12.0),
       child: Column(
         children: [
-          TextField(
-            controller: _manualSearchCtrl,
-            onChanged: _executeManualSearch,
-            textDirection: TextDirection.rtl,
-            style: const TextStyle(color: Colors.white),
-            decoration: InputDecoration(
-              hintText: 'اكتب حروف أو أرقام للفحص الفوري في شيت المطلوبين...',
-              hintStyle: const TextStyle(color: Colors.grey, fontSize: 12),
-              prefixIcon: const Icon(Icons.search, color: Color(0xFF06D6A0)),
-              filled: true,
-              fillColor: const Color(0xFF1C2541),
-              border: OutlineInputBorder(borderRadius: BorderRadius.circular(14), borderSide: BorderSide.none),
+          Container(
+            padding: const EdgeInsets.all(6),
+            decoration: BoxDecoration(
+              color: const Color(0xFF1C2541),
+              borderRadius: BorderRadius.circular(14),
+            ),
+            child: Row(
+              children: [
+                // زر البحث المخصص
+                ElevatedButton.icon(
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: const Color(0xFF06D6A0),
+                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                  ),
+                  onPressed: _isManualSearching ? null : _executeManualSearchAction,
+                  icon: _isManualSearching
+                      ? const SizedBox(width: 14, height: 14, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.black))
+                      : const Icon(Icons.search, color: Colors.black, size: 18),
+                  label: const Text('بحث', style: TextStyle(color: Colors.black, fontWeight: FontWeight.bold, fontSize: 13)),
+                ),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: TextField(
+                    controller: _manualSearchCtrl,
+                    textDirection: TextDirection.rtl,
+                    style: const TextStyle(color: Colors.white),
+                    onSubmitted: (_) => _executeManualSearchAction(),
+                    decoration: const InputDecoration(
+                      hintText: 'اكتب حروف أو أرقام السيارة...',
+                      hintStyle: TextStyle(color: Colors.grey, fontSize: 12),
+                      border: InputBorder.none,
+                      contentPadding: EdgeInsets.symmetric(horizontal: 8),
+                    ),
+                  ),
+                ),
+              ],
             ),
           ),
-          const SizedBox(height: 10),
+          const SizedBox(height: 12),
           Expanded(
             child: _manualSearchResults.isEmpty
-                ? const Center(child: Text('اكتب للبحث والفحص الفوري ضد شيت السيارات المطلوبة', style: TextStyle(color: Colors.grey)))
+                ? const Center(
+                    child: Text(
+                      'اكتب كود أو رقم السيارة واضغط "بحث" للفحص الفوري في الشيت',
+                      textAlign: TextAlign.center,
+                      style: TextStyle(color: Colors.grey, fontSize: 13),
+                    ),
+                  )
                 : _buildRecordsListView(_manualSearchResults),
           ),
         ],
@@ -1215,7 +1281,6 @@ class _SheekhaHomeScreenState extends State<SheekhaHomeScreen> {
     );
   }
 
-  // 7: توجيه زر الدعم مباشرة للواتساب
   Widget _buildSettingsTab() {
     return ListView(
       padding: const EdgeInsets.all(16),
@@ -1342,7 +1407,6 @@ class _SheekhaHomeScreenState extends State<SheekhaHomeScreen> {
           child: Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              // 5: فتح موقع السيارة مباشرة على تطبيق الخرائط
               InkWell(onTap: coords.isNotEmpty ? () => _openGoogleMaps(coords) : null, child: Icon(Icons.map_outlined, color: coords.isNotEmpty ? const Color(0xFF06D6A0) : Colors.grey, size: 18)),
               InkWell(onTap: () => setState(() => list.removeAt(index)), child: const Icon(Icons.delete_outline, color: Colors.redAccent, size: 18)),
               Text(r['note'] ?? '+', style: const TextStyle(color: Colors.amber, fontSize: 11)),
@@ -1384,7 +1448,6 @@ class _SheekhaHomeScreenState extends State<SheekhaHomeScreen> {
     );
   }
 
-  // 1: إضافة حي يدوي مع إمكانية كتابة الاسم
   void _showDistrictMenu() {
     showModalBottomSheet(
       context: context,
