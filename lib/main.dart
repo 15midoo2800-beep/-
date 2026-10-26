@@ -30,7 +30,7 @@ class MyApp extends StatelessWidget {
   }
 }
 
-// محرك النافذة المنزلقة فائق السرعة والدقة الميدانية
+// محرك الجذور الصوتية الذكي للوحات المصرية
 class RealtimePlateExtractor {
   static final Map<String, String> letterMap = {
     'الف': 'أ', 'ألف': 'أ', 'الأف': 'أ', 'الاف': 'أ', 'أليف': 'أ', 'ا': 'أ', 'أ': 'أ', 'إ': 'أ', 'ء': 'أ',
@@ -63,13 +63,53 @@ class RealtimePlateExtractor {
     'ياء': 'ي', 'يا': 'ي', 'يه': 'ي', 'الياء': 'ي', 'ى': 'ي', 'ي': 'ي',
   };
 
+  // معجم التفكيك الميداني للكلمات المدمجة من نطق الحروف المتتابعة
   static final Map<String, List<String>> dialectWords = {
-    'نوعين': ['ن', 'ع'], 'نوعان': ['ن', 'ع'], 'نهاء': ['ن', 'ه'], 'نها': ['ن', 'ه'],
-    'منهاء': ['م', 'ن', 'ه'], 'منها': ['م', 'ن', 'ه'], 'واوساط': ['و', 'ص'], 'أوساط': ['و', 'ص'],
-    'اوساط': ['و', 'ص'], 'وساط': ['و', 'ص'], 'تقديم': ['ك', 'ه', 'ج'], 'كهج': ['ك', 'ه', 'ج'],
-    'خطه': ['خ', 'ط'], 'خطف': ['خ', 'ط', 'ف'], 'افلام': ['ل', 'ق'], 'أفلام': ['ل', 'ق'],
-    'لمن': ['ل', 'م', 'ن'], 'لم': ['ل', 'م'], 'من': ['م', 'ن'], 'منع': ['م', 'ن', 'ع'],
-    'منوعين': ['م', 'ن', 'ع'], 'وعج': ['و', 'ع', 'ج'], 'لفق': ['ل', 'ف', 'ق'], 'عقب': ['ع', 'ق', 'ب'],
+    // واو وقاف (واوقاف / أوقاف)
+    'واوقاف': ['و', 'ق'],
+    'أوقاف': ['و', 'ق'],
+    'اوقاف': ['و', 'ق'],
+    'وقاف': ['و', 'ق'],
+    // واو وصاد (واوساط / أوساط)
+    'واوساط': ['و', 'ص'],
+    'أوساط': ['و', 'ص'],
+    'اوساط': ['و', 'ص'],
+    'وساط': ['و', 'ص'],
+    'وسط': ['و', 'ص'],
+    // نون وعين (نوعين)
+    'نوعين': ['ن', 'ع'],
+    'نوعان': ['ن', 'ع'],
+    'نوع': ['ن', 'ع'],
+    // نون وهاء (نهاء)
+    'نهاء': ['ن', 'ه'],
+    'نها': ['ن', 'ه'],
+    'منهاء': ['م', 'ن', 'ه'],
+    'منها': ['م', 'ن', 'ه'],
+    // كاف وهاء وجيم (تقديم / كهج)
+    'تقديم': ['ك', 'ه', 'ج'],
+    'كهج': ['ك', 'ه', 'ج'],
+    // خاء وطاء وفاء (خطه / خطف)
+    'خطه': ['خ', 'ط'],
+    'خطة': ['خ', 'ط'],
+    'خطف': ['خ', 'ط', 'ف'],
+    // لام وقاف (أفلام)
+    'افلام': ['ل', 'ق'],
+    'أفلام': ['ل', 'ق'],
+    'فلام': ['ل', 'ق'],
+    'لقاف': ['ل', 'ق'],
+    // لام وميم ونون
+    'لمن': ['ل', 'م', 'ن'],
+    'لم': ['ل', 'م'],
+    'من': ['م', 'ن'],
+    'منع': ['م', 'ن', 'ع'],
+    'منوعين': ['م', 'ن', 'ع'],
+    'وعج': ['و', 'ع', 'ج'],
+    'لفق': ['ل', 'ف', 'ق'],
+    'عقب': ['ع', 'ق', 'ب'],
+    'ابت': ['أ', 'ب', 'ت'],
+    'بهاء': ['ب', 'ه'],
+    'مها': ['م', 'ه'],
+    'سها': ['س', 'ه'],
   };
 
   static final Map<String, String> digitsMap = {
@@ -84,7 +124,6 @@ class RealtimePlateExtractor {
     'تسعه': '9', 'تسعة': '9', 'تسع': '9',
   };
 
-  // تفكيك فوري وتجميع ذكي بدقة متناهية
   static List<Map<String, String>> parse(String text) {
     if (text.trim().isEmpty) return [];
 
@@ -93,7 +132,6 @@ class RealtimePlateExtractor {
 
     List<String> streamTokens = [];
 
-    // 1. تحويل كل التوكنز إلى رموزها الحرفية أو الرقمية
     for (String token in rawTokens) {
       String cleanWord = token.replaceAll(RegExp(r'[^\u0621-\u064A0-9]'), '');
       if (cleanWord.isEmpty) continue;
@@ -109,7 +147,7 @@ class RealtimePlateExtractor {
       } else if (letterMap.containsKey(cleanWord)) {
         streamTokens.add(letterMap[cleanWord]!);
       } else {
-        // تفكيك تلقائي للحروف المستقلة داخل الكلمة العشوائية
+        // تفكيك الكلمات غير المعرفة مع إسقاط التاء المربوطة والهاء المتطرفة
         for (int i = 0; i < cleanWord.length; i++) {
           String ch = cleanWord[i];
           if (ch == 'ة' || (ch == 'ه' && i == cleanWord.length - 1)) continue;
@@ -120,7 +158,6 @@ class RealtimePlateExtractor {
       }
     }
 
-    // 2. النافذة المنزلقة لاستخراج اللوحات المتتالية
     List<Map<String, String>> plates = [];
     List<String> currentLetters = [];
     String currentDigits = '';
@@ -281,7 +318,6 @@ class _SheekhaHomeScreenState extends State<SheekhaHomeScreen> {
 
         setState(() => _currentStatusText = spoken);
 
-        // معالجة فورية بدون أي تأخير زمني (Instant Zero-Delay)
         List<Map<String, String>> plates = RealtimePlateExtractor.parse(spoken);
 
         for (var p in plates) {
@@ -689,7 +725,7 @@ class _SheekhaHomeScreenState extends State<SheekhaHomeScreen> {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Text('الملف: $_excelFileName', style: const TextStyle(color: Colors.grey, fontSize: 10), overflow: TextOverflow.ellipsis),
-            const Text('باقي ٢٩ يوم (ينتهي ٣/١/٢٠٢٦)', style: const TextStyle(color: Colors.grey, fontSize: 9)),
+            const Text('باقي ٢٩ يوم (ينتهي ٣/١/٢٠٢٦)', style: TextStyle(color: Colors.grey, fontSize: 9)),
           ],
         ),
         actions: const [
