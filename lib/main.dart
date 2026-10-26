@@ -43,6 +43,8 @@ class AppStrings {
   static String get searchEmptyHint => isAr ? 'اكتب كود أو رقم السيارة واضغط "بحث" للفحص الفوري في الشيت' : 'Enter plate and tap "Search" to check against sheet';
 
   static String get langSetting => isAr ? 'لغة التطبيق / Language' : 'App Language / اللغة';
+  static String get gpsSetting => isAr ? 'تفعيل موقع GPS عند الرصد' : 'Enable GPS Tracking';
+  static String get gpsSub => isAr ? 'التقاط الإحداثيات تلقائياً وتثبيتها في الشيت' : 'Auto-record coordinates in records & sheet';
   static String get supportSetting => isAr ? 'التواصل مع الدعم وتحديد الاشتراك' : 'Support & Subscription';
   static String get supportSub => isAr ? 'واتساب: 00201155661920' : 'WhatsApp: 00201155661920';
 }
@@ -106,7 +108,7 @@ class SheekhaFullEngine {
     'ميم': 'م', 'مه': 'م', 'ميم': 'م', 'ما': 'م', 'مين': 'م', 'م': 'م',
     'نون': 'ن', 'نه': 'ن', 'نون': 'ن', 'نا': 'ن', 'ني': 'ن', 'ن': 'ن',
     'هاء': 'ه', 'هه': 'ه', 'هاء': 'ه', 'ها': 'ه', 'هـ': 'ه', 'ه': 'ه',
-    'واو': 'و', 'وه': 'و', 'وا': 'و', 'و': 'و',
+    'واو': 'و', 'وه': 'و', 'واو': 'و', 'وا': 'و', 'و': 'و',
     'ياء': 'ي', 'يه': 'ي', 'ياء': 'ي', 'يا': 'ي', 'ى': 'ي', 'ي': 'ي',
   };
 
@@ -232,6 +234,7 @@ class _SheekhaHomeScreenState extends State<SheekhaHomeScreen> {
   String _wantedFileName = 'لم يتم رفع ملف السيارات المطلوبة';
   String _appendFileName = 'لم يتم اختيار ملف';
   String _savedWhatsAppPhone = '00201155661920';
+  bool _isGpsEnabled = true;
 
   List<Map<String, String>> _records = [];
   List<Map<String, String>> _wantedDatabase = [];
@@ -345,8 +348,7 @@ class _SheekhaHomeScreenState extends State<SheekhaHomeScreen> {
     );
   }
 
-  // مطابقة فائقة الدقة تتطابق تماماً مع بيانات الشيت
-  void _registerDetectedPlate(String letters, String digits, String spokenType) {
+  void _registerDetectedPlate(String letters, String digits, String spokenType) async {
     String cleanDigits = SheekhaFullEngine.normalizeDigits(digits.trim());
     String normalizedSearchLetters = SheekhaFullEngine.normalizeFlexible(letters);
 
@@ -365,6 +367,20 @@ class _SheekhaHomeScreenState extends State<SheekhaHomeScreen> {
         ? match['type']!
         : (spokenType != 'ملاكي' ? spokenType : (match['type'] ?? 'ملاكي'));
 
+    String currentCoords = _isGpsEnabled ? _currentCoordinates : '';
+    if (_isGpsEnabled && currentCoords.isEmpty) {
+      try {
+        if (await Geolocator.isLocationServiceEnabled()) {
+          var perm = await Geolocator.checkPermission();
+          if (perm == LocationPermission.always || perm == LocationPermission.whileInUse) {
+            Position pos = await Geolocator.getCurrentPosition(desiredAccuracy: LocationAccuracy.medium);
+            currentCoords = '${pos.latitude.toStringAsFixed(6)},${pos.longitude.toStringAsFixed(6)}';
+            _currentCoordinates = currentCoords;
+          }
+        }
+      } catch (_) {}
+    }
+
     setState(() {
       _records.insert(0, {
         'id': (_records.length + 1).toString(),
@@ -373,7 +389,7 @@ class _SheekhaHomeScreenState extends State<SheekhaHomeScreen> {
         'type': finalCarType,
         'district': _currentDistrict,
         'street': _currentStreet,
-        'coords': _currentCoordinates,
+        'coords': currentCoords,
         'note': _selectedNote == 'بدون' ? '+' : _selectedNote,
         'status': isWanted ? 'مطلوبة' : 'مطابق',
         'owner': match['owner'] ?? 'غير محدد',
@@ -392,93 +408,15 @@ class _SheekhaHomeScreenState extends State<SheekhaHomeScreen> {
     }
   }
 
-  // قراءة شيت السيارات المطلوبة متوافق 100% مع شيت "تشييك طه معادلة الصياد"
-  Future<void> _pickAndParseWantedDatabaseFile() async {
-    FilePickerResult? result = await FilePicker.platform.pickFiles(
-      type: FileType.custom,
-      allowedExtensions: ['xlsx', 'xls', 'csv'],
-    );
+  // نافذة التقدم بالنسبة المئوية 0% -> 100%
+  Future<void> _processExcelWithProgress(
+    Uint8List bytes,
+    String fileName, {
+    required bool isWantedSheet,
+  }) async {
+    ValueNotifier<double> progressNotifier = ValueNotifier<double>(0.0);
+    ValueNotifier<int> processedNotifier = ValueNotifier<int>(0);
 
-    if (result != null && result.files.single.path != null) {
-      _showLoadingProgressModal(AppStrings.isAr ? 'جاري قراءة ملف السيارات المطلوبة...' : 'Loading wanted cars file...');
-      await Future.delayed(const Duration(milliseconds: 100));
-
-      try {
-        var bytes = File(result.files.single.path!).readAsBytesSync();
-        var excel = ex.Excel.decodeBytes(bytes);
-        List<Map<String, String>> extractedCars = [];
-
-        // إعطاء الأولوية لصفحة 'بيانات' إن وجدت لأنها تحتوي على السجلات الحقيقية
-        List<String> targetSheets = excel.tables.keys.toList();
-        if (targetSheets.contains('بيانات')) {
-          targetSheets = ['بيانات'];
-        }
-
-        for (var tableName in targetSheets) {
-          var sheet = excel.tables[tableName];
-          if (sheet == null) continue;
-
-          for (var row in sheet.rows.skip(1)) {
-            if (row.isEmpty) continue;
-
-            String col0 = row.isNotEmpty && row[0] != null ? row[0]!.value.toString().trim() : '';
-            String col1 = row.length > 1 && row[1] != null ? row[1]!.value.toString().trim() : '';
-            String col2 = row.length > 2 && row[2] != null ? row[2]!.value.toString().trim() : '';
-            String col3 = row.length > 3 && row[3] != null ? row[3]!.value.toString().trim() : '';
-
-            if (col0.isEmpty || col0 == 'اللوحة' || col0 == 'اللوحه') continue;
-
-            // استخراج الأرقام والحروف من عمود اللوحة بدقة
-            String digits = col0.replaceAll(RegExp(r'[^\d]'), '');
-            String letters = col0.replaceAll(RegExp(r'[\d]'), '').trim();
-
-            if (digits.length >= 3) {
-              extractedCars.add({
-                'letters': letters,
-                'digits': digits,
-                'type': col1.isNotEmpty ? col1 : 'ملاكي',
-                'owner': col2.isNotEmpty ? col2 : 'غير متوفر',
-                'shassis': col3.isNotEmpty ? col3 : 'غير متوفر',
-                'status': 'مطلوبة'
-              });
-            }
-          }
-        }
-
-        setState(() {
-          _wantedDatabase = extractedCars;
-          _wantedFileName = '${result.files.single.name} (${extractedCars.length})';
-          _saveData();
-        });
-
-        if (mounted) Navigator.pop(context);
-
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text(
-                AppStrings.isAr
-                    ? 'تم استخراج ${extractedCars.length} سيارة مطلوبة بنجاح مع كامل بياناتها!'
-                    : 'Extracted ${extractedCars.length} wanted cars successfully.',
-                textDirection: AppStrings.isAr ? TextDirection.rtl : TextDirection.ltr,
-              ),
-              backgroundColor: const Color(0xFF06D6A0),
-              duration: const Duration(seconds: 4),
-            ),
-          );
-        }
-      } catch (e) {
-        if (mounted) Navigator.pop(context);
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text('Error: $e'), backgroundColor: Colors.redAccent),
-          );
-        }
-      }
-    }
-  }
-
-  void _showLoadingProgressModal(String message) {
     showDialog(
       context: context,
       barrierDismissible: false,
@@ -486,26 +424,199 @@ class _SheekhaHomeScreenState extends State<SheekhaHomeScreen> {
         backgroundColor: const Color(0xFF1C2541),
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
         content: Padding(
-          padding: const EdgeInsets.symmetric(vertical: 16),
+          padding: const EdgeInsets.symmetric(vertical: 14),
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              const CircularProgressIndicator(color: Color(0xFF06D6A0)),
-              const SizedBox(height: 20),
-              Text(message, textAlign: TextAlign.center, style: const TextStyle(color: Colors.white, fontSize: 13, fontWeight: FontWeight.bold)),
+              Text(
+                isWantedSheet
+                    ? (AppStrings.isAr ? 'جاري قراءة ومعالجة ملف السيارات المطلوبة...' : 'Loading Wanted Cars File...')
+                    : (AppStrings.isAr ? 'جاري استيراد السجلات السابقة...' : 'Importing Records...'),
+                textAlign: TextAlign.center,
+                style: const TextStyle(color: Colors.white, fontSize: 13, fontWeight: FontWeight.bold),
+              ),
+              const SizedBox(height: 18),
+              ValueListenableBuilder<double>(
+                valueListenable: progressNotifier,
+                builder: (context, val, _) {
+                  int percent = (val * 100).clamp(0, 100).toInt();
+                  return Column(
+                    children: [
+                      LinearProgressIndicator(
+                        value: val > 0 ? val : null,
+                        minHeight: 10,
+                        backgroundColor: const Color(0xFF0B132B),
+                        color: const Color(0xFF06D6A0),
+                        borderRadius: BorderRadius.circular(5),
+                      ),
+                      const SizedBox(height: 10),
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          ValueListenableBuilder<int>(
+                            valueListenable: processedNotifier,
+                            builder: (context, count, _) => Text(
+                              '$count سيارة',
+                              style: const TextStyle(color: Colors.grey, fontSize: 11),
+                            ),
+                          ),
+                          Text(
+                            '$percent%',
+                            style: const TextStyle(color: Color(0xFF06D6A0), fontSize: 14, fontWeight: FontWeight.bold),
+                          ),
+                        ],
+                      ),
+                    ],
+                  );
+                },
+              ),
             ],
           ),
         ),
       ),
     );
+
+    await Future.delayed(const Duration(milliseconds: 50));
+
+    try {
+      var excel = ex.Excel.decodeBytes(bytes);
+      List<Map<String, String>> extracted = [];
+
+      List<String> targetSheets = excel.tables.keys.toList();
+      if (isWantedSheet && targetSheets.contains('بيانات')) {
+        targetSheets = ['بيانات'];
+      }
+
+      int totalRowsCount = 0;
+      for (var t in targetSheets) {
+        totalRowsCount += (excel.tables[t]?.rows.length ?? 0);
+      }
+      if (totalRowsCount == 0) totalRowsCount = 1;
+
+      int currentProcessed = 0;
+
+      for (var tableName in targetSheets) {
+        var sheet = excel.tables[tableName];
+        if (sheet == null) continue;
+
+        for (var row in sheet.rows.skip(1)) {
+          currentProcessed++;
+          if (currentProcessed % 300 == 0 || currentProcessed == totalRowsCount) {
+            progressNotifier.value = (currentProcessed / totalRowsCount).clamp(0.0, 1.0);
+            processedNotifier.value = extracted.length;
+            await Future.delayed(Duration.zero); // السماح للواجهة بالتحديث السلس
+          }
+
+          if (row.isEmpty) continue;
+
+          String col0 = row.isNotEmpty && row[0] != null ? row[0]!.value.toString().trim() : '';
+          String col1 = row.length > 1 && row[1] != null ? row[1]!.value.toString().trim() : '';
+          String col2 = row.length > 2 && row[2] != null ? row[2]!.value.toString().trim() : '';
+          String col3 = row.length > 3 && row[3] != null ? row[3]!.value.toString().trim() : '';
+
+          if (col0.isEmpty || col0 == 'اللوحة' || col0 == 'اللوحه') continue;
+
+          String digits = col0.replaceAll(RegExp(r'[^\d]'), '');
+          String letters = col0.replaceAll(RegExp(r'[\d]'), '').trim();
+
+          if (digits.length >= 3) {
+            if (isWantedSheet) {
+              extracted.add({
+                'letters': letters,
+                'digits': digits,
+                'type': col1.isNotEmpty ? col1 : 'ملاكي',
+                'owner': col2.isNotEmpty ? col2 : 'غير متوفر',
+                'shassis': col3.isNotEmpty ? col3 : 'غير متوفر',
+                'status': 'مطلوبة'
+              });
+            } else {
+              extracted.add({
+                'id': (_records.length + extracted.length + 1).toString(),
+                'letters': letters,
+                'digits': digits,
+                'type': col1.isNotEmpty ? col1 : 'ملاكي',
+                'district': _currentDistrict,
+                'street': _currentStreet,
+                'coords': _isGpsEnabled ? _currentCoordinates : '',
+                'owner': col2,
+                'shassis': col3,
+                'note': 'سجل سابق',
+                'status': 'مطابق',
+                'time': 'سابق',
+              });
+            }
+          }
+        }
+      }
+
+      progressNotifier.value = 1.0;
+      processedNotifier.value = extracted.length;
+      await Future.delayed(const Duration(milliseconds: 150));
+
+      if (mounted) Navigator.pop(context); // إغلاق نافذة النسبة
+
+      setState(() {
+        if (isWantedSheet) {
+          _wantedDatabase = extracted;
+          _wantedFileName = '$fileName (${extracted.length})';
+        } else {
+          _records.addAll(extracted);
+          _appendFileName = fileName;
+        }
+        _saveData();
+      });
+
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              isWantedSheet
+                  ? 'تم استخراج ${extracted.length} سيارة مطلوبة بنجاح (100%)!'
+                  : 'تم استيراد ${extracted.length} سجل بنجاح ومتابعة الإكمال!',
+              textDirection: AppStrings.isAr ? TextDirection.rtl : TextDirection.ltr,
+            ),
+            backgroundColor: const Color(0xFF06D6A0),
+            duration: const Duration(seconds: 4),
+          ),
+        );
+      }
+    } catch (e) {
+      if (mounted) Navigator.pop(context);
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Error: $e'), backgroundColor: Colors.redAccent),
+        );
+      }
+    }
+  }
+
+  Future<void> _pickAndParseWantedDatabaseFile() async {
+    FilePickerResult? result = await FilePicker.platform.pickFiles(
+      type: FileType.custom,
+      allowedExtensions: ['xlsx', 'xls', 'csv'],
+    );
+
+    if (result != null && result.files.single.path != null) {
+      var bytes = File(result.files.single.path!).readAsBytesSync();
+      await _processExcelWithProgress(bytes, result.files.single.name, isWantedSheet: true);
+    }
+  }
+
+  Future<void> _pickAndAppendExcelFile() async {
+    FilePickerResult? result = await FilePicker.platform.pickFiles(
+      type: FileType.custom,
+      allowedExtensions: ['xlsx', 'xls', 'csv'],
+    );
+
+    if (result != null && result.files.single.path != null) {
+      var bytes = File(result.files.single.path!).readAsBytesSync();
+      await _processExcelWithProgress(bytes, result.files.single.name, isWantedSheet: false);
+    }
   }
 
   Future<void> _exportExcelDirectlyToDownloads() async {
     try {
       await Permission.storage.request();
-      _showLoadingProgressModal(AppStrings.isAr ? 'جاري تصدير السجلات إلى مجلد Download...' : 'Exporting to Download...');
-      await Future.delayed(const Duration(milliseconds: 50));
-
       var excel = ex.Excel.createExcel();
       ex.Sheet sheet = excel['سجلات_الرصد'];
       excel.delete('Sheet1');
@@ -558,8 +669,6 @@ class _SheekhaHomeScreenState extends State<SheekhaHomeScreen> {
       File file = File(filePath);
       await file.writeAsBytes(excel.save()!);
 
-      if (mounted) Navigator.pop(context);
-
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
@@ -573,96 +682,10 @@ class _SheekhaHomeScreenState extends State<SheekhaHomeScreen> {
         );
       }
     } catch (e) {
-      if (mounted) Navigator.pop(context);
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text('Error: $e'), backgroundColor: Colors.redAccent),
         );
-      }
-    }
-  }
-
-  Future<void> _pickAndAppendExcelFile() async {
-    FilePickerResult? result = await FilePicker.platform.pickFiles(
-      type: FileType.custom,
-      allowedExtensions: ['xlsx', 'xls', 'csv'],
-    );
-
-    if (result != null && result.files.single.path != null) {
-      _showLoadingProgressModal(AppStrings.isAr ? 'جاري تحميل الشيت واستخراج السجلات للإكمال...' : 'Appending records...');
-      await Future.delayed(const Duration(milliseconds: 100));
-
-      try {
-        var bytes = File(result.files.single.path!).readAsBytesSync();
-        var excel = ex.Excel.decodeBytes(bytes);
-        List<Map<String, String>> importedList = [];
-
-        for (var table in excel.tables.keys) {
-          var sheet = excel.tables[table];
-          if (sheet != null) {
-            for (var row in sheet.rows.skip(1)) {
-              if (row.isNotEmpty && row[0] != null) {
-                String col0 = row[0]?.value?.toString() ?? '';
-                String col1 = row.length > 1 ? (row[1]?.value?.toString() ?? '') : '';
-                String col2 = row.length > 2 ? (row[2]?.value?.toString() ?? 'ملاكي') : 'ملاكي';
-                String col3 = row.length > 3 ? (row[3]?.value?.toString() ?? 'سجل سابق') : 'سجل سابق';
-                String col4 = row.length > 4 ? (row[4]?.value?.toString() ?? 'غير متوفر') : 'غير متوفر';
-
-                String digits = col1;
-                String letters = col0;
-                if (col1.isEmpty || !RegExp(r'\d').hasMatch(col1)) {
-                  digits = col0.replaceAll(RegExp(r'[^\d]'), '');
-                  letters = col0.replaceAll(RegExp(r'[\d]'), '').trim();
-                }
-
-                if (digits.isNotEmpty) {
-                  importedList.add({
-                    'id': (_records.length + importedList.length + 1).toString(),
-                    'letters': letters,
-                    'digits': digits,
-                    'type': col2,
-                    'district': _currentDistrict,
-                    'street': _currentStreet,
-                    'coords': _currentCoordinates,
-                    'owner': col3,
-                    'shassis': col4,
-                    'note': 'سجل سابق',
-                    'status': 'مطابق',
-                    'time': 'سابق',
-                  });
-                }
-              }
-            }
-          }
-        }
-
-        setState(() {
-          _records.addAll(importedList);
-          _appendFileName = result.files.single.name;
-          _saveData();
-        });
-
-        if (mounted) Navigator.pop(context);
-
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text(
-                AppStrings.isAr ? 'تم استيراد ${importedList.length} سجل بنجاح ومتابعة الإكمال عليها!' : 'Imported ${importedList.length} records!',
-                textDirection: AppStrings.isAr ? TextDirection.rtl : TextDirection.ltr,
-              ),
-              backgroundColor: const Color(0xFF06D6A0),
-              duration: const Duration(seconds: 4),
-            ),
-          );
-        }
-      } catch (e) {
-        if (mounted) Navigator.pop(context);
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text('Error: $e'), backgroundColor: Colors.redAccent),
-          );
-        }
       }
     }
   }
@@ -785,7 +808,6 @@ class _SheekhaHomeScreenState extends State<SheekhaHomeScreen> {
     String normalizedQuery = SheekhaFullEngine.normalizeFlexible(query);
     List<Map<String, String>> matched = [];
 
-    // فحص شيت المطلوبات
     for (var car in _wantedDatabase) {
       String target = SheekhaFullEngine.normalizeFlexible('${car['letters']}${car['digits']} ${car['type']} ${car['owner']} ${car['shassis']}');
       if (target.contains(normalizedQuery)) {
@@ -805,7 +827,6 @@ class _SheekhaHomeScreenState extends State<SheekhaHomeScreen> {
       }
     }
 
-    // فحص السجلات السابقة
     for (var car in _records) {
       String target = SheekhaFullEngine.normalizeFlexible('${car['letters']}${car['digits']} ${car['type']}');
       if (target.contains(normalizedQuery)) {
@@ -815,7 +836,6 @@ class _SheekhaHomeScreenState extends State<SheekhaHomeScreen> {
       }
     }
 
-    // مطابقة تامة مع تنبيه وإضافة فورية
     String cleanDigitsOnly = SheekhaFullEngine.normalizeDigits(query.replaceAll(RegExp(r'[^\d]'), ''));
     if (cleanDigitsOnly.length >= 3) {
       var exactMatch = _wantedDatabase.firstWhere(
@@ -843,6 +863,13 @@ class _SheekhaHomeScreenState extends State<SheekhaHomeScreen> {
   }
 
   Future<void> _fetchGPSLocation() async {
+    if (!_isGpsEnabled) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(AppStrings.isAr ? 'الـ GPS معطل من الإعدادات، يرجى تفعيله أولاً' : 'GPS is disabled in Settings')),
+      );
+      return;
+    }
+
     bool serviceEnabled = await Geolocator.isLocationServiceEnabled();
     if (!serviceEnabled) return;
 
@@ -885,6 +912,7 @@ class _SheekhaHomeScreenState extends State<SheekhaHomeScreen> {
     final String? savedPhone = prefs.getString('rased_wa_phone');
     final String? savedWantedName = prefs.getString('rased_wanted_name');
     final String? savedDistricts = prefs.getString('rased_districts_list');
+    final bool? savedGps = prefs.getBool('rased_gps_enabled');
 
     setState(() {
       if (savedRecords != null) {
@@ -897,6 +925,7 @@ class _SheekhaHomeScreenState extends State<SheekhaHomeScreen> {
       }
       if (savedPhone != null) _savedWhatsAppPhone = savedPhone;
       if (savedWantedName != null) _wantedFileName = savedWantedName;
+      if (savedGps != null) _isGpsEnabled = savedGps;
       if (savedDistricts != null) {
         List<String> loadedDistricts = List<String>.from(json.decode(savedDistricts));
         for (var d in loadedDistricts) {
@@ -913,9 +942,9 @@ class _SheekhaHomeScreenState extends State<SheekhaHomeScreen> {
     prefs.setString('rased_wa_phone', _savedWhatsAppPhone);
     prefs.setString('rased_wanted_name', _wantedFileName);
     prefs.setString('rased_districts_list', json.encode(_districts));
+    prefs.setBool('rased_gps_enabled', _isGpsEnabled);
   }
 
-  // نافذة التنبيه التي تعرض اللوحة، النوع، البنك، الشاص بدقة الشيت
   void _showWantedAlertModal(Map<String, String> car, String letters, String digits) {
     String carType = (car['type'] ?? '').isNotEmpty ? car['type']! : 'ملاكي';
     String bankOwner = (car['owner'] ?? '').isNotEmpty ? car['owner']! : 'غير متوفر';
@@ -1072,7 +1101,7 @@ class _SheekhaHomeScreenState extends State<SheekhaHomeScreen> {
   }
 
   Widget _buildRegistrationTab() {
-    bool hasGPS = _currentCoordinates.isNotEmpty;
+    bool hasGPS = _isGpsEnabled && _currentCoordinates.isNotEmpty;
 
     return Padding(
       padding: const EdgeInsets.all(12.0),
@@ -1100,7 +1129,11 @@ class _SheekhaHomeScreenState extends State<SheekhaHomeScreen> {
                                 children: [
                                   InkWell(
                                     onTap: () {
-                                      if (hasGPS) {
+                                      if (!_isGpsEnabled) {
+                                        ScaffoldMessenger.of(context).showSnackBar(
+                                          SnackBar(content: Text(AppStrings.isAr ? 'الـ GPS معطل من الإعدادات' : 'GPS is disabled in Settings')),
+                                        );
+                                      } else if (hasGPS) {
                                         Clipboard.setData(ClipboardData(text: _currentCoordinates));
                                         ScaffoldMessenger.of(context).showSnackBar(
                                           SnackBar(content: Text('Copied GPS: $_currentCoordinates'), backgroundColor: const Color(0xFF06D6A0)),
@@ -1115,7 +1148,7 @@ class _SheekhaHomeScreenState extends State<SheekhaHomeScreen> {
                                       child: Row(
                                         children: [
                                           Icon(Icons.my_location, color: hasGPS ? Colors.black : const Color(0xFF06D6A0), size: 12),
-                                          Text(hasGPS ? ' GPS ✓' : ' GPS', style: TextStyle(color: hasGPS ? Colors.black : const Color(0xFF06D6A0), fontSize: 9, fontWeight: FontWeight.bold)),
+                                          Text(hasGPS ? ' GPS ✓' : (_isGpsEnabled ? ' GPS' : ' GPS ✕'), style: TextStyle(color: hasGPS ? Colors.black : const Color(0xFF06D6A0), fontSize: 9, fontWeight: FontWeight.bold)),
                                         ],
                                       ),
                                     ),
@@ -1391,6 +1424,35 @@ class _SheekhaHomeScreenState extends State<SheekhaHomeScreen> {
               }
             },
           ),
+        ),
+        const SizedBox(height: 12),
+        SwitchListTile(
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+          tileColor: const Color(0xFF1C2541),
+          activeColor: const Color(0xFF06D6A0),
+          secondary: const Icon(Icons.location_on, color: Color(0xFF06D6A0)),
+          title: Text(AppStrings.gpsSetting, style: const TextStyle(color: Colors.white)),
+          subtitle: Text(AppStrings.gpsSub, style: const TextStyle(color: Colors.grey, fontSize: 11)),
+          value: _isGpsEnabled,
+          onChanged: (bool value) {
+            setState(() {
+              _isGpsEnabled = value;
+              if (!value) _currentCoordinates = '';
+            });
+            _saveData();
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(
+                content: Text(
+                  value
+                      ? (AppStrings.isAr ? 'تم تفعيل موقع GPS بنجاح' : 'GPS Tracking Enabled')
+                      : (AppStrings.isAr ? 'تم إيقاف تشغيل موقع GPS' : 'GPS Tracking Disabled'),
+                  textDirection: AppStrings.isAr ? TextDirection.rtl : TextDirection.ltr,
+                ),
+                backgroundColor: value ? const Color(0xFF06D6A0) : Colors.redAccent,
+                duration: const Duration(seconds: 2),
+              ),
+            );
+          },
         ),
         const SizedBox(height: 12),
         ListTile(
