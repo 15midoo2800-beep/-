@@ -14,6 +14,40 @@ import 'package:url_launcher/url_launcher.dart';
 
 void main() => runApp(const MyApp());
 
+// قاموس الترجمة للغتين
+class AppStrings {
+  static bool isAr = true;
+
+  static String get appName => 'RASED';
+  static String get checkingTab => isAr ? 'التشييك' : 'Check';
+  static String get registrationTab => isAr ? 'التسجيل' : 'Register';
+  static String get wantedTab => isAr ? 'المرصودة' : 'Wanted';
+  static String get manualSearchTab => isAr ? 'فحص يدوي' : 'Manual';
+  static String get settingsTab => isAr ? 'الإعدادات' : 'Settings';
+
+  static String get listeningNow => isAr ? 'يستمع الآن...' : 'Listening now...';
+  static String get stopped => isAr ? 'متوقف' : 'Stopped';
+  static String get recordsCount => isAr ? 'السجلات:' : 'Records:';
+  static String get editPlateHint => isAr ? 'اضغط على اللوحة أو النوع لتعديلهما' : 'Tap plate or type to edit';
+  static String get noRecords => isAr ? 'لا توجد سجلات حالياً...' : 'No records yet...';
+
+  static String get notes => isAr ? 'ملاحظات' : 'Notes';
+  static String get street => isAr ? 'الشارع' : 'Street';
+  static String get district => isAr ? 'الحي' : 'District';
+  static String get exportExcel => isAr ? 'تصدير إكسيل (باسم الحي)' : 'Export Excel';
+  static String get appendExcel => isAr ? 'استيراد وإكمال شيت' : 'Append Sheet';
+
+  static String get sendWhatsApp => isAr ? 'إرسال للواتساب' : 'Send WhatsApp';
+  static String get sendNumber => isAr ? 'رقم الإرسال:' : 'Send Phone:';
+  static String get searchBtn => isAr ? 'بحث' : 'Search';
+  static String get searchHint => isAr ? 'اكتب حروف أو أرقام السيارة...' : 'Enter plate code or digits...';
+  static String get searchEmptyHint => isAr ? 'اكتب كود أو رقم السيارة واضغط "بحث" للفحص الفوري في الشيت' : 'Enter plate and tap "Search" to check against sheet';
+
+  static String get langSetting => isAr ? 'لغة التطبيق / Language' : 'App Language / اللغة';
+  static String get supportSetting => isAr ? 'التواصل مع الدعم وتحديد الاشتراك' : 'Support & Subscription';
+  static String get supportSub => isAr ? 'واتساب: 00201155661920' : 'WhatsApp: 00201155661920';
+}
+
 class MyApp extends StatefulWidget {
   const MyApp({super.key});
 
@@ -25,7 +59,10 @@ class _MyAppState extends State<MyApp> {
   Locale _locale = const Locale('ar');
 
   void setLocale(Locale loc) {
-    setState(() => _locale = loc);
+    setState(() {
+      _locale = loc;
+      AppStrings.isAr = loc.languageCode == 'ar';
+    });
   }
 
   @override
@@ -56,7 +93,7 @@ class SheekhaFullEngine {
     'راء': 'ر', 'ره': 'ر', 'را': 'ر', 'ري': 'ر', 'ر': 'ر',
     'زين': 'ز', 'زه': 'ز', 'زا': 'ز', 'زاي': 'ز', 'ز': 'ز',
     'سين': 'س', 'سه': 'س', 'سين': 'س', 'سا': 'س', 'سي': 'س', 'س': 'س',
-    'شين': 'ش', 'شه': 'ش', 'شا': 'ش', 'شي': 'ش', 'ش': 'ش',
+    'شين': 'ش', 'شه': 'ش', 'شين': 'ش', 'شا': 'ش', 'شي': 'ش', 'ش': 'ش',
     'صاد': 'ص', 'صه': 'ص', 'صا': 'ص', 'صي': 'ص', 'ص': 'ص',
     'ضاد': 'ض', 'ضه': 'ض', 'ضا': 'ض', 'ضي': 'ض', 'ض': 'ض',
     'طاء': 'ط', 'طه': 'ط', 'طاء': 'ط', 'طا': 'ط', 'طي': 'ط', 'ط': 'ط',
@@ -65,13 +102,13 @@ class SheekhaFullEngine {
     'غين': 'غ', 'غه': 'غ', 'غين': 'غ', 'غا': 'غ', 'غاء': 'غ', 'غ': 'غ',
     'فاء': 'ف', 'فه': 'ف', 'فا': 'ف', 'في': 'ف', 'ف': 'ف',
     'قاف': 'ق', 'قه': 'ق', 'قا': 'ق', 'قف': 'ق', 'ق': 'ق',
-    'كاف': 'ك', 'كه': 'ك', 'كا': 'ك', 'كي': 'ك', 'ك': 'ك',
-    'لام': 'ل', 'له': 'ل', 'لا': 'ل', 'لي': 'ل', 'ل': 'ل',
-    'ميم': 'م', 'مه': 'م', 'ما': 'م', 'مين': 'م', 'م': 'م',
-    'نون': 'ن', 'نه': 'ن', 'نا': 'ن', 'ني': 'ن', 'ن': 'ن',
-    'هاء': 'ه', 'هه': 'ه', 'ها': 'ه', 'هـ': 'ه', 'ه': 'ه',
+    'كاف': 'ك', 'كه': 'ك', 'كاف': 'ك', 'كا': 'ك', 'كي': 'ك', 'ك': 'ك',
+    'لام': 'ل', 'له': 'ل', 'لام': 'ل', 'لا': 'ل', 'لي': 'ل', 'ل': 'ل',
+    'ميم': 'م', 'مه': 'م', 'ميم': 'م', 'ما': 'م', 'مين': 'م', 'م': 'م',
+    'نون': 'ن', 'نه': 'ن', 'نون': 'ن', 'نا': 'ن', 'ني': 'ن', 'ن': 'ن',
+    'هاء': 'ه', 'هه': 'ه', 'هاء': 'ه', 'ها': 'ه', 'هـ': 'ه', 'ه': 'ه',
     'واو': 'و', 'وه': 'و', 'وا': 'و', 'و': 'و',
-    'ياء': 'ي', 'يه': 'ي', 'يا': 'ي', 'ى': 'ي', 'ي': 'ي',
+    'ياء': 'ي', 'يه': 'ي', 'ياء': 'ي', 'يا': 'ي', 'ى': 'ي', 'ي': 'ي',
   };
 
   static final Map<String, List<String>> compounds = {
@@ -198,7 +235,7 @@ class SheekhaHomeScreen extends StatefulWidget {
 class _SheekhaHomeScreenState extends State<SheekhaHomeScreen> {
   int _currentIndex = 4;
   bool _isListening = false;
-  String _currentStatusText = 'يستمع الآن...';
+  String _currentStatusText = AppStrings.listeningNow;
   double _soundLevel = 0.0;
 
   final Map<String, DateTime> _cooldowns = {};
@@ -265,7 +302,7 @@ class _SheekhaHomeScreenState extends State<SheekhaHomeScreen> {
       setState(() {
         _isListening = false;
         _soundLevel = 0.0;
-        _currentStatusText = 'تم إيقاف الاستماع';
+        _currentStatusText = AppStrings.stopped;
       });
       await _speech.stop();
     } else {
@@ -275,7 +312,7 @@ class _SheekhaHomeScreenState extends State<SheekhaHomeScreen> {
       }
       setState(() {
         _isListening = true;
-        _currentStatusText = 'يستمع الآن...';
+        _currentStatusText = AppStrings.listeningNow;
       });
       _startListeningSession();
     }
@@ -341,7 +378,6 @@ class _SheekhaHomeScreenState extends State<SheekhaHomeScreen> {
 
     bool isWanted = match.isNotEmpty;
 
-    // اعتماد نوع السيارة القادم من الشيت المرفق إن وجدت، ثم المنطوق صوتياً
     String finalCarType = isWanted && (match['type'] ?? '').isNotEmpty && match['type'] != 'ملاكي'
         ? match['type']!
         : (spokenType != 'ملاكي' ? spokenType : (match['type'] ?? 'ملاكي'));
@@ -379,7 +415,7 @@ class _SheekhaHomeScreenState extends State<SheekhaHomeScreen> {
     );
 
     if (result != null && result.files.single.path != null) {
-      _showLoadingProgressModal('جاري قراءة ملف السيارات المطلوبة واستخراج أنواعها...');
+      _showLoadingProgressModal(AppStrings.isAr ? 'جاري قراءة ملف السيارات المطلوبة...' : 'Loading wanted cars file...');
       await Future.delayed(const Duration(milliseconds: 100));
 
       try {
@@ -404,7 +440,6 @@ class _SheekhaHomeScreenState extends State<SheekhaHomeScreen> {
                   letters = col0.replaceAll(RegExp(r'[\d]'), '').trim();
                 }
 
-                // استخراج نوع السيارة بدقة من أي عمود متاح بالشيت
                 String carType = col2.isNotEmpty ? col2 : (col3.isNotEmpty ? col3 : 'ملاكي');
                 String owner = col3.isNotEmpty && col3 != carType ? col3 : (col2.isNotEmpty && col2 != carType ? col2 : 'مطلوبة');
 
@@ -433,7 +468,12 @@ class _SheekhaHomeScreenState extends State<SheekhaHomeScreen> {
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
-              content: Text('تم رفع ملف السيارات المطلوبة بنجاح! تم استخراج ${extractedCars.length} سيارة بأنواعها.', textDirection: TextDirection.rtl),
+              content: Text(
+                AppStrings.isAr
+                    ? 'تم رفع ملف السيارات المطلوبة بنجاح! تم استخراج ${extractedCars.length} سيارة.'
+                    : 'Loaded ${extractedCars.length} wanted cars successfully.',
+                textDirection: AppStrings.isAr ? TextDirection.rtl : TextDirection.ltr,
+              ),
               backgroundColor: const Color(0xFF06D6A0),
               duration: const Duration(seconds: 4),
             ),
@@ -443,7 +483,7 @@ class _SheekhaHomeScreenState extends State<SheekhaHomeScreen> {
         if (mounted) Navigator.pop(context);
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text('حدث خطأ أثناء معالجة الملف: $e', textDirection: TextDirection.rtl), backgroundColor: Colors.redAccent),
+            SnackBar(content: Text('Error: $e'), backgroundColor: Colors.redAccent),
           );
         }
       }
@@ -475,7 +515,7 @@ class _SheekhaHomeScreenState extends State<SheekhaHomeScreen> {
   Future<void> _exportExcelDirectlyToDownloads() async {
     try {
       await Permission.storage.request();
-      _showLoadingProgressModal('جاري تصدير السجلات إلى مجلد Download...');
+      _showLoadingProgressModal(AppStrings.isAr ? 'جاري تصدير السجلات إلى مجلد Download...' : 'Exporting to Download...');
       await Future.delayed(const Duration(milliseconds: 50));
 
       var excel = ex.Excel.createExcel();
@@ -519,8 +559,8 @@ class _SheekhaHomeScreenState extends State<SheekhaHomeScreen> {
       DateTime now = DateTime.now();
       String dateStr = '${now.year}-${now.month.toString().padLeft(2, '0')}-${now.day.toString().padLeft(2, '0')}_${now.hour}${now.minute}';
       String safeDistrict = _currentDistrict.replaceAll(RegExp(r'[^\w\s\u0621-\u064A]'), '_').trim();
-      if (safeDistrict.isEmpty) safeDistrict = 'سجلات';
-      String fileName = '${safeDistrict}_$dateStr.xlsx';
+      if (safeDistrict.isEmpty) safeDistrict = 'Rased';
+      String fileName = 'Rased_${safeDistrict}_$dateStr.xlsx';
 
       String filePath = '${downloadDir.path}/$fileName';
       File file = File(filePath);
@@ -531,7 +571,10 @@ class _SheekhaHomeScreenState extends State<SheekhaHomeScreen> {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('تم حفظ شيت "$fileName" في مجلد Download بنجاح!', textDirection: TextDirection.rtl),
+            content: Text(
+              AppStrings.isAr ? 'تم حفظ شيت "$fileName" في مجلد Download بنجاح!' : 'Exported "$fileName" to Download!',
+              textDirection: AppStrings.isAr ? TextDirection.rtl : TextDirection.ltr,
+            ),
             backgroundColor: const Color(0xFF06D6A0),
             duration: const Duration(seconds: 4),
           ),
@@ -541,7 +584,7 @@ class _SheekhaHomeScreenState extends State<SheekhaHomeScreen> {
       if (mounted) Navigator.pop(context);
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('خطأ في التصدير: $e', textDirection: TextDirection.rtl), backgroundColor: Colors.redAccent),
+          SnackBar(content: Text('Error: $e'), backgroundColor: Colors.redAccent),
         );
       }
     }
@@ -554,7 +597,7 @@ class _SheekhaHomeScreenState extends State<SheekhaHomeScreen> {
     );
 
     if (result != null && result.files.single.path != null) {
-      _showLoadingProgressModal('جاري تحميل الشيت واستخراج السجلات للإكمال...');
+      _showLoadingProgressModal(AppStrings.isAr ? 'جاري تحميل الشيت واستخراج السجلات للإكمال...' : 'Appending records...');
       await Future.delayed(const Duration(milliseconds: 100));
 
       try {
@@ -609,7 +652,10 @@ class _SheekhaHomeScreenState extends State<SheekhaHomeScreen> {
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
-              content: Text('تم استيراد ${importedList.length} سجل بنجاح ومتابعة الإكمال عليها!', textDirection: TextDirection.rtl),
+              content: Text(
+                AppStrings.isAr ? 'تم استيراد ${importedList.length} سجل بنجاح ومتابعة الإكمال عليها!' : 'Imported ${importedList.length} records!',
+                textDirection: AppStrings.isAr ? TextDirection.rtl : TextDirection.ltr,
+              ),
               backgroundColor: const Color(0xFF06D6A0),
               duration: const Duration(seconds: 4),
             ),
@@ -619,7 +665,7 @@ class _SheekhaHomeScreenState extends State<SheekhaHomeScreen> {
         if (mounted) Navigator.pop(context);
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text('خطأ في استيراد الشيت: $e', textDirection: TextDirection.rtl), backgroundColor: Colors.redAccent),
+            SnackBar(content: Text('Error: $e'), backgroundColor: Colors.redAccent),
           );
         }
       }
@@ -636,7 +682,7 @@ class _SheekhaHomeScreenState extends State<SheekhaHomeScreen> {
       context: context,
       builder: (context) => AlertDialog(
         backgroundColor: const Color(0xFF1C2541),
-        title: const Text('تعديل يدوي للوحة والنوع', style: TextStyle(color: Color(0xFF06D6A0)), textAlign: TextAlign.center),
+        title: Text(AppStrings.isAr ? 'تعديل يدوي للوحة والنوع' : 'Edit Plate & Type', style: const TextStyle(color: Color(0xFF06D6A0)), textAlign: TextAlign.center),
         content: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
@@ -644,7 +690,7 @@ class _SheekhaHomeScreenState extends State<SheekhaHomeScreen> {
               controller: letCtrl,
               textAlign: TextAlign.center,
               style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
-              decoration: const InputDecoration(labelText: 'الحروف (مثال: أ ن د)', labelStyle: TextStyle(color: Colors.grey)),
+              decoration: InputDecoration(labelText: AppStrings.isAr ? 'الحروف (مثال: أ ن د)' : 'Letters', labelStyle: const TextStyle(color: Colors.grey)),
             ),
             const SizedBox(height: 6),
             TextField(
@@ -652,19 +698,19 @@ class _SheekhaHomeScreenState extends State<SheekhaHomeScreen> {
               keyboardType: TextInputType.number,
               textAlign: TextAlign.center,
               style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
-              decoration: const InputDecoration(labelText: 'الأرقام (مثال: 2718)', labelStyle: TextStyle(color: Colors.grey)),
+              decoration: InputDecoration(labelText: AppStrings.isAr ? 'الأرقام (مثال: 2718)' : 'Digits', labelStyle: const TextStyle(color: Colors.grey)),
             ),
             const SizedBox(height: 6),
             TextField(
               controller: typCtrl,
               textAlign: TextAlign.center,
               style: const TextStyle(color: Colors.white),
-              decoration: const InputDecoration(labelText: 'نوع السيارة (مثال: نقل / فان)', labelStyle: TextStyle(color: Colors.grey)),
+              decoration: InputDecoration(labelText: AppStrings.isAr ? 'نوع السيارة (مثال: نقل / فان)' : 'Car Type', labelStyle: const TextStyle(color: Colors.grey)),
             ),
           ],
         ),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(context), child: const Text('إلغاء')),
+          TextButton(onPressed: () => Navigator.pop(context), child: Text(AppStrings.isAr ? 'إلغاء' : 'Cancel')),
           ElevatedButton(
             style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFF06D6A0)),
             onPressed: () {
@@ -676,7 +722,7 @@ class _SheekhaHomeScreenState extends State<SheekhaHomeScreen> {
               _saveData();
               Navigator.pop(context);
             },
-            child: const Text('حفظ التعديل', style: TextStyle(color: Colors.black, fontWeight: FontWeight.bold)),
+            child: Text(AppStrings.isAr ? 'حفظ التعديل' : 'Save', style: const TextStyle(color: Colors.black, fontWeight: FontWeight.bold)),
           ),
         ],
       ),
@@ -691,13 +737,13 @@ class _SheekhaHomeScreenState extends State<SheekhaHomeScreen> {
 
     if (toSend.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('لا توجد سيارات مطلوبة لإرسالها', textDirection: TextDirection.rtl)),
+        SnackBar(content: Text(AppStrings.isAr ? 'لا توجد سيارات مطلوبة لإرسالها' : 'No wanted cars to send')),
       );
       return;
     }
 
     StringBuffer buffer = StringBuffer();
-    buffer.writeln('🚨 *تقرير رصد سيارات مطلوبة - تطبيق SHEEKHA*');
+    buffer.writeln('🚨 *تقرير رصد سيارات مطلوبة - تطبيق RASED*');
     buffer.writeln('-----------------------------------');
     for (var car in toSend) {
       buffer.writeln('🚗 لوحة: ${car['letters']} ${car['digits']}');
@@ -724,7 +770,7 @@ class _SheekhaHomeScreenState extends State<SheekhaHomeScreen> {
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('تعذر فتح الواتساب: $e', textDirection: TextDirection.rtl)),
+          SnackBar(content: Text('Error: $e')),
         );
       }
     }
@@ -790,12 +836,7 @@ class _SheekhaHomeScreenState extends State<SheekhaHomeScreen> {
 
   Future<void> _fetchGPSLocation() async {
     bool serviceEnabled = await Geolocator.isLocationServiceEnabled();
-    if (!serviceEnabled) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('يرجى تفعيل خدمة الموقع (GPS) بالهاتف', textDirection: TextDirection.rtl)),
-      );
-      return;
-    }
+    if (!serviceEnabled) return;
 
     LocationPermission permission = await Geolocator.checkPermission();
     if (permission == LocationPermission.denied) {
@@ -809,18 +850,12 @@ class _SheekhaHomeScreenState extends State<SheekhaHomeScreen> {
     });
 
     ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('تم تثبيت إشارة الـ GPS بنجاح', textDirection: TextDirection.rtl), backgroundColor: Color(0xFF06D6A0)),
+      const SnackBar(content: Text('GPS Signal Captured ✓'), backgroundColor: Color(0xFF06D6A0)),
     );
   }
 
   void _openGoogleMaps(String coords) async {
-    if (coords.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('لم يتم التقاط إحداثيات GPS لهذه اللوحة', textDirection: TextDirection.rtl)),
-      );
-      return;
-    }
-
+    if (coords.isEmpty) return;
     Uri geoUri = Uri.parse('geo:$coords?q=$coords');
     Uri webUri = Uri.parse('https://maps.google.com/?q=$coords');
 
@@ -837,11 +872,11 @@ class _SheekhaHomeScreenState extends State<SheekhaHomeScreen> {
 
   Future<void> _loadData() async {
     final prefs = await SharedPreferences.getInstance();
-    final String? savedRecords = prefs.getString('sheekha_historical_records');
-    final String? savedDb = prefs.getString('sheekha_wanted_db');
-    final String? savedPhone = prefs.getString('sheekha_wa_phone');
-    final String? savedWantedName = prefs.getString('sheekha_wanted_name');
-    final String? savedDistricts = prefs.getString('sheekha_districts_list');
+    final String? savedRecords = prefs.getString('rased_historical_records');
+    final String? savedDb = prefs.getString('rased_wanted_db');
+    final String? savedPhone = prefs.getString('rased_wa_phone');
+    final String? savedWantedName = prefs.getString('rased_wanted_name');
+    final String? savedDistricts = prefs.getString('rased_districts_list');
 
     setState(() {
       if (savedRecords != null) {
@@ -865,14 +900,13 @@ class _SheekhaHomeScreenState extends State<SheekhaHomeScreen> {
 
   Future<void> _saveData() async {
     final prefs = await SharedPreferences.getInstance();
-    prefs.setString('sheekha_historical_records', json.encode(_records));
-    prefs.setString('sheekha_wanted_db', json.encode(_wantedDatabase));
-    prefs.setString('sheekha_wa_phone', _savedWhatsAppPhone);
-    prefs.setString('sheekha_wanted_name', _wantedFileName);
-    prefs.setString('sheekha_districts_list', json.encode(_districts));
+    prefs.setString('rased_historical_records', json.encode(_records));
+    prefs.setString('rased_wanted_db', json.encode(_wantedDatabase));
+    prefs.setString('rased_wa_phone', _savedWhatsAppPhone);
+    prefs.setString('rased_wanted_name', _wantedFileName);
+    prefs.setString('rased_districts_list', json.encode(_districts));
   }
 
-  // إظهار نوع السيارة المستخرج من الشيت في نافذة التنبيه بوضوح
   void _showWantedAlertModal(Map<String, String> car, String letters, String digits) {
     String carType = (car['type'] ?? '').isNotEmpty ? car['type']! : 'ملاكي';
 
@@ -882,7 +916,7 @@ class _SheekhaHomeScreenState extends State<SheekhaHomeScreen> {
       builder: (context) => AlertDialog(
         backgroundColor: Colors.white,
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20), side: const BorderSide(color: Colors.redAccent, width: 3)),
-        title: const Text('🚨 تم رصد سيارة مطلوبة!', style: TextStyle(color: Colors.red, fontWeight: FontWeight.bold, fontSize: 18), textAlign: TextAlign.center),
+        title: Text(AppStrings.isAr ? '🚨 تم رصد سيارة مطلوبة!' : '🚨 Wanted Car Detected!', style: const TextStyle(color: Colors.red, fontWeight: FontWeight.bold, fontSize: 18), textAlign: TextAlign.center),
         content: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
@@ -914,7 +948,7 @@ class _SheekhaHomeScreenState extends State<SheekhaHomeScreen> {
             child: ElevatedButton(
               style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
               onPressed: () => Navigator.pop(context),
-              child: const Text('إغلاق ومتابعة الرصد', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+              child: Text(AppStrings.isAr ? 'إغلاق ومتابعة الرصد' : 'Close', style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
             ),
           )
         ],
@@ -930,13 +964,13 @@ class _SheekhaHomeScreenState extends State<SheekhaHomeScreen> {
         elevation: 0,
         leading: IconButton(
           icon: const Icon(Icons.upload_file, color: Color(0xFF06D6A0), size: 28),
-          tooltip: 'رفع شيت السيارات المطلوبة',
+          tooltip: 'Upload Wanted Sheet',
           onPressed: _pickAndParseWantedDatabaseFile,
         ),
         title: Column(
           crossAxisAlignment: CrossAxisAlignment.center,
           children: [
-            const Text('SHEEKHA', style: TextStyle(letterSpacing: 2, fontWeight: FontWeight.bold, color: Color(0xFF06D6A0), fontSize: 18)),
+            Text(AppStrings.appName, style: const TextStyle(letterSpacing: 2, fontWeight: FontWeight.bold, color: Color(0xFF06D6A0), fontSize: 18)),
             Text(
               _wantedFileName,
               style: const TextStyle(color: Colors.grey, fontSize: 10),
@@ -957,12 +991,12 @@ class _SheekhaHomeScreenState extends State<SheekhaHomeScreen> {
         currentIndex: _currentIndex,
         type: BottomNavigationBarType.fixed,
         onTap: (index) => setState(() => _currentIndex = index),
-        items: const [
-          BottomNavigationBarItem(icon: Icon(Icons.settings), label: 'الإعدادات'),
-          BottomNavigationBarItem(icon: Icon(Icons.search), label: 'فحص يدوي'),
-          BottomNavigationBarItem(icon: Icon(Icons.warning_amber_rounded), label: 'المرصودة'),
-          BottomNavigationBarItem(icon: Icon(Icons.app_registration), label: 'التسجيل'),
-          BottomNavigationBarItem(icon: Icon(Icons.mic), label: 'التشييك'),
+        items: [
+          BottomNavigationBarItem(icon: const Icon(Icons.settings), label: AppStrings.settingsTab),
+          BottomNavigationBarItem(icon: const Icon(Icons.search), label: AppStrings.manualSearchTab),
+          BottomNavigationBarItem(icon: const Icon(Icons.warning_amber_rounded), label: AppStrings.wantedTab),
+          BottomNavigationBarItem(icon: const Icon(Icons.app_registration), label: AppStrings.registrationTab),
+          BottomNavigationBarItem(icon: const Icon(Icons.mic), label: AppStrings.checkingTab),
         ],
       ),
     );
@@ -994,8 +1028,8 @@ class _SheekhaHomeScreenState extends State<SheekhaHomeScreen> {
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              Text('السجلات: ${_records.length}', style: const TextStyle(color: Colors.grey, fontSize: 13)),
-              const Text('اضغط على اللوحة أو النوع لتعديلهما', style: TextStyle(color: Color(0xFF06D6A0), fontSize: 11)),
+              Text('${AppStrings.recordsCount} ${_records.length}', style: const TextStyle(color: Colors.grey, fontSize: 13)),
+              Text(AppStrings.editPlateHint, style: const TextStyle(color: Color(0xFF06D6A0), fontSize: 11)),
             ],
           ),
           const SizedBox(height: 8),
@@ -1019,7 +1053,7 @@ class _SheekhaHomeScreenState extends State<SheekhaHomeScreen> {
               children: [
                 Row(
                   children: [
-                    Expanded(child: _controlCard('ملاحظات', _selectedNote, Icons.edit, Colors.amber, _showNotesMenu)),
+                    Expanded(child: _controlCard(AppStrings.notes, _selectedNote, Icons.edit, Colors.amber, _showNotesMenu)),
                     const SizedBox(width: 6),
                     Expanded(
                       child: InkWell(
@@ -1037,7 +1071,7 @@ class _SheekhaHomeScreenState extends State<SheekhaHomeScreen> {
                                       if (hasGPS) {
                                         Clipboard.setData(ClipboardData(text: _currentCoordinates));
                                         ScaffoldMessenger.of(context).showSnackBar(
-                                          SnackBar(content: Text('تم نسخ الإحداثيات: $_currentCoordinates', textDirection: TextDirection.rtl), backgroundColor: const Color(0xFF06D6A0)),
+                                          SnackBar(content: Text('Copied GPS: $_currentCoordinates'), backgroundColor: const Color(0xFF06D6A0)),
                                         );
                                       } else {
                                         _fetchGPSLocation();
@@ -1054,7 +1088,7 @@ class _SheekhaHomeScreenState extends State<SheekhaHomeScreen> {
                                       ),
                                     ),
                                   ),
-                                  const Text('الشارع', style: TextStyle(color: Colors.grey, fontSize: 10)),
+                                  Text(AppStrings.street, style: const TextStyle(color: Colors.grey, fontSize: 10)),
                                 ],
                               ),
                               const SizedBox(height: 2),
@@ -1065,7 +1099,7 @@ class _SheekhaHomeScreenState extends State<SheekhaHomeScreen> {
                       ),
                     ),
                     const SizedBox(width: 6),
-                    Expanded(child: _controlCard('الحي', _currentDistrict, Icons.folder, Colors.blueAccent, _showDistrictMenu)),
+                    Expanded(child: _controlCard(AppStrings.district, _currentDistrict, Icons.folder, Colors.blueAccent, _showDistrictMenu)),
                   ],
                 ),
                 const SizedBox(height: 12),
@@ -1076,7 +1110,7 @@ class _SheekhaHomeScreenState extends State<SheekhaHomeScreen> {
                         style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFF06D6A0)),
                         onPressed: _exportExcelDirectlyToDownloads,
                         icon: const Icon(Icons.download, color: Colors.black, size: 18),
-                        label: const Text('تصدير إكسيل (باسم الحي)', style: TextStyle(color: Colors.black, fontSize: 11, fontWeight: FontWeight.bold)),
+                        label: Text(AppStrings.exportExcel, style: const TextStyle(color: Colors.black, fontSize: 11, fontWeight: FontWeight.bold)),
                       ),
                     ),
                     const SizedBox(width: 8),
@@ -1085,7 +1119,7 @@ class _SheekhaHomeScreenState extends State<SheekhaHomeScreen> {
                         style: OutlinedButton.styleFrom(side: const BorderSide(color: Color(0xFF06D6A0))),
                         onPressed: _pickAndAppendExcelFile,
                         icon: const Icon(Icons.add_to_photos, color: Color(0xFF06D6A0), size: 18),
-                        label: const Text('استيراد وإكمال شيت', style: TextStyle(color: Color(0xFF06D6A0), fontSize: 11)),
+                        label: Text(AppStrings.appendExcel, style: const TextStyle(color: Color(0xFF06D6A0), fontSize: 11)),
                       ),
                     ),
                   ],
@@ -1136,7 +1170,7 @@ class _SheekhaHomeScreenState extends State<SheekhaHomeScreen> {
                             const SizedBox(width: 8),
                             const Icon(Icons.phone, color: Color(0xFF06D6A0), size: 18),
                             const SizedBox(width: 4),
-                            const Text('رقم الإرسال:', style: TextStyle(color: Colors.grey, fontSize: 12)),
+                            Text(AppStrings.sendNumber, style: const TextStyle(color: Colors.grey, fontSize: 12)),
                           ],
                         ),
                       ],
@@ -1152,13 +1186,7 @@ class _SheekhaHomeScreenState extends State<SheekhaHomeScreen> {
                   ),
                   onPressed: _sendWantedToWhatsApp,
                   icon: const Icon(Icons.send, color: Colors.white, size: 20),
-                  label: const Text('إرسال للواتساب', style: TextStyle(color: Colors.white, fontSize: 15, fontWeight: FontWeight.bold)),
-                ),
-                const SizedBox(height: 8),
-                const Text(
-                  'حدد السيارات المراد إرسالها من القائمة أو اضغط إرسال للكل مباشرة',
-                  textAlign: TextAlign.center,
-                  style: TextStyle(color: Colors.grey, fontSize: 11),
+                  label: Text(AppStrings.sendWhatsApp, style: const TextStyle(color: Colors.white, fontSize: 15, fontWeight: FontWeight.bold)),
                 ),
               ],
             ),
@@ -1166,7 +1194,7 @@ class _SheekhaHomeScreenState extends State<SheekhaHomeScreen> {
           const SizedBox(height: 10),
           Expanded(
             child: wantedList.isEmpty
-                ? const Center(child: Text('لا توجد سيارات مطلوبة مرصودة حتى الآن', style: TextStyle(color: Colors.grey)))
+                ? Center(child: Text(AppStrings.isAr ? 'لا توجد سيارات مطلوبة مرصودة حتى الآن' : 'No wanted cars detected yet', style: const TextStyle(color: Colors.grey)))
                 : ListView.builder(
                     itemCount: wantedList.length,
                     itemBuilder: (context, index) {
@@ -1223,15 +1251,15 @@ class _SheekhaHomeScreenState extends State<SheekhaHomeScreen> {
       context: context,
       builder: (context) => AlertDialog(
         backgroundColor: const Color(0xFF1C2541),
-        title: const Text('تثبيت رقم الواتساب للتقارير', style: TextStyle(color: Color(0xFF06D6A0)), textAlign: TextAlign.center),
+        title: Text(AppStrings.isAr ? 'تثبيت رقم الواتساب للتقارير' : 'Set WhatsApp Phone', style: const TextStyle(color: Color(0xFF06D6A0)), textAlign: TextAlign.center),
         content: TextField(
           controller: phoneCtrl,
           keyboardType: TextInputType.phone,
           style: const TextStyle(color: Colors.white),
-          decoration: const InputDecoration(hintText: 'مثال: 00201155661920'),
+          decoration: const InputDecoration(hintText: '00201155661920'),
         ),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(context), child: const Text('إلغاء')),
+          TextButton(onPressed: () => Navigator.pop(context), child: Text(AppStrings.isAr ? 'إلغاء' : 'Cancel')),
           ElevatedButton(
             style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFF06D6A0)),
             onPressed: () {
@@ -1239,7 +1267,7 @@ class _SheekhaHomeScreenState extends State<SheekhaHomeScreen> {
               _saveData();
               Navigator.pop(context);
             },
-            child: const Text('تثبيت الرقم', style: TextStyle(color: Colors.black)),
+            child: Text(AppStrings.isAr ? 'تثبيت الرقم' : 'Save', style: const TextStyle(color: Colors.black)),
           )
         ],
       ),
@@ -1269,20 +1297,20 @@ class _SheekhaHomeScreenState extends State<SheekhaHomeScreen> {
                   icon: _isManualSearching
                       ? const SizedBox(width: 14, height: 14, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.black))
                       : const Icon(Icons.search, color: Colors.black, size: 18),
-                  label: const Text('بحث', style: TextStyle(color: Colors.black, fontWeight: FontWeight.bold, fontSize: 13)),
+                  label: Text(AppStrings.searchBtn, style: const TextStyle(color: Colors.black, fontWeight: FontWeight.bold, fontSize: 13)),
                 ),
                 const SizedBox(width: 8),
                 Expanded(
                   child: TextField(
                     controller: _manualSearchCtrl,
-                    textDirection: TextDirection.rtl,
+                    textDirection: AppStrings.isAr ? TextDirection.rtl : TextDirection.ltr,
                     style: const TextStyle(color: Colors.white),
                     onSubmitted: (_) => _executeManualSearchAction(),
-                    decoration: const InputDecoration(
-                      hintText: 'اكتب حروف أو أرقام السيارة...',
-                      hintStyle: TextStyle(color: Colors.grey, fontSize: 12),
+                    decoration: InputDecoration(
+                      hintText: AppStrings.searchHint,
+                      hintStyle: const TextStyle(color: Colors.grey, fontSize: 12),
                       border: InputBorder.none,
-                      contentPadding: EdgeInsets.symmetric(horizontal: 8),
+                      contentPadding: const EdgeInsets.symmetric(horizontal: 8),
                     ),
                   ),
                 ),
@@ -1292,11 +1320,11 @@ class _SheekhaHomeScreenState extends State<SheekhaHomeScreen> {
           const SizedBox(height: 12),
           Expanded(
             child: _manualSearchResults.isEmpty
-                ? const Center(
+                ? Center(
                     child: Text(
-                      'اكتب كود أو رقم السيارة واضغط "بحث" للفحص الفوري في الشيت',
+                      AppStrings.searchEmptyHint,
                       textAlign: TextAlign.center,
-                      style: TextStyle(color: Colors.grey, fontSize: 13),
+                      style: const TextStyle(color: Colors.grey, fontSize: 13),
                     ),
                   )
                 : _buildRecordsListView(_manualSearchResults),
@@ -1314,10 +1342,10 @@ class _SheekhaHomeScreenState extends State<SheekhaHomeScreen> {
           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
           tileColor: const Color(0xFF1C2541),
           leading: const Icon(Icons.language, color: Color(0xFF06D6A0)),
-          title: const Text('لغة التطبيق / Language', style: TextStyle(color: Colors.white)),
+          title: Text(AppStrings.langSetting, style: const TextStyle(color: Colors.white)),
           trailing: DropdownButton<String>(
             dropdownColor: const Color(0xFF1C2541),
-            value: 'العربية',
+            value: AppStrings.isAr ? 'العربية' : 'English',
             underline: const SizedBox(),
             items: const [
               DropdownMenuItem(value: 'العربية', child: Text('العربية', style: TextStyle(color: Colors.white))),
@@ -1337,12 +1365,12 @@ class _SheekhaHomeScreenState extends State<SheekhaHomeScreen> {
           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
           tileColor: const Color(0xFF1C2541),
           leading: const Icon(Icons.support_agent, color: Color(0xFF06D6A0)),
-          title: const Text('التواصل مع الدعم وتحديد الاشتراك', style: TextStyle(color: Colors.white)),
-          subtitle: const Text('واتساب: 00201155661920', style: TextStyle(color: Colors.grey, fontSize: 11)),
+          title: Text(AppStrings.supportSetting, style: const TextStyle(color: Colors.white)),
+          subtitle: Text(AppStrings.supportSub, style: const TextStyle(color: Colors.grey, fontSize: 11)),
           trailing: const Icon(Icons.arrow_forward_ios, color: Colors.grey, size: 16),
           onTap: () async {
             const phone = '201155661920';
-            const text = 'مرحباً، أود الاستفسار وتجديد اشتراك تطبيق SHEEKHA';
+            const text = 'مرحباً، أود الاستفسار وتجديد اشتراك تطبيق RASED';
             String encodedText = Uri.encodeComponent(text);
             Uri whatsappUri = Uri.parse('whatsapp://send?phone=$phone&text=$encodedText');
 
@@ -1356,7 +1384,7 @@ class _SheekhaHomeScreenState extends State<SheekhaHomeScreen> {
             } catch (e) {
               if (mounted) {
                 ScaffoldMessenger.of(context).showSnackBar(
-                  SnackBar(content: Text('تعذر فتح الواتساب: $e', textDirection: TextDirection.rtl)),
+                  SnackBar(content: Text('Error: $e')),
                 );
               }
             }
@@ -1382,7 +1410,7 @@ class _SheekhaHomeScreenState extends State<SheekhaHomeScreen> {
               Container(
                 padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
                 decoration: BoxDecoration(color: (_isListening ? const Color(0xFF06D6A0) : Colors.grey).withOpacity(0.2), borderRadius: BorderRadius.circular(12)),
-                child: Text(_isListening ? 'يستمع الآن' : 'متوقف', style: TextStyle(color: _isListening ? const Color(0xFF06D6A0) : Colors.grey, fontSize: 12)),
+                child: Text(_isListening ? (AppStrings.isAr ? 'يستمع الآن' : 'Listening') : AppStrings.stopped, style: TextStyle(color: _isListening ? const Color(0xFF06D6A0) : Colors.grey, fontSize: 12)),
               ),
               Expanded(
                 child: Padding(
@@ -1415,7 +1443,7 @@ class _SheekhaHomeScreenState extends State<SheekhaHomeScreen> {
 
   Widget _buildRecordsListView(List<Map<String, String>> list) {
     if (list.isEmpty) {
-      return const Center(child: Text('لا توجد سجلات حالياً...', style: TextStyle(color: Colors.grey)));
+      return Center(child: Text(AppStrings.noRecords, style: const TextStyle(color: Colors.grey)));
     }
 
     return ListView.builder(
@@ -1436,7 +1464,6 @@ class _SheekhaHomeScreenState extends State<SheekhaHomeScreen> {
               InkWell(onTap: () => setState(() => list.removeAt(index)), child: const Icon(Icons.delete_outline, color: Colors.redAccent, size: 18)),
               Text(r['note'] ?? '+', style: const TextStyle(color: Colors.amber, fontSize: 11)),
               Text(r['street'] ?? '', style: const TextStyle(color: Colors.white70, fontSize: 11)),
-              // عرض نوع السيارة مع إمكانية التعديل
               InkWell(
                 onTap: () => _editRecordManually(index),
                 child: Container(
@@ -1495,7 +1522,7 @@ class _SheekhaHomeScreenState extends State<SheekhaHomeScreen> {
         mainAxisSize: MainAxisSize.min,
         children: [
           ..._districts.map((d) => ListTile(
-            title: Text(d, style: const TextStyle(color: Colors.white), textDirection: TextDirection.rtl),
+            title: Text(d, style: const TextStyle(color: Colors.white), textDirection: AppStrings.isAr ? TextDirection.rtl : TextDirection.ltr),
             trailing: Icon(_currentDistrict == d ? Icons.check_circle : Icons.circle_outlined, color: const Color(0xFF06D6A0), size: 18),
             onTap: () {
               setState(() => _currentDistrict = d);
@@ -1505,7 +1532,7 @@ class _SheekhaHomeScreenState extends State<SheekhaHomeScreen> {
           const Divider(color: Colors.white24),
           ListTile(
             leading: const Icon(Icons.add, color: Color(0xFF06D6A0)),
-            title: const Text('إضافة حي +', style: TextStyle(color: Color(0xFF06D6A0), fontWeight: FontWeight.bold), textDirection: TextDirection.rtl),
+            title: Text(AppStrings.isAr ? 'إضافة حي +' : 'Add District +', style: const TextStyle(color: Color(0xFF06D6A0), fontWeight: FontWeight.bold), textDirection: AppStrings.isAr ? TextDirection.rtl : TextDirection.ltr),
             onTap: () {
               Navigator.pop(context);
               _showAddDistrictDialog();
@@ -1522,16 +1549,16 @@ class _SheekhaHomeScreenState extends State<SheekhaHomeScreen> {
       context: context,
       builder: (context) => AlertDialog(
         backgroundColor: const Color(0xFF1C2541),
-        title: const Text('إضافة حي جديد', style: TextStyle(color: Color(0xFF06D6A0)), textAlign: TextAlign.center),
+        title: Text(AppStrings.isAr ? 'إضافة حي جديد' : 'New District', style: const TextStyle(color: Color(0xFF06D6A0)), textAlign: TextAlign.center),
         content: TextField(
           controller: districtCtrl,
           autofocus: true,
-          textDirection: TextDirection.rtl,
+          textDirection: AppStrings.isAr ? TextDirection.rtl : TextDirection.ltr,
           style: const TextStyle(color: Colors.white),
-          decoration: const InputDecoration(hintText: 'اكتب اسم الحي الجديد...', hintStyle: TextStyle(color: Colors.grey)),
+          decoration: InputDecoration(hintText: AppStrings.isAr ? 'اكتب اسم الحي الجديد...' : 'District name...', hintStyle: const TextStyle(color: Colors.grey)),
         ),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(context), child: const Text('إلغاء')),
+          TextButton(onPressed: () => Navigator.pop(context), child: Text(AppStrings.isAr ? 'إلغاء' : 'Cancel')),
           ElevatedButton(
             style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFF06D6A0)),
             onPressed: () {
@@ -1545,7 +1572,7 @@ class _SheekhaHomeScreenState extends State<SheekhaHomeScreen> {
               }
               Navigator.pop(context);
             },
-            child: const Text('إضافة وتحديد', style: TextStyle(color: Colors.black, fontWeight: FontWeight.bold)),
+            child: Text(AppStrings.isAr ? 'إضافة وتحديد' : 'Add', style: const TextStyle(color: Colors.black, fontWeight: FontWeight.bold)),
           ),
         ],
       ),
@@ -1558,15 +1585,15 @@ class _SheekhaHomeScreenState extends State<SheekhaHomeScreen> {
       context: context,
       builder: (context) => AlertDialog(
         backgroundColor: const Color(0xFF1C2541),
-        title: const Text('الشارع', style: TextStyle(color: Colors.white)),
-        content: TextField(controller: ctrl, textDirection: TextDirection.rtl, style: const TextStyle(color: Colors.white)),
+        title: Text(AppStrings.street, style: const TextStyle(color: Colors.white)),
+        content: TextField(controller: ctrl, textDirection: AppStrings.isAr ? TextDirection.rtl : TextDirection.ltr, style: const TextStyle(color: Colors.white)),
         actions: [
           ElevatedButton(
             onPressed: () {
               setState(() => _currentStreet = ctrl.text.trim());
               Navigator.pop(context);
             },
-            child: const Text('حفظ'),
+            child: Text(AppStrings.isAr ? 'حفظ' : 'Save'),
           )
         ],
       ),
@@ -1581,7 +1608,7 @@ class _SheekhaHomeScreenState extends State<SheekhaHomeScreen> {
       builder: (context) => ListView(
         shrinkWrap: true,
         children: notes.map((n) => ListTile(
-          title: Text(n, style: const TextStyle(color: Colors.white), textDirection: TextDirection.rtl),
+          title: Text(n, style: const TextStyle(color: Colors.white), textDirection: AppStrings.isAr ? TextDirection.rtl : TextDirection.ltr),
           onTap: () {
             setState(() => _selectedNote = n);
             Navigator.pop(context);
