@@ -30,8 +30,8 @@ class MyApp extends StatelessWidget {
   }
 }
 
-// محرك التطابق التام مع الفيديو (حروف + أرقام + أنواع سيارات)
-class VideoMatchEngine {
+// محرك المعالجة المتدفقة الفورية المطابق للفيديو تماماً
+class LiveStreamVideoEngine {
   static final Map<String, String> lettersMap = {
     'الف': 'أ', 'ألف': 'أ', 'ا': 'أ', 'أ': 'أ', 'إ': 'أ',
     'ب': 'ب', 'به': 'ب', 'باء': 'ب', 'با': 'ب', 'بي': 'ب',
@@ -71,9 +71,10 @@ class VideoMatchEngine {
     'منوعين': ['م', 'ن', 'ع'], 'وعج': ['و', 'ع', 'ج'], 'عقب': ['ع', 'ق', 'ب'],
   };
 
-  static final Map<String, String> digits = {
+  static final Map<String, String> digitsMap = {
     'صفر': '0', 'زيرو': '0', 'واحد': '1', 'واحده': '1',
-    'اتنين': '2', 'اثنين': '2', 'تنين': '2', 'تلاته': '3', 'ثلاثة': '3', 'تلات': '3',
+    'اتنين': '2', 'اثنين': '2', 'إثنين': '2', 'تنين': '2',
+    'تلاته': '3', 'ثلاثة': '3', 'تلات': '3', 'تلاتة': '3',
     'اربعة': '4', 'اربعه': '4', 'أربعة': '4', 'اربع': '4',
     'خمسه': '5', 'خمسة': '5', 'خمس': '5',
     'سته': '6', 'ستة': '6', 'ست': '6',
@@ -82,36 +83,34 @@ class VideoMatchEngine {
     'تسعه': '9', 'تسعة': '9', 'تسع': '9',
   };
 
-  // معجم أنواع السيارات المدعومة في الفيديو
   static final List<String> carTypes = [
     'نقل', 'فان', 'جراند ماكس', 'تلاجة كبيرة', 'ثلاجة كبيرة', 'تلاجة', 'هاي إس',
     'ملاكي', 'ميكروباص', 'أجرة', 'تاكسي', 'دبابة', 'جامبو', 'نصف نقل', 'ربع نقل'
   ];
 
-  static Map<String, dynamic>? extractPlateAndType(String spokenText) {
-    if (spokenText.trim().isEmpty) return null;
+  static Map<String, dynamic>? tryParsePlate(String text) {
+    if (text.trim().isEmpty) return null;
 
-    String text = _normalizeNumbers(spokenText);
+    String normalized = _normalizeDigits(text);
     String detectedType = 'ملاكي';
 
-    // فحص ما إذا كان نطق المستخدم يحتوي على نوع السيارة
     for (String type in carTypes) {
-      if (text.contains(type)) {
+      if (normalized.contains(type)) {
         detectedType = type;
-        text = text.replaceAll(type, ' ');
+        normalized = normalized.replaceAll(type, ' ');
         break;
       }
     }
 
-    List<String> rawTokens = text.split(RegExp(r'\s+'));
+    List<String> rawTokens = normalized.split(RegExp(r'\s+'));
     List<String> stream = [];
 
     for (String token in rawTokens) {
       String w = token.replaceAll(RegExp(r'[^\u0621-\u064A0-9]'), '');
       if (w.isEmpty) continue;
 
-      if (digits.containsKey(w)) {
-        stream.add(digits[w]!);
+      if (digitsMap.containsKey(w)) {
+        stream.add(digitsMap[w]!);
       } else if (RegExp(r'^\d+$').hasMatch(w)) {
         for (int i = 0; i < w.length; i++) stream.add(w[i]);
       } else if (compounds.containsKey(w)) {
@@ -137,8 +136,8 @@ class VideoMatchEngine {
         digitsStr += item;
       } else if (RegExp(r'^[\u0621-\u064A]$').hasMatch(item)) {
         if (digitsStr.length >= 3 && letters.length >= 2) {
-          letters = [item];
-          digitsStr = '';
+          // اكتمال لوحة
+          break;
         } else {
           if (letters.length < 3) letters.add(item);
         }
@@ -156,7 +155,7 @@ class VideoMatchEngine {
     return null;
   }
 
-  static String _normalizeNumbers(String input) {
+  static String _normalizeDigits(String input) {
     const ar = ['٠', '١', '٢', '٣', '٤', '٥', '٦', '٧', '٨', '٩'];
     const en = ['0', '1', '2', '3', '4', '5', '6', '7', '8', '9'];
     for (int i = 0; i < ar.length; i++) {
@@ -281,8 +280,8 @@ class _SheekhaHomeScreenState extends State<SheekhaHomeScreen> {
 
         setState(() => _currentStatusText = spoken);
 
-        // فحص مباشر للحروف والأرقام ونوع السيارة
-        var plateData = VideoMatchEngine.extractPlateAndType(spoken);
+        // فحص اللوحة لحظياً
+        var plateData = LiveStreamVideoEngine.tryParsePlate(spoken);
         if (plateData != null) {
           String letters = plateData['letters']!;
           String digits = plateData['digits']!;
@@ -296,6 +295,13 @@ class _SheekhaHomeScreenState extends State<SheekhaHomeScreen> {
           if (!isRecent) {
             _cooldowns[key] = now;
             _registerDetectedPlate(letters, digits, carType);
+
+            // تصفير النص للبدء الفوري في اللوحة التالية تماماً كما في الفيديو
+            _speech.stop().then((_) {
+              if (_isListening && mounted) {
+                _startListeningSession();
+              }
+            });
           }
         }
       },
