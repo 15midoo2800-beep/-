@@ -30,10 +30,10 @@ class MyApp extends StatelessWidget {
   }
 }
 
-// محرك المعجم الصوتي والتفكيك الميداني
-class EgyptianDialectPlateEngine {
-  static final Map<String, String> phoneticsMap = {
-    'ألف': 'أ', 'الف': 'أ', 'الأف': 'أ', 'الاف': 'أ', 'أليف': 'أ', 'ا': 'أ', 'أ': 'أ', 'إ': 'أ', 'ء': 'أ',
+// محرك النافذة المنزلقة فائق السرعة والدقة الميدانية
+class RealtimePlateExtractor {
+  static final Map<String, String> letterMap = {
+    'الف': 'أ', 'ألف': 'أ', 'الأف': 'أ', 'الاف': 'أ', 'أليف': 'أ', 'ا': 'أ', 'أ': 'أ', 'إ': 'أ', 'ء': 'أ',
     'باء': 'ب', 'با': 'ب', 'به': 'ب', 'بي': 'ب', 'بت': 'ب', 'الباء': 'ب', 'اب': 'ب', 'ب': 'ب',
     'تاء': 'ت', 'تا': 'ت', 'ته': 'ت', 'تي': 'ت', 'التاء': 'ت', 'ات': 'ت', 'ت': 'ت',
     'ثاء': 'ث', 'ثا': 'ث', 'ثه': 'ث', 'الثاء': 'ث', 'اث': 'ث', 'ث': 'ث',
@@ -63,19 +63,19 @@ class EgyptianDialectPlateEngine {
     'ياء': 'ي', 'يا': 'ي', 'يه': 'ي', 'الياء': 'ي', 'ى': 'ي', 'ي': 'ي',
   };
 
-  static final Map<String, List<String>> dialectClustersMap = {
+  static final Map<String, List<String>> dialectWords = {
     'نوعين': ['ن', 'ع'], 'نوعان': ['ن', 'ع'], 'نهاء': ['ن', 'ه'], 'نها': ['ن', 'ه'],
     'منهاء': ['م', 'ن', 'ه'], 'منها': ['م', 'ن', 'ه'], 'واوساط': ['و', 'ص'], 'أوساط': ['و', 'ص'],
-    'اوساط': ['و', 'ص'], 'تقديم': ['ك', 'ه', 'ج'], 'كهج': ['ك', 'ه', 'ج'], 'خطه': ['خ', 'ط'],
-    'خطف': ['خ', 'ط', 'ف'], 'افلام': ['ل', 'ق'], 'أفلام': ['ل', 'ق'], 'لمن': ['ل', 'م', 'ن'],
-    'لم': ['ل', 'م'], 'من': ['م', 'ن'], 'منع': ['م', 'ن', 'ع'], 'منوعين': ['م', 'ن', 'ع'],
-    'وعج': ['و', 'ع', 'ج'], 'لفق': ['ل', 'ف', 'ق'], 'عقب': ['ع', 'ق', 'ب'], 'ابت': ['أ', 'ب', 'ت'],
+    'اوساط': ['و', 'ص'], 'وساط': ['و', 'ص'], 'تقديم': ['ك', 'ه', 'ج'], 'كهج': ['ك', 'ه', 'ج'],
+    'خطه': ['خ', 'ط'], 'خطف': ['خ', 'ط', 'ف'], 'افلام': ['ل', 'ق'], 'أفلام': ['ل', 'ق'],
+    'لمن': ['ل', 'م', 'ن'], 'لم': ['ل', 'م'], 'من': ['م', 'ن'], 'منع': ['م', 'ن', 'ع'],
+    'منوعين': ['م', 'ن', 'ع'], 'وعج': ['و', 'ع', 'ج'], 'لفق': ['ل', 'ف', 'ق'], 'عقب': ['ع', 'ق', 'ب'],
   };
 
   static final Map<String, String> digitsMap = {
     'صفر': '0', 'زيرو': '0', 'واحد': '1', 'واحده': '1',
     'اتنين': '2', 'اثنين': '2', 'إثنين': '2', 'تنين': '2',
-    'تلاته': '3', 'ثلاثة': '3', 'تلاتة': '3', 'تلات': '3',
+    'تلاته': '3', 'ثلاثة': '3', 'تلاتة': '3', 'تلات': '3', 'ثلاث': '3',
     'اربعة': '4', 'اربعه': '4', 'اربع': '4', 'أربع': '4',
     'خمسه': '5', 'خمسة': '5', 'خمس': '5',
     'سته': '6', 'ستة': '6', 'ست': '6',
@@ -84,81 +84,74 @@ class EgyptianDialectPlateEngine {
     'تسعه': '9', 'تسعة': '9', 'تسع': '9',
   };
 
-  static List<Map<String, String>> extractPlates(String text) {
+  // تفكيك فوري وتجميع ذكي بدقة متناهية
+  static List<Map<String, String>> parse(String text) {
     if (text.trim().isEmpty) return [];
 
-    String normalized = _normalizeDigits(text);
-    List<String> words = normalized.split(RegExp(r'\s+'));
+    String cleaned = _normalizeDigits(text);
+    List<String> rawTokens = cleaned.split(RegExp(r'\s+'));
 
-    List<Map<String, String>> results = [];
+    List<String> streamTokens = [];
+
+    // 1. تحويل كل التوكنز إلى رموزها الحرفية أو الرقمية
+    for (String token in rawTokens) {
+      String cleanWord = token.replaceAll(RegExp(r'[^\u0621-\u064A0-9]'), '');
+      if (cleanWord.isEmpty) continue;
+
+      if (digitsMap.containsKey(cleanWord)) {
+        streamTokens.add(digitsMap[cleanWord]!);
+      } else if (RegExp(r'^\d+$').hasMatch(cleanWord)) {
+        for (int i = 0; i < cleanWord.length; i++) {
+          streamTokens.add(cleanWord[i]);
+        }
+      } else if (dialectWords.containsKey(cleanWord)) {
+        streamTokens.addAll(dialectWords[cleanWord]!);
+      } else if (letterMap.containsKey(cleanWord)) {
+        streamTokens.add(letterMap[cleanWord]!);
+      } else {
+        // تفكيك تلقائي للحروف المستقلة داخل الكلمة العشوائية
+        for (int i = 0; i < cleanWord.length; i++) {
+          String ch = cleanWord[i];
+          if (ch == 'ة' || (ch == 'ه' && i == cleanWord.length - 1)) continue;
+          if (RegExp(r'[\u0621-\u064A]').hasMatch(ch)) {
+            streamTokens.add(ch == 'أ' || ch == 'إ' || ch == 'آ' ? 'أ' : ch);
+          }
+        }
+      }
+    }
+
+    // 2. النافذة المنزلقة لاستخراج اللوحات المتتالية
+    List<Map<String, String>> plates = [];
     List<String> currentLetters = [];
     String currentDigits = '';
 
-    for (String raw in words) {
-      String w = raw.replaceAll(RegExp(r'[^\u0621-\u064A0-9]'), '');
-      if (w.isEmpty) continue;
-
-      String? digit = digitsMap[w];
-      if (digit != null || RegExp(r'^\d+$').hasMatch(w)) {
-        currentDigits += digit ?? w;
-        continue;
-      }
-
-      List<String>? cluster = dialectClustersMap[w];
-      if (cluster != null) {
-        for (String l in cluster) {
-          _appendLetter(l, currentLetters, currentDigits, results);
+    for (String item in streamTokens) {
+      if (RegExp(r'^\d$').hasMatch(item)) {
+        currentDigits += item;
+      } else if (RegExp(r'^[\u0621-\u064A]$').hasMatch(item)) {
+        if (currentDigits.length >= 3 && currentLetters.length >= 2) {
+          plates.add({
+            'letters': currentLetters.take(3).join(' '),
+            'digits': currentDigits.substring(0, currentDigits.length > 4 ? 4 : currentDigits.length),
+          });
+          currentLetters = [item];
+          currentDigits = '';
+        } else {
+          if (currentLetters.length < 3) {
+            currentLetters.add(item);
+          }
         }
-        continue;
-      }
-
-      String? letter = phoneticsMap[w];
-      if (letter != null) {
-        _appendLetter(letter, currentLetters, currentDigits, results);
-        continue;
-      }
-
-      List<String> decomposed = _autoDecompose(w);
-      for (String l in decomposed) {
-        _appendLetter(l, currentLetters, currentDigits, results);
       }
     }
 
     if (currentLetters.length >= 2 && currentDigits.length >= 3) {
-      results.add({
+      plates.add({
         'letters': currentLetters.take(3).join(' '),
         'digits': currentDigits.substring(0, currentDigits.length > 4 ? 4 : currentDigits.length),
       });
     }
 
-    return results;
-  }
-
-  static void _appendLetter(String letter, List<String> currentLetters, String currentDigits, List<Map<String, String>> results) {
-    if (currentDigits.length >= 3 && currentLetters.length >= 2) {
-      results.add({
-        'letters': currentLetters.take(3).join(' '),
-        'digits': currentDigits.substring(0, currentDigits.length > 4 ? 4 : currentDigits.length),
-      });
-      currentLetters.clear();
-      currentLetters.add(letter);
-    } else {
-      if (currentLetters.length < 3) {
-        currentLetters.add(letter);
-      }
-    }
-  }
-
-  static List<String> _autoDecompose(String word) {
-    List<String> letters = [];
-    for (int i = 0; i < word.length; i++) {
-      String ch = word[i];
-      if (ch == 'ة' || (ch == 'ه' && i == word.length - 1)) continue;
-      if (RegExp(r'[\u0621-\u064A]').hasMatch(ch)) {
-        letters.add(ch == 'أ' || ch == 'إ' || ch == 'آ' ? 'أ' : ch);
-      }
-    }
-    return letters;
+    return plates;
   }
 
   static String _normalizeDigits(String input) {
@@ -181,19 +174,17 @@ class SheekhaHomeScreen extends StatefulWidget {
 class _SheekhaHomeScreenState extends State<SheekhaHomeScreen> {
   int _currentIndex = 3;
   bool _isListening = false;
-  String _currentStatusText = 'اضغط الميكروفون للبدء المباشر...';
+  String _currentStatusText = 'اضغط الميكروفون وتحدث بطلاقة وسرعة تامة...';
   double _soundLevel = 0.0;
 
-  Timer? _debounceTimer;
   final Map<String, DateTime> _cooldowns = {};
-
   final stt.SpeechToText _speech = stt.SpeechToText();
   bool _speechEnabled = false;
 
   final List<String> _districts = ['الروضة', 'السلام', 'المنيل', 'المعادي'];
   String _currentDistrict = 'الروضة';
   String _currentStreet = 'ض 1';
-  String _currentCoordinates = ''; // إحداثيات GPS الحالية
+  String _currentCoordinates = '';
   String _selectedNote = 'بدون';
   String _excelFileName = 'لم يتم رفع ملف إكسيل';
 
@@ -231,7 +222,7 @@ class _SheekhaHomeScreenState extends State<SheekhaHomeScreen> {
       setState(() {
         _speechEnabled = available;
         _currentStatusText = available
-            ? 'الميكروفون متصل ومستعد - اضغط للرصد'
+            ? 'الميكروفون مستعد للرصد الصوتي المباشر'
             : 'تأكد من تفعيل خدمات التعرف الصوتي بالجهاز';
       });
     } catch (e) {
@@ -255,7 +246,6 @@ class _SheekhaHomeScreenState extends State<SheekhaHomeScreen> {
         _soundLevel = 0.0;
         _currentStatusText = 'تم إيقاف الاستماع';
       });
-      _debounceTimer?.cancel();
       await _speech.stop();
     } else {
       if (!_speechEnabled) {
@@ -264,7 +254,7 @@ class _SheekhaHomeScreenState extends State<SheekhaHomeScreen> {
       }
       setState(() {
         _isListening = true;
-        _currentStatusText = 'يستمع الآن بطلاقة مستمرة... انطق اللوحات';
+        _currentStatusText = 'يستمع الآن بشكل دائم وسلس...';
       });
       _startListeningSession();
     }
@@ -291,32 +281,27 @@ class _SheekhaHomeScreenState extends State<SheekhaHomeScreen> {
 
         setState(() => _currentStatusText = spoken);
 
-        _debounceTimer?.cancel();
+        // معالجة فورية بدون أي تأخير زمني (Instant Zero-Delay)
+        List<Map<String, String>> plates = RealtimePlateExtractor.parse(spoken);
 
-        _debounceTimer = Timer(const Duration(milliseconds: 90), () {
-          if (!mounted) return;
-          List<Map<String, String>> plates = EgyptianDialectPlateEngine.extractPlates(spoken);
+        for (var p in plates) {
+          String letters = p['letters']!;
+          String digits = p['digits']!;
+          String key = '$letters-$digits';
 
-          for (var p in plates) {
-            String letters = p['letters']!;
-            String digits = p['digits']!;
-            String key = '$letters-$digits';
+          DateTime now = DateTime.now();
+          bool isRecent = _cooldowns.containsKey(key) &&
+              now.difference(_cooldowns[key]!).inSeconds < 4;
 
-            DateTime now = DateTime.now();
-            bool isRecent = _cooldowns.containsKey(key) &&
-                now.difference(_cooldowns[key]!).inSeconds < 4;
-
-            if (!isRecent) {
-              _cooldowns[key] = now;
-              _registerDetectedPlate(letters, digits);
-            }
+          if (!isRecent) {
+            _cooldowns[key] = now;
+            _registerDetectedPlate(letters, digits);
           }
-        });
+        }
       },
     );
   }
 
-  // جلب موقع الـ GPS الفعلي بدقة
   Future<void> _fetchGPSLocation() async {
     bool serviceEnabled = await Geolocator.isLocationServiceEnabled();
     if (!serviceEnabled) {
@@ -331,10 +316,6 @@ class _SheekhaHomeScreenState extends State<SheekhaHomeScreen> {
       permission = await Geolocator.requestPermission();
       if (permission == LocationPermission.denied) return;
     }
-
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('جارٍ تحديد إحداثيات الـ GPS الدقيقة...', textDirection: TextDirection.rtl), duration: Duration(seconds: 1)),
-    );
 
     Position pos = await Geolocator.getCurrentPosition(desiredAccuracy: LocationAccuracy.high);
     setState(() {
@@ -755,7 +736,7 @@ class _SheekhaHomeScreenState extends State<SheekhaHomeScreen> {
                             crossAxisAlignment: CrossAxisAlignment.end,
                             children: [
                               Text(
-                                _isListening ? 'استماع مباشر دائم:' : 'اضغط للتسجيل',
+                                _isListening ? 'استماع مباشر فوري:' : 'اضغط للتسجيل',
                                 style: TextStyle(color: _isListening ? const Color(0xFF06D6A0) : Colors.grey, fontSize: 11),
                               ),
                               Text(
@@ -813,7 +794,6 @@ class _SheekhaHomeScreenState extends State<SheekhaHomeScreen> {
               children: [
                 Expanded(child: _controlCard('ملاحظات', _selectedNote, Icons.edit, Colors.amber, _showNotesMenu)),
                 const SizedBox(width: 6),
-                // خانة الشارع مع زر الـ GPS المدمج
                 Expanded(
                   child: InkWell(
                     onTap: _showStreetDialog,
@@ -926,7 +906,7 @@ class _SheekhaHomeScreenState extends State<SheekhaHomeScreen> {
               child: _records.isEmpty
                   ? const Center(
                       child: Text(
-                        'اضغط زر GPS لتثبيت الموقع الدقيق ثم ابدأ الرصد...',
+                        'انطق اللوحات بطلاقة وحرية... الرصد فوري ومباشر',
                         textAlign: TextAlign.center,
                         style: TextStyle(color: Colors.grey, fontSize: 13),
                       ),
@@ -948,7 +928,6 @@ class _SheekhaHomeScreenState extends State<SheekhaHomeScreen> {
                           child: Row(
                             mainAxisAlignment: MainAxisAlignment.spaceBetween,
                             children: [
-                              // زر فتح الخريطة المباشر
                               InkWell(
                                 onTap: coords.isNotEmpty ? () => _openGoogleMaps(coords) : null,
                                 child: Icon(
