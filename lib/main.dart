@@ -14,6 +14,114 @@ import 'package:url_launcher/url_launcher.dart';
 
 void main() => runApp(const MyApp());
 
+// نظام حماية التراخيص والتحكم عن بُعد
+class RasedLicenseManager {
+  static const String _secretSalt = "RASED_PRO_2026_SECRET_KEY";
+  // ضع رابط Raw لملف clients_control.json الخاص بك على GitHub هنا للتحكم عن بُعد:
+  static const String remoteControlJsonUrl = "https://raw.githubusercontent.com/YOUR_USERNAME/YOUR_REPO/main/clients_control.json";
+
+  static Future<String> getOrCreateDeviceId() async {
+    final prefs = await SharedPreferences.getInstance();
+    String? devId = prefs.getString('rased_unique_device_id');
+    if (devId == null || devId.isEmpty) {
+      final rnd = Random.secure();
+      String hex = List.generate(6, (_) => rnd.nextInt(16).toRadixString(16)).join().toUpperCase();
+      devId = "RSD-$hex";
+      await prefs.setString('rased_unique_device_id', devId);
+    }
+    return devId;
+  }
+
+  static Map<String, dynamic> verifyActivationCode(String code, String myDeviceId) {
+    try {
+      String clean = code.trim();
+      if (!clean.startsWith("ACT-")) return {'valid': false, 'msg': 'صيغة الكود غير صحيحة'};
+      String encoded = clean.substring(4);
+      while (encoded.length % 4 != 0) {
+        encoded += '=';
+      }
+      String decoded = utf8.decode(base64Url.decode(encoded));
+      List<String> parts = decoded.split('|');
+      if (parts.length != 3) return {'valid': false, 'msg': 'كود تفعيل تالف'};
+
+      String codeDevice = parts[0];
+      String expStr = parts[1];
+      String sig = parts[2];
+
+      if (codeDevice != myDeviceId.toUpperCase()) {
+        return {'valid': false, 'msg': 'هذا الكود مخصص لهاتف آخر ولا يعمل على جهازك!'};
+      }
+
+      String raw = "$codeDevice|$expStr|$_secretSalt";
+      int hash = 0;
+      for (int i = 0; i < raw.length; i++) {
+        hash = ((hash << 5) - hash) + raw.codeUnitAt(i);
+        hash &= 0xFFFFFFFF;
+      }
+      String expectedSig = hash.toRadixString(16).toUpperCase().padLeft(8, '0');
+      if (sig != expectedSig) {
+        return {'valid': false, 'msg': 'كود التفعيل غير صالح'};
+      }
+
+      int year = int.parse(expStr.substring(0, 4));
+      int month = int.parse(expStr.substring(4, 6));
+      int day = int.parse(expStr.substring(6, 8));
+      DateTime expiry = DateTime(year, month, day, 23, 59, 59);
+
+      if (DateTime.now().isAfter(expiry)) {
+        return {'valid': false, 'msg': 'انتهت صلاحية هذا الكود'};
+      }
+
+      return {'valid': true, 'expiry': expiry.toIso8601String()};
+    } catch (_) {
+      return {'valid': false, 'msg': 'كود التفعيل غير صالح'};
+    }
+  }
+
+  // التحقق السحابي من حالة العميل (إيقاف عن بُعد أو تمديد المدة)
+  static Future<Map<String, dynamic>> checkRemoteStatus(String myDeviceId, String currentExpiryIso) async {
+    try {
+      if (remoteControlJsonUrl.contains("YOUR_USERNAME")) {
+        DateTime exp = DateTime.parse(currentExpiryIso);
+        return {'allowed': DateTime.now().isBefore(exp), 'expiry': currentExpiryIso};
+      }
+
+      HttpClient client = HttpClient();
+      client.connectionTimeout = const Duration(seconds: 5);
+      final req = await client.getUrl(Uri.parse("$remoteControlJsonUrl?t=${DateTime.now().millisecondsSinceEpoch}"));
+      final res = await req.close();
+
+      if (res.statusCode == 200) {
+        String body = await res.transform(utf8.decoder).join();
+        List<dynamic> list = json.decode(body);
+        for (var item in list) {
+          if (item['deviceId'].toString().toUpperCase() == myDeviceId.toUpperCase()) {
+            bool active = item['isActive'] ?? true;
+            if (!active) {
+              return {'allowed': false, 'reason': 'تم إيقاف اشتراكك من قِبل الإدارة'};
+            }
+            if (item['expiry'] != null) {
+              DateTime remoteExp = DateTime.parse("${item['expiry']}T23:59:59");
+              final prefs = await SharedPreferences.getInstance();
+              await prefs.setString('rased_license_expiry', remoteExp.toIso8601String());
+              if (DateTime.now().isAfter(remoteExp)) {
+                return {'allowed': false, 'reason': 'انتهت فترة اشتراكك، يرجى التجديد'};
+              }
+              return {'allowed': true, 'expiry': remoteExp.toIso8601String()};
+            }
+          }
+        }
+      }
+    } catch (_) {}
+
+    DateTime exp = DateTime.parse(currentExpiryIso);
+    if (DateTime.now().isAfter(exp)) {
+      return {'allowed': false, 'reason': 'انتهت فترة اشتراكك، يرجى التواصل للتجديد'};
+    }
+    return {'allowed': true, 'expiry': currentExpiryIso};
+  }
+}
+
 class AppStrings {
   static bool isAr = true;
 
@@ -75,7 +183,178 @@ class _MyAppState extends State<MyApp> {
         scaffoldBackgroundColor: const Color(0xFF0B132B),
         primaryColor: const Color(0xFF06D6A0),
       ),
-      home: SheekhaHomeScreen(onLanguageChange: setLocale),
+      home: SubscriptionGateScreen(onLanguageChange: setLocale),
+    );
+  }
+}
+
+// شاشة بوابة التفعيل والتحقق من الاشتراك
+class SubscriptionGateScreen extends StatefulWidget {
+  final Function(Locale) onLanguageChange;
+  const SubscriptionGateScreen({super.key, required this.onLanguageChange});
+
+  @override
+  State<SubscriptionGateScreen> createState() => _SubscriptionGateScreenState();
+}
+
+class _SubscriptionGateScreenState extends State<SubscriptionGateScreen> {
+  bool _isChecking = true;
+  bool _isActivated = false;
+  String _deviceId = '';
+  String _errorMessage = '';
+  final TextEditingController _codeCtrl = TextEditingController();
+
+  @override
+  void initState() {
+    super.initState();
+    _verifyCurrentLicense();
+  }
+
+  Future<void> _verifyCurrentLicense() async {
+    setState(() => _isChecking = true);
+    _deviceId = await RasedLicenseManager.getOrCreateDeviceId();
+    final prefs = await SharedPreferences.getInstance();
+    String? savedCode = prefs.getString('rased_license_code');
+    String? savedExpiry = prefs.getString('rased_license_expiry');
+
+    if (savedCode != null && savedExpiry != null) {
+      var localCheck = RasedLicenseManager.verifyActivationCode(savedCode, _deviceId);
+      if (localCheck['valid'] == true) {
+        var remoteCheck = await RasedLicenseManager.checkRemoteStatus(_deviceId, savedExpiry);
+        if (remoteCheck['allowed'] == true) {
+          setState(() {
+            _isActivated = true;
+            _isChecking = false;
+          });
+          return;
+        } else {
+          _errorMessage = remoteCheck['reason'] ?? 'الاشتراك متوقف';
+        }
+      }
+    }
+
+    setState(() {
+      _isActivated = false;
+      _isChecking = false;
+    });
+  }
+
+  Future<void> _submitActivationCode() async {
+    String input = _codeCtrl.text.trim();
+    var res = RasedLicenseManager.verifyActivationCode(input, _deviceId);
+
+    if (res['valid'] == true) {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setString('rased_license_code', input);
+      await prefs.setString('rased_license_expiry', res['expiry']);
+      _verifyCurrentLicense();
+    } else {
+      setState(() => _errorMessage = res['msg'] ?? 'كود خاطئ');
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    if (_isChecking) {
+      return const Scaffold(
+        body: Center(child: CircularProgressIndicator(color: Color(0xFF06D6A0))),
+      );
+    }
+
+    if (_isActivated) {
+      return SheekhaHomeScreen(onLanguageChange: widget.onLanguageChange);
+    }
+
+    return Scaffold(
+      body: Padding(
+        padding: const EdgeInsets.all(24.0),
+        child: Center(
+          child: SingleChildScrollView(
+            child: Container(
+              padding: const EdgeInsets.all(20),
+              decoration: BoxDecoration(
+                color: const Color(0xFF1C2541),
+                borderRadius: BorderRadius.circular(20),
+                border: Border.all(color: const Color(0xFF06D6A0), width: 1.5),
+              ),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  const Icon(Icons.lock_outline, color: Color(0xFF06D6A0), size: 55),
+                  const SizedBox(height: 10),
+                  const Text('تفعيل تطبيق RASED', style: TextStyle(color: Colors.white, fontSize: 20, fontWeight: FontWeight.bold)),
+                  const SizedBox(height: 6),
+                  const Text('انسخ معرف جهازك وأرسله للإدارة للحصول على كود التفعيل الخاص بهاتفك', textAlign: TextAlign.center, style: TextStyle(color: Colors.grey, fontSize: 12)),
+                  const SizedBox(height: 16),
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                    decoration: BoxDecoration(color: const Color(0xFF0B132B), borderRadius: BorderRadius.circular(12)),
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        IconButton(
+                          icon: const Icon(Icons.copy, color: Color(0xFF06D6A0)),
+                          onPressed: () {
+                            Clipboard.setData(ClipboardData(text: _deviceId));
+                            ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('تم نسخ معرف الجهاز', textDirection: TextDirection.rtl)));
+                          },
+                        ),
+                        Column(
+                          crossAxisAlignment: CrossAxisAlignment.end,
+                          children: [
+                            const Text('معرف الجهاز (Device ID):', style: TextStyle(color: Colors.grey, fontSize: 10)),
+                            Text(_deviceId, style: const TextStyle(color: Color(0xFF06D6A0), fontSize: 17, fontWeight: FontWeight.bold)),
+                          ],
+                        ),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(height: 16),
+                  TextField(
+                    controller: _codeCtrl,
+                    textAlign: TextAlign.center,
+                    style: const TextStyle(color: Colors.white),
+                    decoration: InputDecoration(
+                      hintText: 'أدخل كود التفعيل هنا (ACT-...)',
+                      hintStyle: const TextStyle(color: Colors.grey, fontSize: 12),
+                      filled: true,
+                      fillColor: const Color(0xFF0B132B),
+                      border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none),
+                    ),
+                  ),
+                  if (_errorMessage.isNotEmpty) ...[
+                    const SizedBox(height: 10),
+                    Text(_errorMessage, style: const TextStyle(color: Colors.redAccent, fontSize: 12, fontWeight: FontWeight.bold), textAlign: TextAlign.center),
+                  ],
+                  const SizedBox(height: 16),
+                  SizedBox(
+                    width: double.infinity,
+                    child: ElevatedButton(
+                      style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFF06D6A0), padding: const EdgeInsets.symmetric(vertical: 14)),
+                      onPressed: _submitActivationCode,
+                      child: const Text('تفعيل التطبيق الآن', style: TextStyle(color: Colors.black, fontWeight: FontWeight.bold, fontSize: 15)),
+                    ),
+                  ),
+                  const SizedBox(height: 10),
+                  TextButton.icon(
+                    onPressed: () async {
+                      String msg = Uri.encodeComponent("مرحباً، أرغب في الاشتراك وتفعيل تطبيق RASED.\nمعرف جهازي هو: $_deviceId");
+                      Uri wa = Uri.parse("whatsapp://send?phone=201155661920&text=$msg");
+                      if (await canLaunchUrl(wa)) {
+                        await launchUrl(wa, mode: LaunchMode.externalApplication);
+                      } else {
+                        await launchUrl(Uri.parse("https://wa.me/201155661920?text=$msg"), mode: LaunchMode.externalApplication);
+                      }
+                    },
+                    icon: const Icon(Icons.support_agent, color: Color(0xFF06D6A0)),
+                    label: const Text('طلب كود تفعيل عبر واتساب', style: TextStyle(color: Color(0xFF06D6A0))),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ),
+      ),
     );
   }
 }
@@ -408,7 +687,6 @@ class _SheekhaHomeScreenState extends State<SheekhaHomeScreen> {
     }
   }
 
-  // نافذة التقدم بالنسبة المئوية 0% -> 100%
   Future<void> _processExcelWithProgress(
     Uint8List bytes,
     String fileName, {
@@ -504,7 +782,7 @@ class _SheekhaHomeScreenState extends State<SheekhaHomeScreen> {
           if (currentProcessed % 300 == 0 || currentProcessed == totalRowsCount) {
             progressNotifier.value = (currentProcessed / totalRowsCount).clamp(0.0, 1.0);
             processedNotifier.value = extracted.length;
-            await Future.delayed(Duration.zero); // السماح للواجهة بالتحديث السلس
+            await Future.delayed(Duration.zero);
           }
 
           if (row.isEmpty) continue;
@@ -553,7 +831,7 @@ class _SheekhaHomeScreenState extends State<SheekhaHomeScreen> {
       processedNotifier.value = extracted.length;
       await Future.delayed(const Duration(milliseconds: 150));
 
-      if (mounted) Navigator.pop(context); // إغلاق نافذة النسبة
+      if (mounted) Navigator.pop(context);
 
       setState(() {
         if (isWantedSheet) {
