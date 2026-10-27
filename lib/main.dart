@@ -14,11 +14,10 @@ import 'package:url_launcher/url_launcher.dart';
 
 void main() => runApp(const MyApp());
 
-// نظام حماية التراخيص والتحكم عن بُعد (النسخة التجارية الذكية والآمنة)
+// نظام حماية التراخيص والتحكم عن بُعد (النسخة التجارية المدعومة بإعادة التفعيل الفوري)
 class RasedLicenseManager {
   static const String _secretSalt = "RASED_PRO_2026_SECRET_KEY";
   
-  // استخدام GitHub API المباشر + Raw كاحتياطي لضمان التحديث اللحظي بدون كاش
   static const String githubApiUrl = "https://api.github.com/repos/15midoo2800-beep/Admin-Rased/contents/clients_control.json";
   static const String remoteControlJsonUrl = "https://raw.githubusercontent.com/15midoo2800-beep/Admin-Rased/main/clients_control.json";
 
@@ -84,7 +83,6 @@ class RasedLicenseManager {
     HttpClient client = HttpClient();
     client.connectionTimeout = const Duration(seconds: 7);
 
-    // 1. الجلب عبر GitHub API المباشر لتفادي الكاش نهائياً
     try {
       Uri apiUri = Uri.parse("$githubApiUrl?t=${DateTime.now().millisecondsSinceEpoch}");
       HttpClientRequest req = await client.getUrl(apiUri);
@@ -98,7 +96,6 @@ class RasedLicenseManager {
       }
     } catch (_) {}
 
-    // 2. المحاولة الاحتياطية عبر رابط Raw مع دعم إعادة التوجيه ومنع الكاش
     try {
       Uri rawUri = Uri.parse("$remoteControlJsonUrl?t=${DateTime.now().millisecondsSinceEpoch}");
       HttpClientRequest req = await client.getUrl(rawUri);
@@ -131,53 +128,53 @@ class RasedLicenseManager {
     return null;
   }
 
-  // التحقق السحابي التجاري والذكي
+  // التحقق السحابي الذكي (يفحص السيرفر أولاً لإمكانية التفعيل الفوري)
   static Future<Map<String, dynamic>> checkRemoteStatus(String myDeviceId, String currentExpiryIso) async {
     final prefs = await SharedPreferences.getInstance();
+    bool remoteCheckSuccessful = false;
 
     try {
-      if (remoteControlJsonUrl.contains("YOUR_USERNAME")) {
-        DateTime exp = DateTime.parse(currentExpiryIso);
-        return {'allowed': DateTime.now().isBefore(exp), 'expiry': currentExpiryIso};
-      }
+      if (!remoteControlJsonUrl.contains("YOUR_USERNAME")) {
+        String? body = await _fetchControlJson();
 
-      String? body = await _fetchControlJson();
-
-      if (body != null && body.trim().isNotEmpty) {
-        List<dynamic> list = json.decode(body);
-        
-        for (var item in list) {
-          if (item['deviceId'].toString().trim().toUpperCase() == myDeviceId.trim().toUpperCase()) {
-            bool active = item['isActive'] == true;
-            
-            if (!active) {
-              // إذا تم إيقافه من اللوحة، نسجل حظره محلياً ليقفل فوراً وحتى لو قطع الإنترنت لاحقاً
-              await prefs.setBool('rased_perm_ban_$myDeviceId', true);
-              return {'allowed': false, 'reason': 'تم إيقاف اشتراكك من قِبل الإدارة'};
-            } else {
-              // إذا أعيد تفعيله من اللوحة، نزيل الحظر المحلي فوراً
-              await prefs.setBool('rased_perm_ban_$myDeviceId', false);
-            }
-
-            if (item['expiry'] != null) {
-              DateTime remoteExp = DateTime.parse("${item['expiry']}T23:59:59");
-              await prefs.setString('rased_license_expiry', remoteExp.toIso8601String());
-              if (DateTime.now().isAfter(remoteExp)) {
-                return {'allowed': false, 'reason': 'انتهت فترة اشتراكك، يرجى التجديد'};
+        if (body != null && body.trim().isNotEmpty) {
+          remoteCheckSuccessful = true;
+          List<dynamic> list = json.decode(body);
+          
+          for (var item in list) {
+            if (item['deviceId'].toString().trim().toUpperCase() == myDeviceId.trim().toUpperCase()) {
+              bool active = item['isActive'] == true;
+              
+              if (!active) {
+                await prefs.setBool('rased_perm_ban_$myDeviceId', true);
+                return {'allowed': false, 'reason': 'تم إيقاف اشتراكك من قِبل الإدارة'};
+              } else {
+                // تفعيل فوري: إذا أصبح نشطاً في اللوحة، يُمسح الحظر المحلي فوراً
+                await prefs.setBool('rased_perm_ban_$myDeviceId', false);
               }
-              return {'allowed': true, 'expiry': remoteExp.toIso8601String()};
+
+              if (item['expiry'] != null) {
+                DateTime remoteExp = DateTime.parse("${item['expiry']}T23:59:59");
+                await prefs.setString('rased_license_expiry', remoteExp.toIso8601String());
+                if (DateTime.now().isAfter(remoteExp)) {
+                  return {'allowed': false, 'reason': 'انتهت فترة اشتراكك، يرجى التجديد'};
+                }
+                return {'allowed': true, 'expiry': remoteExp.toIso8601String()};
+              }
             }
           }
         }
       }
     } catch (_) {
-      // في حالة انقطاع الإنترنت العرضي، ننتقل للفحص المحلي بالأسفل للسماح بالعمل والبحث اليدوي
+      remoteCheckSuccessful = false;
     }
 
-    // فحص هل تم حظر هذا الجهاز مسبقاً من الإدارة وتم تخزين الحظر محلياً
-    bool isPermanentlyBanned = prefs.getBool('rased_perm_ban_$myDeviceId') ?? false;
-    if (isPermanentlyBanned) {
-      return {'allowed': false, 'reason': 'تم إيقاف اشتراكك من قِبل الإدارة'};
+    // إذا لم يتصل بالإنترنت، نعتمد على الحظر المحلي كإجراء أمني
+    if (!remoteCheckSuccessful) {
+      bool isPermanentlyBanned = prefs.getBool('rased_perm_ban_$myDeviceId') ?? false;
+      if (isPermanentlyBanned) {
+        return {'allowed': false, 'reason': 'تم إيقاف اشتراكك من قِبل الإدارة'};
+      }
     }
 
     DateTime exp = DateTime.parse(currentExpiryIso);
@@ -276,11 +273,9 @@ class _SubscriptionGateScreenState extends State<SubscriptionGateScreen> with Wi
     super.initState();
     WidgetsBinding.instance.addObserver(this);
     _verifyCurrentLicense();
-    // فحص صامت كل 15 ثانية أثناء عمل التطبيق لإغلاقه فوراً إذا تم إيقافه من اللوحة
+    // فحص دوري كل 15 ثانية لمراقبة حالة الإيقاف أو إعادة التفعيل بشكل لحظي
     _heartbeatTimer = Timer.periodic(const Duration(seconds: 15), (_) {
-      if (_isActivated) {
-        _silentBackgroundCheck();
-      }
+      _silentBackgroundCheck();
     });
   }
 
@@ -291,7 +286,6 @@ class _SubscriptionGateScreenState extends State<SubscriptionGateScreen> with Wi
     super.dispose();
   }
 
-  // يعمل تلقائياً بمجرد رجوع العميل للتطبيق من الخلفية
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
     if (state == AppLifecycleState.resumed) {
@@ -305,10 +299,15 @@ class _SubscriptionGateScreenState extends State<SubscriptionGateScreen> with Wi
     if (_deviceId.isEmpty || savedExpiry == null) return;
 
     var remoteCheck = await RasedLicenseManager.checkRemoteStatus(_deviceId, savedExpiry);
-    if (remoteCheck['allowed'] == false && mounted) {
+    if (mounted) {
       setState(() {
-        _isActivated = false;
-        _errorMessage = remoteCheck['reason'] ?? 'تم إيقاف اشتراكك من قِبل الإدارة';
+        if (remoteCheck['allowed'] == true) {
+          _isActivated = true;
+          _errorMessage = '';
+        } else {
+          _isActivated = false;
+          _errorMessage = remoteCheck['reason'] ?? 'تم إيقاف اشتراكك من قِبل الإدارة';
+        }
       });
     }
   }
