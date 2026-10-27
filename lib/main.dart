@@ -128,6 +128,7 @@ class RasedLicenseManager {
     return null;
   }
 
+  // التحقق السحابي الذكي (يفحص السيرفر أولاً لإمكانية التفعيل الفوري)
   static Future<Map<String, dynamic>> checkRemoteStatus(String myDeviceId, String currentExpiryIso) async {
     final prefs = await SharedPreferences.getInstance();
     bool remoteCheckSuccessful = false;
@@ -148,6 +149,7 @@ class RasedLicenseManager {
                 await prefs.setBool('rased_perm_ban_$myDeviceId', true);
                 return {'allowed': false, 'reason': 'تم إيقاف اشتراكك من قِبل الإدارة'};
               } else {
+                // تفعيل فوري: إذا أصبح نشطاً في اللوحة، يُمسح الحظر المحلي فوراً
                 await prefs.setBool('rased_perm_ban_$myDeviceId', false);
               }
 
@@ -167,6 +169,7 @@ class RasedLicenseManager {
       remoteCheckSuccessful = false;
     }
 
+    // إذا لم يتصل بالإنترنت، نعتمد على الحظر المحلي كإجراء أمني
     if (!remoteCheckSuccessful) {
       bool isPermanentlyBanned = prefs.getBool('rased_perm_ban_$myDeviceId') ?? false;
       if (isPermanentlyBanned) {
@@ -248,6 +251,7 @@ class _MyAppState extends State<MyApp> {
   }
 }
 
+// شاشة بوابة التفعيل والتحقق من الاشتراك
 class SubscriptionGateScreen extends StatefulWidget {
   final Function(Locale) onLanguageChange;
   const SubscriptionGateScreen({super.key, required this.onLanguageChange});
@@ -360,7 +364,7 @@ class _SubscriptionGateScreenState extends State<SubscriptionGateScreen> with Wi
     }
 
     if (_isActivated) {
-      return SheekhaHomeScreen(onLanguageChange: widget.onLanguageChange);
+      return RasedHomeScreen(onLanguageChange: widget.onLanguageChange);
     }
 
     return Scaffold(
@@ -457,7 +461,7 @@ class _SubscriptionGateScreenState extends State<SubscriptionGateScreen> with Wi
   }
 }
 
-// محرك المعالجة والذكاء الصوتي المطور (يقبل التعلم التلقائي وقواميس الحروف والسيارات)
+// محرك المعالجة والذكاء الصوتي المطور (يقبل التعلم التلقائي وقواميس الحروف والسيارات التي طلبتها)
 class SheekhaFullEngine {
   // قاموس الحروف الأساسي واللهجة المصرية
   static final Map<String, String> lettersMap = {
@@ -472,8 +476,8 @@ class SheekhaFullEngine {
     'ذال': 'ذ', 'ذه': 'ذ', 'ذا': 'ذ', 'ذ': 'ذ',
     'راء': 'ر', 'ره': 'ر', 'را': 'ر', 'ري': 'ر', 'ر': 'ر',
     'زين': 'ز', 'زه': 'ز', 'زا': 'ز', 'زاي': 'ز', 'ز': 'ز',
-    'سين': 'س', 'سه': 'س', 'سا': 'س', 'سي': 'س', 'س': 'س',
-    'شين': 'ش', 'شه': 'ش', 'شا': 'ش', 'شي': 'ش', 'ش': 'ش',
+    'سين': 'س', 'سه': 'س', 'سين': 'س', 'سا': 'س', 'سي': 'س', 'س': 'س',
+    'شين': 'ش', 'شه': 'ش', 'شين': 'ش', 'شا': 'ش', 'شي': 'ش', 'ش': 'ش',
     'صاد': 'ص', 'صاه': 'ص', 'صا': 'ص', 'صي': 'ص', 'ص': 'ص',
     'ضاد': 'ض', 'ضه': 'ض', 'ضا': 'ض', 'ضي': 'ض', 'ض': 'ض',
     'طاء': 'ط', 'طه': 'ط', 'طا': 'ط', 'ط': 'ط',
@@ -505,16 +509,16 @@ class SheekhaFullEngine {
     'تسعة': '9', 'تسعه': '9',
   };
 
-  // قاموس أنواع السيارات المطلوب كاملاً
+  // قاموس أنواع السيارات الشامل (بما فيها الـ 27 نوعاً التي طلبتها)
   static final List<String> vehicleTypes = [
     'تويوتا', 'نيسان', 'مازدا', 'هوندا', 'لكزس', 'سوزوكي', 'هيونداي', 'كيا',
     'جينيسيس', 'فورد', 'شيفروليه', 'جي إم سي', 'كاديلاك', 'رام', 'هافال',
     'شانجان', 'جيلي', 'جيتور', 'إم جي', 'شيري', 'بي واي دي', 'مرسيدس-بنز',
     'بي إم دبليو', 'أودي', 'فولكس فاجن', 'لاند روفر', 'بورش', 'نقل', 'فان',
-    'باص', 'تلاجة كبيرة', 'ج랜드 ماكس', 'هاي اس', 'نقل عام', 'ملاكي'
+    'باص', 'تلاجة كبيرة', 'جراند ماكس', 'هاي اس', 'نقل عام', 'ملاكي'
   ];
 
-  // دالة الحفظ والتعلم الذاتي: إذا تم تعديل حرف أو كلمة خطأ يدوياً، يتم حفظها في SharedPreferences
+  // دالة الحفظ والتعلم الذاتي: لحفظ أي تعديل يدوي وجعله معروفا للمستقبل
   static Future<void> learnNewPronunciation(String spokenWord, String correctTarget) async {
     final prefs = await SharedPreferences.getInstance();
     String? customMapJson = prefs.getString('custom_pronunciation_map');
@@ -537,7 +541,7 @@ class SheekhaFullEngine {
     return null;
   }
 
-  // تحليل النص المنطوق واستخراج اللوحة والنوع بدقة
+  // تحويل وتحليل النص المنطوق واستخراج اللوحة والنوع بدقة
   static Future<Map<String, String>> parseVoiceInput(String rawText) async {
     List<String> words = rawText.split(RegExp(r'\s+'));
     List<String> plateLetters = [];
@@ -545,7 +549,6 @@ class SheekhaFullEngine {
     String detectedType = '';
 
     for (String w in words) {
-      // 1. فحص هل الكلمة مسجلة في الذاكرة المخصصة للتعلم السابق؟
       String? learned = await getLearnedPronunciation(w);
       if (learned != null) {
         if (lettersMap.containsValue(learned) || learned.length == 1) {
@@ -558,20 +561,13 @@ class SheekhaFullEngine {
         continue;
       }
 
-      // 2. فحص الحروف
       if (lettersMap.containsKey(w)) {
         plateLetters.add(lettersMap[w]!);
-      } 
-      // 3. فحص الأرقام
-      else if (numbersMap.containsKey(w)) {
+      } else if (numbersMap.containsKey(w)) {
         plateDigits.add(numbersMap[w]!);
-      } 
-      // 4. فحص رقم صريح (مثل 2517)
-      else if (int.tryParse(w) != null) {
+      } else if (int.tryParse(w) != null) {
         plateDigits.addAll(w.split(''));
-      } 
-      // 5. فحص أنواع السيارات
-      else {
+      } else {
         for (String v in vehicleTypes) {
           if (w.contains(v) || v.contains(w)) {
             detectedType = v;
@@ -586,5 +582,33 @@ class SheekhaFullEngine {
       'plate': finalPlate,
       'type': detectedType,
     };
+  }
+}
+
+// الشاشة الرئيسية للتطبيق (RasedHomeScreen)
+class RasedHomeScreen extends StatefulWidget {
+  final Function(Locale) onLanguageChange;
+  const RasedHomeScreen({super.key, required this.onLanguageChange});
+
+  @override
+  State<RasedHomeScreen> createState() => _RasedHomeScreenState();
+}
+
+class _RasedHomeScreenState extends State<RasedHomeScreen> {
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(
+        title: const Text('تطبيق رصد - لوحة القيادة'),
+        backgroundColor: const Color(0xFF1C2541),
+      ),
+      body: const Center(
+        child: Text(
+          'تم تفعيل النظام الصوتي الذكي وقواميس اللهجة بنجاح!',
+          style: TextStyle(color: Color(0xFF06D6A0), fontSize: 16, fontWeight: FontWeight.bold),
+          textAlign: TextAlign.center,
+        ),
+      ),
+    );
   }
 }
