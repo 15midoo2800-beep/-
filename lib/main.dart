@@ -457,94 +457,86 @@ class _SubscriptionGateScreenState extends State<SubscriptionGateScreen> with Wi
   }
 }
 
-// محرك المعالجة الصوتي السريع والدقيق
+// محرك المعالجة الصوتي السريع والدقيق + التعلم الذكي التلقائي
 class SheekhaFullEngine {
-  static Map<String, String> userLearnedMap = {};
+  // ذاكرة التعلم الشخصي المحفوظة محلياً على الهاتف
+  static Map<String, dynamic> userLearnedMap = {};
 
   static Future<void> loadLearnedDictionary() async {
     try {
       final prefs = await SharedPreferences.getInstance();
-      final String? saved = prefs.getString('rased_user_learned_pronunciations');
+      final String? saved = prefs.getString('rased_user_learned_v2');
       if (saved != null && saved.isNotEmpty) {
-        Map<String, dynamic> decoded = json.decode(saved);
-        userLearnedMap = decoded.map((k, v) => MapEntry(k.toString().trim(), v.toString().trim()));
+        userLearnedMap = json.decode(saved);
       }
     } catch (_) {}
   }
 
-  static Future<void> learnNewPronunciation(String wrongSpokenWord, String correctTarget) async {
-    String cleanSpoken = wrongSpokenWord.trim().replaceAll(RegExp(r'[^\u0621-\u064A0-9\s]'), '');
-    String cleanTarget = correctTarget.trim();
-    if (cleanSpoken.isEmpty || cleanTarget.isEmpty) return;
+  // حفظ التعلم المباشر للنطق الكامل والكلمات المفردة
+  static Future<void> saveLearnedMapping(String rawSpoken, String correctLetters, String correctDigits, String correctType) async {
+    String cleanSpoken = normalizeFlexible(rawSpoken);
+    if (cleanSpoken.isEmpty) return;
 
-    userLearnedMap[cleanSpoken] = cleanTarget;
+    userLearnedMap[cleanSpoken] = {
+      'letters': correctLetters.trim(),
+      'digits': correctDigits.trim(),
+      'type': correctType.trim(),
+    };
+
     try {
       final prefs = await SharedPreferences.getInstance();
-      await prefs.setString('rased_user_learned_pronunciations', json.encode(userLearnedMap));
+      await prefs.setString('rased_user_learned_v2', json.encode(userLearnedMap));
     } catch (_) {}
   }
 
-  // مصفوفة الحروف الدقيقة بدون أي تبديل أو تقريب مشوه للحروف
+  // 1. قاموس الحروف النقي والمباشر بدون أي تحويلات خاطئة
   static final Map<String, String> lettersMap = {
-    // أ
     'الف': 'أ', 'ألف': 'أ', 'إلف': 'أ', 'ا': 'أ', 'أ': 'أ', 'إ': 'أ', 'آ': 'أ', 'ء': 'أ',
-    // ب
     'باء': 'ب', 'به': 'ب', 'بة': 'ب', 'با': 'ب', 'بي': 'ب', 'ب': 'ب',
-    // ت
-    'تاء': 'ت', 'ته': 'ت', 'ت': 'ت',
-    // ث
+    'تاء': 'ت', 'ته': 'ت', 'تا': 'ت', 'ت': 'ت',
     'ثاء': 'ث', 'ثه': 'ث', 'ث': 'ث',
-    // ج
-    'جيم': 'ج', 'جه': 'ج', 'ج': 'ج',
-    // ح
+    'جيم': 'ج', 'جه': 'ج', 'جا': 'ج', 'ج': 'ج',
     'حاء': 'ح', 'حه': 'ح', 'حة': 'ح', 'حا': 'ح', 'ح': 'ح',
-    // خ
-    'خاء': 'خ', 'خه': 'خ', 'خ': 'خ',
-    // د
+    'خاء': 'خ', 'خه': 'خ', 'خا': 'خ', 'خ': 'خ',
     'دال': 'د', 'ده': 'د', 'دا': 'د', 'د': 'د',
-    // ذ
-    'ذال': 'ذ', 'ذه': 'ذ', 'ذ': 'ذ',
-    // ر
+    'ذال': 'ذ', 'ذه': 'ذ', 'ذا': 'ذ', 'ذ': 'ذ',
     'راء': 'ر', 'ره': 'ر', 'رة': 'ر', 'را': 'ر', 'ر': 'ر',
-    // ز
     'زين': 'ز', 'زه': 'ز', 'زا': 'ز', 'زاي': 'ز', 'ز': 'ز',
-    // س
     'سين': 'س', 'سه': 'س', 'سا': 'س', 'س': 'س',
-    // ش
     'شين': 'ش', 'شه': 'ش', 'شا': 'ش', 'ش': 'ش',
-    // ص
     'صاد': 'ص', 'صاه': 'ص', 'صه': 'ص', 'صا': 'ص', 'ص': 'ص',
-    // ض
     'ضاد': 'ض', 'ضه': 'ض', 'ضا': 'ض', 'ض': 'ض',
-    // ط
     'طاء': 'ط', 'طه': 'ط', 'طا': 'ط', 'ط': 'ط',
-    // ظ
     'ظاء': 'ظ', 'ظه': 'ظ', 'ظ': 'ظ',
-    // ع
     'عين': 'ع', 'عه': 'ع', 'عا': 'ع', 'ع': 'ع',
-    // غ
-    'غين': 'غ', 'غه': 'غ', 'غ': 'غ',
-    // ف
+    'غين': 'غ', 'غه': 'غ', 'غا': 'غ', 'غ': 'غ',
     'فاء': 'ف', 'فه': 'ف', 'فة': 'ف', 'فا': 'ف', 'ف': 'ف',
-    // ق
     'قاف': 'ق', 'قه': 'ق', 'قا': 'ق', 'ق': 'ق',
-    // ك
     'كاف': 'ك', 'كه': 'ك', 'كا': 'ك', 'ك': 'ك',
-    // ل
     'لام': 'ل', 'له': 'ل', 'لا': 'ل', 'ل': 'ل',
-    // م
     'ميم': 'م', 'مه': 'م', 'ما': 'م', 'م': 'م',
-    // ن
     'نون': 'ن', 'نه': 'ن', 'نا': 'ن', 'ن': 'ن',
-    // هـ
     'هاء': 'ه', 'هه': 'ه', 'ها': 'ه', 'ه': 'ه',
-    // و
     'واو': 'و', 'وه': 'و', 'وا': 'و', 'و': 'و',
-    // ي
     'ياء': 'ي', 'يه': 'ي', 'ية': 'ي', 'يا': 'ي', 'ى': 'ي', 'ي': 'ي',
   };
 
-  // الأرقام المنطوقة
+  // 2. الكلمات المدمجة باللهجة المصرية التي يجمعها محرك جوجل الصوتي
+  static final Map<String, List<String>> compounds = {
+    'واويه': ['و', 'ي'], 'واوية': ['و', 'ي'], 'واوياء': ['و', 'ي'],
+    'واودال': ['و', 'د'], 'واوقاف': ['و', 'ق'], 'أوقاف': ['و', 'ق'],
+    'واوساط': ['و', 'ص'], 'أوساط': ['و', 'ص'],
+    'اوصاد': ['أ', 'و', 'ص'], 'أوصاد': ['أ', 'و', 'ص'],
+    'راهدال': ['ر', 'د'], 'رادال': ['ر', 'د'], 'رهدال': ['ر', 'د'],
+    'عينرا': ['ع', 'ر'], 'عينره': ['ع', 'ر'],
+    'الفنون': ['أ', 'ن'], 'ألفنون': ['أ', 'ن'],
+    'بهلام': ['ب', 'ل'], 'بالام': ['ب', 'ل'], 'بلام': ['ب', 'ل'],
+    'نونواو': ['ن', 'و'], 'نونواوه': ['ن', 'و', 'ي'],
+    'يهبه': ['ي', 'ب'], 'يهدال': ['ي', 'د'],
+    'نوعين': ['ن', 'ع'], 'نهاء': ['ن', 'ه'],
+  };
+
+  // 3. قاموس الأرقام
   static final Map<String, String> digitsMap = {
     'صفر': '0', 'صِفر': '0', 'زيرو': '0',
     'واحد': '1', 'واحده': '1', 'واحدة': '1', 'وحد': '1',
@@ -558,7 +550,7 @@ class SheekhaFullEngine {
     'تسعه': '9', 'تسعة': '9', 'تسع': '9',
   };
 
-  // قاموس أنواع السيارات الشامل (الـ 27 ماركة + الأنواع التجارية)
+  // 4. قاموس أنواع السيارات الشامل
   static final Map<String, List<String>> vehicleTypesMap = {
     'نقل عام': ['نقل عام', 'نقلي عام'],
     'جراند ماكس': ['جراند ماكس', 'قراند ماكس', 'جراند مكس', 'جراند', 'قراند'],
@@ -602,12 +594,6 @@ class SheekhaFullEngine {
     String clean = text.trim();
     if (clean.isEmpty) return null;
 
-    for (var entry in userLearnedMap.entries) {
-      if (vehicleTypesMap.containsKey(entry.value) && clean.contains(entry.key)) {
-        return entry.value;
-      }
-    }
-
     for (var entry in vehicleTypesMap.entries) {
       for (String synonym in entry.value) {
         if (clean.contains(synonym)) {
@@ -618,9 +604,22 @@ class SheekhaFullEngine {
     return null;
   }
 
-  // الاستخراج والتحليل الفوري للحروف والأرقام
+  // الاستخراج الفوري عالي الدقة
   static Map<String, dynamic>? parsePlateAndType(String text) {
     if (text.trim().isEmpty) return null;
+
+    // أ) فحص ذاكرة التعلم المباشر من التعديل السابق
+    String normalizedVoice = normalizeFlexible(text);
+    if (userLearnedMap.containsKey(normalizedVoice)) {
+      var learned = userLearnedMap[normalizedVoice];
+      return {
+        'letters': learned['letters'],
+        'digits': learned['digits'],
+        'type': learned['type'] ?? 'ملاكي',
+        'hasExplicitType': true,
+        'startsWithAlefOrBaa': false,
+      };
+    }
 
     String normalized = normalizeDigits(text);
     String? detectedType = extractVehicleType(normalized);
@@ -639,28 +638,16 @@ class SheekhaFullEngine {
       String w = token.replaceAll(RegExp(r'[^\u0621-\u064A0-9]'), '');
       if (w.isEmpty) continue;
 
-      if (userLearnedMap.containsKey(w)) {
-        String learned = userLearnedMap[w]!;
-        if (RegExp(r'^\d+$').hasMatch(learned)) {
-          for (int i = 0; i < learned.length; i++) stream.add(learned[i]);
-          continue;
-        } else if (lettersMap.containsKey(learned)) {
-          stream.add(lettersMap[learned]!);
-          continue;
-        } else if (learned.length == 1) {
-          stream.add(learned);
-          continue;
-        }
-      }
-
       if (digitsMap.containsKey(w)) {
         stream.add(digitsMap[w]!);
       } else if (RegExp(r'^\d+$').hasMatch(w)) {
         for (int i = 0; i < w.length; i++) stream.add(w[i]);
+      } else if (compounds.containsKey(w)) {
+        stream.addAll(compounds[w]!);
       } else if (lettersMap.containsKey(w)) {
         stream.add(lettersMap[w]!);
       } else {
-        // لو كلمات عادية ملتصقة بالحروف
+        // فحص لو كلمات ملتصقة بالحروف
         for (int i = 0; i < w.length; i++) {
           String ch = w[i];
           if (lettersMap.containsKey(ch)) {
@@ -808,7 +795,7 @@ class _SheekhaHomeScreenState extends State<SheekhaHomeScreen> {
 
   void _restartListeningSafely() {
     if (!_isListening) return;
-    Future.delayed(const Duration(milliseconds: 200), () {
+    Future.delayed(const Duration(milliseconds: 150), () {
       if (_isListening && mounted && !_speech.isListening) {
         _startListeningSession();
       }
@@ -867,7 +854,7 @@ class _SheekhaHomeScreenState extends State<SheekhaHomeScreen> {
 
         setState(() => _currentStatusText = spoken);
 
-        // 1. لو لوحة معلقة تنتظر نوع السيارة
+        // لو لوحة معلقة تنتظر النوع
         if (_pendingPlate != null) {
           String? carType = SheekhaFullEngine.extractVehicleType(spoken);
           if (carType != null) {
@@ -878,7 +865,7 @@ class _SheekhaHomeScreenState extends State<SheekhaHomeScreen> {
           }
         }
 
-        // 2. تحليل اللوحة فوراً في نفس جلسة الاستماع دون إيقاف الميكروفون
+        // تحليل لحظي وسريع جداً
         var plateData = SheekhaFullEngine.parsePlateAndType(spoken);
         if (plateData != null) {
           String letters = plateData['letters']!;
@@ -907,7 +894,6 @@ class _SheekhaHomeScreenState extends State<SheekhaHomeScreen> {
           if (!isRecent) {
             _cooldowns[key] = now;
 
-            // لو بدأت بـ أ أو ب بدون ذكر النوع: نفتح نافذة انتظار 1.8 ثانية
             if (startsWithAlefOrBaa && !hasExplicitType) {
               _pendingPlate = {
                 'key': key,
@@ -921,12 +907,10 @@ class _SheekhaHomeScreenState extends State<SheekhaHomeScreen> {
                 if (mounted) _commitPendingPlate();
               });
             } else {
-              // تسجيل فوري وبسرعة البرق
               _registerDetectedPlate(letters, digits, carType, rawSpoken: spoken);
             }
           }
         } else {
-          // لو قال النوع بعد نزول اللوحة مباشرة
           if (_records.isNotEmpty) {
             String? standaloneType = SheekhaFullEngine.extractVehicleType(spoken);
             if (standaloneType != null && (_records[0]['type'] == 'ملاكي' || _records[0]['type'] == '-')) {
@@ -1283,34 +1267,35 @@ class _SheekhaHomeScreenState extends State<SheekhaHomeScreen> {
     }
   }
 
+  // التعديل اليدوي مع التعلم الذاتي وحفظ النطق بنسبة 100%
   void _editRecordManually(int index) {
     var rec = _records[index];
     String oldLettersStr = rec['letters'] ?? '';
+    String oldDigitsStr = rec['digits'] ?? '';
     String oldTypeStr = rec['type'] ?? '';
     String rawSpoken = rec['rawSpoken'] ?? '';
 
     TextEditingController letCtrl = TextEditingController(text: oldLettersStr);
-    TextEditingController digCtrl = TextEditingController(text: rec['digits']);
+    TextEditingController digCtrl = TextEditingController(text: oldDigitsStr);
     TextEditingController typCtrl = TextEditingController(text: oldTypeStr);
-    TextEditingController wrongWordCtrl = TextEditingController();
 
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
         backgroundColor: const Color(0xFF1C2541),
-        title: Text(AppStrings.isAr ? 'تعديل يدوي وحفظ النطق بالقاموس' : 'Edit & Learn Pronunciation', style: const TextStyle(color: Color(0xFF06D6A0), fontSize: 16), textAlign: TextAlign.center),
+        title: Text(AppStrings.isAr ? 'تعديل السجل وتدريب الذكاء الصوتي' : 'Edit & Train AI', style: const TextStyle(color: Color(0xFF06D6A0), fontSize: 16), textAlign: TextAlign.center),
         content: SingleChildScrollView(
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
               if (rawSpoken.isNotEmpty)
                 Container(
-                  padding: const EdgeInsets.all(6),
-                  margin: const EdgeInsets.only(bottom: 8),
+                  padding: const EdgeInsets.all(8),
+                  margin: const EdgeInsets.only(bottom: 10),
                   decoration: BoxDecoration(color: const Color(0xFF0B132B), borderRadius: BorderRadius.circular(8)),
                   child: Text(
-                    'ما سمعه الميكروفون: "$rawSpoken"',
-                    style: const TextStyle(color: Colors.amber, fontSize: 11),
+                    'المنطوق الأصلي: "$rawSpoken"',
+                    style: const TextStyle(color: Colors.amber, fontSize: 12, fontWeight: FontWeight.bold),
                     textAlign: TextAlign.center,
                   ),
                 ),
@@ -1318,7 +1303,7 @@ class _SheekhaHomeScreenState extends State<SheekhaHomeScreen> {
                 controller: letCtrl,
                 textAlign: TextAlign.center,
                 style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
-                decoration: InputDecoration(labelText: AppStrings.isAr ? 'الحروف الصحيحة (مثال: أ ن د)' : 'Letters', labelStyle: const TextStyle(color: Colors.grey)),
+                decoration: InputDecoration(labelText: AppStrings.isAr ? 'الحروف الصحيحة (مثال: ن و ي)' : 'Letters', labelStyle: const TextStyle(color: Colors.grey)),
               ),
               const SizedBox(height: 6),
               TextField(
@@ -1326,26 +1311,14 @@ class _SheekhaHomeScreenState extends State<SheekhaHomeScreen> {
                 keyboardType: TextInputType.number,
                 textAlign: TextAlign.center,
                 style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
-                decoration: InputDecoration(labelText: AppStrings.isAr ? 'الأرقام (مثال: 2718)' : 'Digits', labelStyle: const TextStyle(color: Colors.grey)),
+                decoration: InputDecoration(labelText: AppStrings.isAr ? 'الأرقام الصحيحة (مثال: 715)' : 'Digits', labelStyle: const TextStyle(color: Colors.grey)),
               ),
               const SizedBox(height: 6),
               TextField(
                 controller: typCtrl,
                 textAlign: TextAlign.center,
                 style: const TextStyle(color: Colors.white),
-                decoration: InputDecoration(labelText: AppStrings.isAr ? 'نوع السيارة (مثال: تويوتا / نقل)' : 'Car Type', labelStyle: const TextStyle(color: Colors.grey)),
-              ),
-              const SizedBox(height: 10),
-              TextField(
-                controller: wrongWordCtrl,
-                textAlign: TextAlign.center,
-                style: const TextStyle(color: Color(0xFF06D6A0), fontSize: 13),
-                decoration: InputDecoration(
-                  labelText: AppStrings.isAr ? 'الكلمة الخاطئة لتعليمها للقاموس (اختياري)' : 'Spoken word to learn (optional)',
-                  hintText: AppStrings.isAr ? 'مثال: اكتب الكلمة التي فهمها جوجل خطأ' : 'Wrong word heard',
-                  hintStyle: const TextStyle(color: Colors.white30, fontSize: 10),
-                  labelStyle: const TextStyle(color: Color(0xFF06D6A0), fontSize: 11),
-                ),
+                decoration: InputDecoration(labelText: AppStrings.isAr ? 'نوع السيارة (مثال: كيا / نقل)' : 'Car Type', labelStyle: const TextStyle(color: Colors.grey)),
               ),
             ],
           ),
@@ -1358,18 +1331,19 @@ class _SheekhaHomeScreenState extends State<SheekhaHomeScreen> {
               String newLettersStr = letCtrl.text.trim();
               String newDigitsStr = digCtrl.text.trim();
               String newTypeStr = typCtrl.text.trim();
-              String customWrongWord = wrongWordCtrl.text.trim();
 
               if (newLettersStr.isNotEmpty && !newLettersStr.contains(' ') && newLettersStr.length <= 3) {
                 newLettersStr = newLettersStr.split('').join(' ');
               }
 
-              if (customWrongWord.isNotEmpty) {
-                if (newTypeStr != oldTypeStr) {
-                  await SheekhaFullEngine.learnNewPronunciation(customWrongWord, newTypeStr);
-                } else if (newLettersStr.replaceAll(' ', '').length == 1) {
-                  await SheekhaFullEngine.learnNewPronunciation(customWrongWord, newLettersStr.trim());
-                }
+              // حفظ التعلم الصوتي الفوري في الذاكرة: أي نطق قادم مطابق لما سمعه جوجل سيتحول فوراً للتعديل الصحيح
+              if (rawSpoken.isNotEmpty) {
+                await SheekhaFullEngine.saveLearnedMapping(
+                  rawSpoken,
+                  newLettersStr,
+                  newDigitsStr,
+                  newTypeStr,
+                );
               }
 
               setState(() {
@@ -1380,7 +1354,7 @@ class _SheekhaHomeScreenState extends State<SheekhaHomeScreen> {
               _saveData();
               if (mounted) Navigator.pop(context);
             },
-            child: Text(AppStrings.isAr ? 'حفظ وتدريب القاموس' : 'Save & Learn', style: const TextStyle(color: Colors.black, fontWeight: FontWeight.bold)),
+            child: Text(AppStrings.isAr ? 'حفظ وتثبيت بالذاكرة' : 'Save & Learn', style: const TextStyle(color: Colors.black, fontWeight: FontWeight.bold)),
           ),
         ],
       ),
