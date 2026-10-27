@@ -464,7 +464,7 @@ class SheekhaFullEngine {
   static Future<void> loadLearnedDictionary() async {
     try {
       final prefs = await SharedPreferences.getInstance();
-      final String? saved = prefs.getString('rased_user_learned_v4');
+      final String? saved = prefs.getString('rased_user_learned_v5');
       if (saved != null && saved.isNotEmpty) {
         userLearnedMap = json.decode(saved);
       }
@@ -483,11 +483,11 @@ class SheekhaFullEngine {
 
     try {
       final prefs = await SharedPreferences.getInstance();
-      await prefs.setString('rased_user_learned_v4', json.encode(userLearnedMap));
+      await prefs.setString('rased_user_learned_v5', json.encode(userLearnedMap));
     } catch (_) {}
   }
 
-  // مصفوفة الحروف الدقيقة المعتمدة في اللوحات
+  // مصفوفة الحروف الدقيقة المعتمدة في اللوحات دون تحريف
   static final Map<String, String> lettersMap = {
     'الف': 'أ', 'ألف': 'أ', 'إلف': 'أ', 'ا': 'أ', 'أ': 'أ', 'إ': 'أ', 'آ': 'أ',
     'باء': 'ب', 'به': 'ب', 'بة': 'ب', 'با': 'ب', 'بي': 'ب', 'ب': 'ب',
@@ -519,7 +519,7 @@ class SheekhaFullEngine {
     'ياء': 'ي', 'يه': 'ي', 'ية': 'ي', 'يا': 'ي', 'ى': 'ي', 'ي': 'ي',
   };
 
-  // معالجة فورية وتفكيك الكلمات المركبة باللهجة المصرية
+  // تفكيك الكلمات المركبة باللهجة المصرية
   static final Map<String, List<String>> compounds = {
     'واويه': ['و', 'ي'], 'واوية': ['و', 'ي'], 'واوياء': ['و', 'ي'],
     'واودال': ['و', 'د'], 'واوقاف': ['و', 'ق'], 'أوقاف': ['و', 'ق'],
@@ -602,24 +602,28 @@ class SheekhaFullEngine {
     return null;
   }
 
-  // خوارزمية الفحص السريع والذكي للتدفق الصوتي المستمر
+  // خوارزمية النافذة المنزلقة العكسية (Sliding Tail Window) لسرعة ودقة فائقة
   static Map<String, dynamic>? parsePlateAndType(String text) {
     if (text.trim().isEmpty) return null;
 
-    // 1. فحص التعلم المباشر السابق أولاً
     String normalizedVoice = normalizeFlexible(text);
+
+    // 1. الفحص الفوري في الذاكرة المتعلمة
     if (userLearnedMap.containsKey(normalizedVoice)) {
       var learned = userLearnedMap[normalizedVoice];
       return {
         'letters': learned['letters'],
         'digits': learned['digits'],
         'type': learned['type'] ?? 'ملاكي',
+        'hasExplicitType': true,
+        'startsWithAlefOrBaa': false,
       };
     }
 
     String normalized = normalizeDigits(text);
     String? detectedType = extractVehicleType(normalized);
 
+    // إزالة نوع السيارة من النص حتى لا يتدخل مع الحروف
     String textForPlate = normalized;
     if (detectedType != null && vehicleTypesMap.containsKey(detectedType)) {
       for (String syn in vehicleTypesMap[detectedType]!) {
@@ -627,14 +631,15 @@ class SheekhaFullEngine {
       }
     }
 
-    // تفكيك الكلمات المتصلة المكتشفة
+    // تفكيك الكلمات المتصلة المكتشفة بمسافات لضمان عدم ضياع أي حرف
     compounds.forEach((k, v) {
-      textForPlate = textForPlate.replaceAll(k, v.join(' '));
+      textForPlate = textForPlate.replaceAll(k, ' ${v.join(' ')} ');
     });
 
     List<String> rawTokens = textForPlate.split(RegExp(r'\s+'));
     List<String> stream = [];
 
+    // تحويل الكلمات المنطوقة إلى دفق متتالي من الحروف والأرقام
     for (String token in rawTokens) {
       String w = token.replaceAll(RegExp(r'[^\u0621-\u064A0-9]'), '');
       if (w.isEmpty) continue;
@@ -645,25 +650,29 @@ class SheekhaFullEngine {
         for (int i = 0; i < w.length; i++) stream.add(w[i]);
       } else if (lettersMap.containsKey(w)) {
         stream.add(lettersMap[w]!);
-      } else if (w.length == 1 && RegExp(r'[\u0621-\u064A]').hasMatch(w)) {
-        stream.add(w);
+      } else {
+        // فحص لو كلمات ملتصقة بالحروف
+        for (int i = 0; i < w.length; i++) {
+          String ch = w[i];
+          if (lettersMap.containsKey(ch)) {
+            stream.add(lettersMap[ch]!);
+          }
+        }
       }
     }
 
-    // استخراج أحدث نافذة مطابقة (حروف تليها أرقام مباشرة) من التدفق الصوتي الحي
+    // 2. البحث بنظام النافذة العكسية (من النهاية للبداية) لاقتناص أحدث لوحة مكتملة فوراً
     for (int i = stream.length - 1; i >= 0; i--) {
-      // البحث عن نقطة نهاية الأرقام
       if (RegExp(r'^\d$').hasMatch(stream[i])) {
         int dEnd = i;
         int dStart = i;
-        while (dStart >= 0 && RegExp(r'^\d$').hasMatch(stream[dStart])) {
+        while (dStart - 1 >= 0 && RegExp(r'^\d$').hasMatch(stream[dStart - 1])) {
           dStart--;
         }
-        dStart++; // بداية سلسلة الأرقام
+        
         int numDigits = dEnd - dStart + 1;
-
         if (numDigits >= 3 && numDigits <= 4) {
-          // نبحث عن الحروف التي تسبق هذه الأرقام مباشرة
+          // نبحث عن الحروف التي تسبق الأرقام مباشرة (بحد أقصى 3 حروف)
           List<String> lettersFound = [];
           for (int j = dStart - 1; j >= 0 && lettersFound.length < 3; j--) {
             if (RegExp(r'^[\u0621-\u064A]$').hasMatch(stream[j])) {
@@ -675,13 +684,20 @@ class SheekhaFullEngine {
 
           if (lettersFound.length >= 2) {
             String digitsStr = stream.sublist(dStart, dEnd + 1).join('');
+            String firstL = lettersFound.first;
+            bool startsWithAorB = (firstL == 'أ' || firstL == 'ا' || firstL == 'إ' || firstL == 'ب');
+
             return {
               'letters': lettersFound.join(' '),
               'digits': digitsStr,
-              'type': detectedType ?? 'ملاكي',
+              'type': detectedType ?? (startsWithAorB ? '-' : 'ملاكي'),
+              'hasExplicitType': detectedType != null,
+              'startsWithAlefOrBaa': startsWithAorB,
             };
           }
         }
+        // تخطي هذه الكتلة الرقمية ومواصلة البحث للخلف لو لم تكن لوحة صالحة
+        i = dStart;
       }
     }
 
@@ -725,6 +741,9 @@ class _SheekhaHomeScreenState extends State<SheekhaHomeScreen> {
   final stt.SpeechToText _speech = stt.SpeechToText();
   bool _speechEnabled = false;
 
+  Timer? _pendingTimer;
+  Map<String, String>? _pendingPlate;
+
   final List<String> _districts = ['الروضة', 'السلام', 'المنيل', 'المعادي'];
   String _currentDistrict = 'الروضة';
   String _currentStreet = 'ض 1';
@@ -750,6 +769,12 @@ class _SheekhaHomeScreenState extends State<SheekhaHomeScreen> {
     SheekhaFullEngine.loadLearnedDictionary();
     _loadData();
     _initEngine();
+  }
+
+  @override
+  void dispose() {
+    _pendingTimer?.cancel();
+    super.dispose();
   }
 
   Future<void> _initEngine() async {
@@ -784,6 +809,7 @@ class _SheekhaHomeScreenState extends State<SheekhaHomeScreen> {
 
   void _toggleLiveListening() async {
     if (_isListening) {
+      _commitPendingPlate();
       setState(() {
         _isListening = false;
         _soundLevel = 0.0;
@@ -804,7 +830,17 @@ class _SheekhaHomeScreenState extends State<SheekhaHomeScreen> {
     }
   }
 
-  // الاستماع المباشر المتدفق بنفس سلاسة الفيديو
+  void _commitPendingPlate() {
+    _pendingTimer?.cancel();
+    _pendingTimer = null;
+    if (_pendingPlate != null) {
+      var p = _pendingPlate!;
+      _pendingPlate = null;
+      _registerDetectedPlate(p['letters']!, p['digits']!, p['type']!, rawSpoken: p['raw'] ?? '');
+    }
+  }
+
+  // الاستماع المستمر السريع
   void _startListeningSession() async {
     if (!_isListening) return;
 
@@ -822,7 +858,18 @@ class _SheekhaHomeScreenState extends State<SheekhaHomeScreen> {
 
         setState(() => _currentStatusText = spoken);
 
-        // 1. تحديث نوع السيارة في أول سجل إذا نطق المستخدم اسم السيارة منفرداً بعد اللوحة
+        // 1. فحص تحديث النوع للوحة المعلقة (أ / ب)
+        if (_pendingPlate != null) {
+          String? carType = SheekhaFullEngine.extractVehicleType(spoken);
+          if (carType != null) {
+            _pendingPlate!['type'] = carType;
+            _pendingPlate!['raw'] = spoken;
+            _commitPendingPlate();
+            return;
+          }
+        }
+
+        // 2. تحديث النوع لآخر لوحة رُصدت إن نُطق منفرداً
         String? standaloneType = SheekhaFullEngine.extractVehicleType(spoken);
         if (standaloneType != null && _records.isNotEmpty) {
           if (_records[0]['type'] == 'ملاكي' || _records[0]['type'] == '-') {
@@ -833,21 +880,53 @@ class _SheekhaHomeScreenState extends State<SheekhaHomeScreen> {
           }
         }
 
-        // 2. فحص واستخراج اللوحة لحظياً
+        // 3. الفحص اللحظي الذكي للوحات الكاملة
         var plateData = SheekhaFullEngine.parsePlateAndType(spoken);
         if (plateData != null) {
           String letters = plateData['letters']!;
           String digits = plateData['digits']!;
           String carType = plateData['type']!;
+          bool hasExplicitType = plateData['hasExplicitType'] == true;
+          bool startsWithAlefOrBaa = plateData['startsWithAlefOrBaa'] == true;
           String key = '$letters-$digits';
 
+          if (_pendingPlate != null && _pendingPlate!['key'] == key) {
+            if (hasExplicitType) {
+              _pendingPlate!['type'] = carType;
+              _commitPendingPlate();
+            }
+            return;
+          }
+
+          if (_pendingPlate != null && _pendingPlate!['key'] != key) {
+            _commitPendingPlate();
+          }
+
           DateTime now = DateTime.now();
+          // منع التكرار لنفس اللوحة لمدة ثانيتين
           bool isRecent = _cooldowns.containsKey(key) &&
               now.difference(_cooldowns[key]!).inMilliseconds < 2500;
 
           if (!isRecent) {
             _cooldowns[key] = now;
-            _registerDetectedPlate(letters, digits, carType, rawSpoken: spoken);
+
+            // إذا كانت اللوحة تبدأ بـ أ أو ب، ننتظر 1.5 ثانية لاقتناص النوع إن لم يذكر
+            if (startsWithAlefOrBaa && !hasExplicitType) {
+              _pendingPlate = {
+                'key': key,
+                'letters': letters,
+                'digits': digits,
+                'type': 'ملاكي',
+                'raw': spoken,
+              };
+              _pendingTimer?.cancel();
+              _pendingTimer = Timer(const Duration(milliseconds: 1500), () {
+                if (mounted) _commitPendingPlate();
+              });
+            } else {
+              // تسجيل فوري كطلقة الرصاص
+              _registerDetectedPlate(letters, digits, carType, rawSpoken: spoken);
+            }
           }
         }
       },
@@ -1264,7 +1343,7 @@ class _SheekhaHomeScreenState extends State<SheekhaHomeScreen> {
                 newLettersStr = newLettersStr.split('').join(' ');
               }
 
-              // تثبيت النطق في الذاكرة ليتعرف عليه فوراً مستقبلاً
+              // حفظ التعلم الصوتي الفوري في الذاكرة
               if (rawSpoken.isNotEmpty) {
                 await SheekhaFullEngine.saveLearnedMapping(
                   rawSpoken,
@@ -1629,7 +1708,7 @@ class _SheekhaHomeScreenState extends State<SheekhaHomeScreen> {
           _buildLiveMicBox(),
           const SizedBox(height: 12),
           Row(
-            mainAxisAlignment: ChangeDirectional.isRtl(context) ? MainAxisAlignment.spaceBetween : MainAxisAlignment.spaceBetween,
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
               Text('${AppStrings.recordsCount} ${_records.length}', style: const TextStyle(color: Colors.grey, fontSize: 13)),
               Text(AppStrings.editPlateHint, style: const TextStyle(color: Color(0xFF06D6A0), fontSize: 11)),
