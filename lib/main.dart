@@ -14,7 +14,7 @@ import 'package:url_launcher/url_launcher.dart';
 
 void main() => runApp(const MyApp());
 
-// نظام حماية التراخيص والتحكم عن بُعد (النسخة التجارية المدعومة بإعادة التفعيل الفوري)
+// نظام حماية التراخيص والتحكم عن بُعد
 class RasedLicenseManager {
   static const String _secretSalt = "RASED_PRO_2026_SECRET_KEY";
   
@@ -128,7 +128,6 @@ class RasedLicenseManager {
     return null;
   }
 
-  // التحقق السحابي الذكي (يفحص السيرفر أولاً لإمكانية التفعيل الفوري)
   static Future<Map<String, dynamic>> checkRemoteStatus(String myDeviceId, String currentExpiryIso) async {
     final prefs = await SharedPreferences.getInstance();
     bool remoteCheckSuccessful = false;
@@ -149,7 +148,6 @@ class RasedLicenseManager {
                 await prefs.setBool('rased_perm_ban_$myDeviceId', true);
                 return {'allowed': false, 'reason': 'تم إيقاف اشتراكك من قِبل الإدارة'};
               } else {
-                // تفعيل فوري: إذا أصبح نشطاً في اللوحة، يُمسح الحظر المحلي فوراً
                 await prefs.setBool('rased_perm_ban_$myDeviceId', false);
               }
 
@@ -169,7 +167,6 @@ class RasedLicenseManager {
       remoteCheckSuccessful = false;
     }
 
-    // إذا لم يتصل بالإنترنت، نعتمد على الحظر المحلي كإجراء أمني
     if (!remoteCheckSuccessful) {
       bool isPermanentlyBanned = prefs.getBool('rased_perm_ban_$myDeviceId') ?? false;
       if (isPermanentlyBanned) {
@@ -251,7 +248,6 @@ class _MyAppState extends State<MyApp> {
   }
 }
 
-// شاشة بوابة التفعيل والتحقق من الاشتراك
 class SubscriptionGateScreen extends StatefulWidget {
   final Function(Locale) onLanguageChange;
   const SubscriptionGateScreen({super.key, required this.onLanguageChange});
@@ -273,7 +269,6 @@ class _SubscriptionGateScreenState extends State<SubscriptionGateScreen> with Wi
     super.initState();
     WidgetsBinding.instance.addObserver(this);
     _verifyCurrentLicense();
-    // فحص دوري كل 15 ثانية لمراقبة حالة الإيقاف أو إعادة التفعيل بشكل لحظي
     _heartbeatTimer = Timer.periodic(const Duration(seconds: 15), (_) {
       _silentBackgroundCheck();
     });
@@ -464,7 +459,6 @@ class _SubscriptionGateScreenState extends State<SubscriptionGateScreen> with Wi
 
 // محرك المعالجة الصوتي الذكي (الأسرار الأربعة + مصفوفة اللهجة المصرية + قاموس السيارات + التعلم الشخصي)
 class SheekhaFullEngine {
-  // ذاكرة التعلم الشخصي المحفوظة على الهاتف
   static Map<String, String> userLearnedMap = {};
 
   static Future<void> loadLearnedDictionary() async {
@@ -490,63 +484,61 @@ class SheekhaFullEngine {
     } catch (_) {}
   }
 
-  // 1. مصفوفة اللهجة المصرية والنطق الشخصي للحروف (شاملة العربية + النطق المكتوب بالإنجليزي كحماية إضافية)
+  // 1. مصفوفة اللهجة المصرية والنطق الشخصي للحروف
   static final Map<String, String> lettersMap = {
-    // حرف الألف
     'الف': 'أ', 'ألف': 'أ', 'إلف': 'أ', 'آلف': 'أ', 'الالف': 'أ', 'الألف': 'أ',
     'ا': 'أ', 'أ': 'أ', 'إ': 'أ', 'آ': 'أ', 'ء': 'أ', 'اه': 'أ', 'أة': 'أ', 'همزه': 'أ', 'همزة': 'أ',
     'alif': 'أ', 'alef': 'أ', 'alfa': 'أ', 'alpha': 'أ',
-    // حرف الباء
+
     'باء': 'ب', 'به': 'ب', 'بة': 'ب', 'با': 'ب', 'بي': 'ب', 'بى': 'ب', 'ب': 'ب', 'الباء': 'ب', 'البه': 'ب', 'تاء': 'ب', 'ته': 'ب',
     'ba': 'ب', 'baa': 'ب', 'beh': 'ب',
-    // حرف الجيم والحاء
+
     'جيم': 'ح', 'جه': 'ح', 'جا': 'ح', 'جي': 'ح', 'ج': 'ح',
     'حاء': 'ح', 'حه': 'ح', 'حة': 'ح', 'حا': 'ح', 'حي': 'ح', 'حى': 'ح', 'ح': 'ح', 'الحاء': 'ح', 'الحه': 'ح', 'خاء': 'ح', 'خه': 'ح',
     'ha': 'ح', 'haa': 'ح', 'heh': 'ح',
-    // حرف الدال
+
     'دال': 'د', 'ده': 'د', 'دة': 'د', 'دا': 'د', 'دي': 'د', 'دى': 'د', 'د': 'د', 'الدال': 'د', 'ذال': 'د', 'ذه': 'د', 'دلو': 'د',
     'dal': 'د', 'del': 'د', 'da': 'د',
-    // حرف الراء
+
     'راء': 'ر', 'ره': 'ر', 'رة': 'ر', 'را': 'ر', 'ري': 'ر', 'رى': 'ر', 'ر': 'ر', 'الراء': 'ر', 'الره': 'ر', 'رع': 'ر', 'زين': 'ر', 'زه': 'ر', 'زاي': 'ر',
     'ra': 'ر', 'raa': 'ر', 'reh': 'ر',
-    // حرف السين
+
     'سين': 'س', 'سه': 'س', 'سة': 'س', 'سا': 'س', 'سي': 'س', 'سى': 'س', 'س': 'س', 'السين': 'س', 'شين': 'س', 'شه': 'س', 'ثاء': 'س', 'ثه': 'س',
     'seen': 'س', 'sin': 'س', 'sen': 'س',
-    // حرف الصاد
+
     'صاد': 'ص', 'صاه': 'ص', 'صه': 'ص', 'صة': 'ص', 'صا': 'ص', 'صي': 'ص', 'ص': 'ص', 'الصاد': 'ص', 'ضاد': 'ص', 'ضه': 'ص', 'صوت': 'ص', 'صاط': 'ص',
     'sad': 'ص', 'saad': 'ص',
-    // حرف الطاء
+
     'طاء': 'ط', 'طه': 'ط', 'طة': 'ط', 'طا': 'ط', 'طي': 'ط', 'طى': 'ط', 'ط': 'ط', 'الطاء': 'ط', 'ظاء': 'ط', 'ظه': 'ط', 'طايه': 'ط',
     'ta': 'ط', 'taa': 'ط', 'tah': 'ط',
-    // حرف العين
+
     'عين': 'ع', 'عه': 'ع', 'عة': 'ع', 'عن': 'ع', 'عاين': 'ع', 'عا': 'ع', 'عي': 'ع', 'عى': 'ع', 'ع': 'ع', 'العين': 'ع', 'غين': 'ع', 'غه': 'ع', 'عام': 'ع',
     'ain': 'ع', 'ayn': 'ع', 'ein': 'ع',
-    // حرف الفاء والقاف
+
     'فاء': 'ق', 'فه': 'ق', 'فة': 'ق', 'فا': 'ق', 'في': 'ق', 'ف': 'ق',
     'قاف': 'ق', 'قه': 'ق', 'قة': 'ق', 'قا': 'ق', 'قف': 'ق', 'قي': 'ق', 'ق': 'ق', 'القاف': 'ق', 'كافيه': 'ق',
     'qaf': 'ق', 'kaf': 'ك',
-    // حرف الكاف
+
     'كاف': 'ك', 'كه': 'ك', 'كة': 'ك', 'كا': 'ك', 'كي': 'ك', 'كى': 'ك', 'ك': 'ك', 'الكاف': 'ك', 'كف': 'ك', 'كافي': 'ك',
-    // حرف اللام
+
     'لام': 'ل', 'له': 'ل', 'لة': 'ل', 'لا': 'ل', 'لي': 'ل', 'لى': 'ل', 'ل': 'ل', 'اللام': 'ل', 'لم': 'ل', 'لان': 'ل',
     'lam': 'ل',
-    // حرف الميم
+
     'ميم': 'م', 'مه': 'م', 'مة': 'م', 'ما': 'م', 'مي': 'م', 'مى': 'م', 'مين': 'م', 'م': 'م', 'الميم': 'م', 'من': 'م',
     'meem': 'م', 'mim': 'م',
-    // حرف النون
+
     'نون': 'ن', 'نه': 'ن', 'نة': 'ن', 'نا': 'ن', 'ني': 'ن', 'نى': 'ن', 'ن': 'ن', 'النون': 'ن', 'نور': 'ن', 'نوم': 'ن',
     'noon': 'ن', 'non': 'ن', 'nun': 'ن',
-    // حرف الهاء
+
     'هاء': 'ه', 'هه': 'ه', 'هة': 'ه', 'ها': 'ه', 'هي': 'ه', 'هى': 'ه', 'هـ': 'ه', 'ه': 'ه', 'الهاء': 'ه',
-    // حرف الواو
+
     'واو': 'و', 'وه': 'و', 'وة': 'و', 'وا': 'و', 'وي': 'و', 'وى': 'و', 'و': 'و', 'الواو': 'و', 'وو': 'و',
     'waw': 'و', 'wow': 'و',
-    // حرف الياء
+
     'ياء': 'ي', 'يه': 'ي', 'ية': 'ي', 'يا': 'ي', 'يي': 'ي', 'ى': 'ي', 'ي': 'ي', 'الياء': 'ي', 'اليه': 'ي',
     'ya': 'ي', 'yaa': 'ي', 'yeh': 'ي',
   };
 
-  // الاختصارات والكلمات المدمجة باللهجة المصرية
   static final Map<String, List<String>> compounds = {
     'واوقاف': ['و', 'ق'], 'أوقاف': ['و', 'ق'], 'اوقاف': ['و', 'ق'],
     'واوساط': ['و', 'ص'], 'أوساط': ['و', 'ص'], 'اوساط': ['و', 'ص'],
@@ -560,7 +552,6 @@ class SheekhaFullEngine {
     'يهبه': ['ي', 'ب'], 'يابه': ['ي', 'ب'], 'يهدال': ['ي', 'د'], 'واودال': ['و', 'د'],
   };
 
-  // قاموس الأرقام المنطوقة باللهجة المصرية والعربية
   static final Map<String, String> digitsMap = {
     'صفر': '0', 'صِفر': '0', 'زيرو': '0', 'zero': '0',
     'واحد': '1', 'واحده': '1', 'واحدة': '1', 'وحد': '1', 'one': '1', 'wahid': '1',
@@ -574,7 +565,7 @@ class SheekhaFullEngine {
     'تسعه': '9', 'تسعة': '9', 'تسع': '9', 'تيسعة': '9', 'nine': '9', 'tisaa': '9',
   };
 
-  // 2. قاموس أنواع السيارات الذكي (شاملاً الـ 27 ماركة + الأنواع التجارية في الفيديو وبدائل نطقها)
+  // 2. قاموس أنواع السيارات الشامل
   static final Map<String, List<String>> vehicleTypesMap = {
     'نقل عام': ['نقل عام', 'نقل عن', 'نقلي عام', 'نقل عمل'],
     'جراند ماكس': ['جراند ماكس', 'قراند ماكس', 'جراند مكس', 'جراند', 'قراند', 'grand max'],
@@ -783,12 +774,10 @@ class _SheekhaHomeScreenState extends State<SheekhaHomeScreen> {
   final Map<String, DateTime> _cooldowns = {};
   final stt.SpeechToText _speech = stt.SpeechToText();
   bool _speechEnabled = false;
-  String? _arabicLocaleId;
 
   Timer? _pendingPlateTimer;
   Map<String, String>? _pendingPlate;
   DateTime? _lastRegisteredTime;
-  String? _lastRegisteredKey;
 
   final List<String> _districts = ['الروضة', 'السلام', 'المنيل', 'المعادي'];
   String _currentDistrict = 'الروضة';
@@ -840,30 +829,6 @@ class _SheekhaHomeScreenState extends State<SheekhaHomeScreen> {
           }
         },
       );
-
-      if (available) {
-        // اكتشاف كود اللغة العربية المتاح فعلياً في محرك صوت الأندرويد على الهاتف
-        var locales = await _speech.locales();
-        stt.LocaleName? arLocale;
-        for (var loc in locales) {
-          String id = loc.localeId.toLowerCase();
-          if (id == 'ar-eg' || id == 'ar_eg') {
-            arLocale = loc;
-            break;
-          }
-        }
-        if (arLocale == null) {
-          for (var loc in locales) {
-            String id = loc.localeId.toLowerCase();
-            if (id == 'ar-sa' || id == 'ar_sa' || id.startsWith('ar')) {
-              arLocale = loc;
-              break;
-            }
-          }
-        }
-        _arabicLocaleId = arLocale?.localeId;
-      }
-
       setState(() => _speechEnabled = available);
     } catch (_) {}
   }
@@ -918,8 +883,8 @@ class _SheekhaHomeScreenState extends State<SheekhaHomeScreen> {
   void _startListeningSession() async {
     if (!_isListening) return;
 
+    // تم إرجاعها بدون أي فرض لـ localeId لتعمل باللغة العربية الافتراضية للجهاز كما في كودك الأصلي
     await _speech.listen(
-      localeId: _arabicLocaleId,
       listenMode: stt.ListenMode.dictation,
       partialResults: true,
       cancelOnError: false,
@@ -1063,7 +1028,6 @@ class _SheekhaHomeScreenState extends State<SheekhaHomeScreen> {
 
     setState(() {
       _lastRegisteredTime = DateTime.now();
-      _lastRegisteredKey = '$letters-$digits';
       _records.insert(0, {
         'id': (_records.length + 1).toString(),
         'letters': letters,
