@@ -464,7 +464,7 @@ class _SubscriptionGateScreenState extends State<SubscriptionGateScreen> with Wi
 
 // محرك المعالجة الصوتي الذكي (الأسرار الأربعة + مصفوفة اللهجة المصرية + قاموس السيارات + التعلم الشخصي)
 class SheekhaFullEngine {
-  // ذاكرة التعلم الشخصي المحفوظة على الهاتف (تُحمل في الـ RAM لسرعة فورية 100%)
+  // ذاكرة التعلم الشخصي المحفوظة على الهاتف
   static Map<String, String> userLearnedMap = {};
 
   static Future<void> loadLearnedDictionary() async {
@@ -473,13 +473,13 @@ class SheekhaFullEngine {
       final String? saved = prefs.getString('rased_user_learned_pronunciations');
       if (saved != null && saved.isNotEmpty) {
         Map<String, dynamic> decoded = json.decode(saved);
-        userLearnedMap = decoded.map((k, v) => MapEntry(k.toString(), v.toString()));
+        userLearnedMap = decoded.map((k, v) => MapEntry(k.toString().toLowerCase(), v.toString()));
       }
     } catch (_) {}
   }
 
   static Future<void> learnNewPronunciation(String wrongSpokenWord, String correctTarget) async {
-    String cleanSpoken = wrongSpokenWord.trim().replaceAll(RegExp(r'[^\u0621-\u064A0-9\s]'), '');
+    String cleanSpoken = wrongSpokenWord.trim().toLowerCase().replaceAll(RegExp(r'[^\u0621-\u064Aa-z0-9\s]'), '');
     String cleanTarget = correctTarget.trim();
     if (cleanSpoken.isEmpty || cleanTarget.isEmpty) return;
 
@@ -490,48 +490,63 @@ class SheekhaFullEngine {
     } catch (_) {}
   }
 
-  // 1. مصفوفة اللهجة المصرية والنطق الشخصي للحروف (شاملة البدائل الصوتية والتقريب التلقائي)
+  // 1. مصفوفة اللهجة المصرية والنطق الشخصي للحروف (شاملة العربية + النطق المكتوب بالإنجليزي كحماية إضافية)
   static final Map<String, String> lettersMap = {
     // حرف الألف
     'الف': 'أ', 'ألف': 'أ', 'إلف': 'أ', 'آلف': 'أ', 'الالف': 'أ', 'الألف': 'أ',
     'ا': 'أ', 'أ': 'أ', 'إ': 'أ', 'آ': 'أ', 'ء': 'أ', 'اه': 'أ', 'أة': 'أ', 'همزه': 'أ', 'همزة': 'أ',
+    'alif': 'أ', 'alef': 'أ', 'alfa': 'أ', 'alpha': 'أ',
     // حرف الباء
     'باء': 'ب', 'به': 'ب', 'بة': 'ب', 'با': 'ب', 'بي': 'ب', 'بى': 'ب', 'ب': 'ب', 'الباء': 'ب', 'البه': 'ب', 'تاء': 'ب', 'ته': 'ب',
+    'ba': 'ب', 'baa': 'ب', 'beh': 'ب',
     // حرف الجيم والحاء
     'جيم': 'ح', 'جه': 'ح', 'جا': 'ح', 'جي': 'ح', 'ج': 'ح',
     'حاء': 'ح', 'حه': 'ح', 'حة': 'ح', 'حا': 'ح', 'حي': 'ح', 'حى': 'ح', 'ح': 'ح', 'الحاء': 'ح', 'الحه': 'ح', 'خاء': 'ح', 'خه': 'ح',
+    'ha': 'ح', 'haa': 'ح', 'heh': 'ح',
     // حرف الدال
     'دال': 'د', 'ده': 'د', 'دة': 'د', 'دا': 'د', 'دي': 'د', 'دى': 'د', 'د': 'د', 'الدال': 'د', 'ذال': 'د', 'ذه': 'د', 'دلو': 'د',
+    'dal': 'د', 'del': 'د', 'da': 'د',
     // حرف الراء
     'راء': 'ر', 'ره': 'ر', 'رة': 'ر', 'را': 'ر', 'ري': 'ر', 'رى': 'ر', 'ر': 'ر', 'الراء': 'ر', 'الره': 'ر', 'رع': 'ر', 'زين': 'ر', 'زه': 'ر', 'زاي': 'ر',
+    'ra': 'ر', 'raa': 'ر', 'reh': 'ر',
     // حرف السين
     'سين': 'س', 'سه': 'س', 'سة': 'س', 'سا': 'س', 'سي': 'س', 'سى': 'س', 'س': 'س', 'السين': 'س', 'شين': 'س', 'شه': 'س', 'ثاء': 'س', 'ثه': 'س',
+    'seen': 'س', 'sin': 'س', 'sen': 'س',
     // حرف الصاد
     'صاد': 'ص', 'صاه': 'ص', 'صه': 'ص', 'صة': 'ص', 'صا': 'ص', 'صي': 'ص', 'ص': 'ص', 'الصاد': 'ص', 'ضاد': 'ص', 'ضه': 'ص', 'صوت': 'ص', 'صاط': 'ص',
+    'sad': 'ص', 'saad': 'ص',
     // حرف الطاء
     'طاء': 'ط', 'طه': 'ط', 'طة': 'ط', 'طا': 'ط', 'طي': 'ط', 'طى': 'ط', 'ط': 'ط', 'الطاء': 'ط', 'ظاء': 'ط', 'ظه': 'ط', 'طايه': 'ط',
+    'ta': 'ط', 'taa': 'ط', 'tah': 'ط',
     // حرف العين
     'عين': 'ع', 'عه': 'ع', 'عة': 'ع', 'عن': 'ع', 'عاين': 'ع', 'عا': 'ع', 'عي': 'ع', 'عى': 'ع', 'ع': 'ع', 'العين': 'ع', 'غين': 'ع', 'غه': 'ع', 'عام': 'ع',
+    'ain': 'ع', 'ayn': 'ع', 'ein': 'ع',
     // حرف الفاء والقاف
     'فاء': 'ق', 'فه': 'ق', 'فة': 'ق', 'فا': 'ق', 'في': 'ق', 'ف': 'ق',
     'قاف': 'ق', 'قه': 'ق', 'قة': 'ق', 'قا': 'ق', 'قف': 'ق', 'قي': 'ق', 'ق': 'ق', 'القاف': 'ق', 'كافيه': 'ق',
+    'qaf': 'ق', 'kaf': 'ك',
     // حرف الكاف
     'كاف': 'ك', 'كه': 'ك', 'كة': 'ك', 'كا': 'ك', 'كي': 'ك', 'كى': 'ك', 'ك': 'ك', 'الكاف': 'ك', 'كف': 'ك', 'كافي': 'ك',
     // حرف اللام
     'لام': 'ل', 'له': 'ل', 'لة': 'ل', 'لا': 'ل', 'لي': 'ل', 'لى': 'ل', 'ل': 'ل', 'اللام': 'ل', 'لم': 'ل', 'لان': 'ل',
+    'lam': 'ل',
     // حرف الميم
     'ميم': 'م', 'مه': 'م', 'مة': 'م', 'ما': 'م', 'مي': 'م', 'مى': 'م', 'مين': 'م', 'م': 'م', 'الميم': 'م', 'من': 'م',
+    'meem': 'م', 'mim': 'م',
     // حرف النون
     'نون': 'ن', 'نه': 'ن', 'نة': 'ن', 'نا': 'ن', 'ني': 'ن', 'نى': 'ن', 'ن': 'ن', 'النون': 'ن', 'نور': 'ن', 'نوم': 'ن',
+    'noon': 'ن', 'non': 'ن', 'nun': 'ن',
     // حرف الهاء
     'هاء': 'ه', 'هه': 'ه', 'هة': 'ه', 'ها': 'ه', 'هي': 'ه', 'هى': 'ه', 'هـ': 'ه', 'ه': 'ه', 'الهاء': 'ه',
     // حرف الواو
     'واو': 'و', 'وه': 'و', 'وة': 'و', 'وا': 'و', 'وي': 'و', 'وى': 'و', 'و': 'و', 'الواو': 'و', 'وو': 'و',
+    'waw': 'و', 'wow': 'و',
     // حرف الياء
     'ياء': 'ي', 'يه': 'ي', 'ية': 'ي', 'يا': 'ي', 'يي': 'ي', 'ى': 'ي', 'ي': 'ي', 'الياء': 'ي', 'اليه': 'ي',
+    'ya': 'ي', 'yaa': 'ي', 'yeh': 'ي',
   };
 
-  // الاختصارات والكلمات المدمجة التي يدمجها محرك صوت جوجل باللهجة المصرية
+  // الاختصارات والكلمات المدمجة باللهجة المصرية
   static final Map<String, List<String>> compounds = {
     'واوقاف': ['و', 'ق'], 'أوقاف': ['و', 'ق'], 'اوقاف': ['و', 'ق'],
     'واوساط': ['و', 'ص'], 'أوساط': ['و', 'ص'], 'اوساط': ['و', 'ص'],
@@ -547,85 +562,79 @@ class SheekhaFullEngine {
 
   // قاموس الأرقام المنطوقة باللهجة المصرية والعربية
   static final Map<String, String> digitsMap = {
-    'صفر': '0', 'صِفر': '0', 'زيرو': '0',
-    'واحد': '1', 'واحده': '1', 'واحدة': '1', 'وحد': '1',
-    'اتنين': '2', 'اثنين': '2', 'إثنين': '2', 'تنين': '2', 'اثنان': '2', 'اتنان': '2',
-    'تلاته': '3', 'ثلاثة': '3', 'تلات': '3', 'تلاتة': '3', 'ثلاثه': '3', 'ثلاث': '3',
-    'اربعة': '4', 'اربعه': '4', 'أربعة': '4', 'أربعه': '4', 'اربع': '4', 'أربع': '4',
-    'خمسه': '5', 'خمسة': '5', 'خمس': '5', 'خامسه': '5',
-    'سته': '6', 'ستة': '6', 'ست': '6', 'سيتة': '6',
-    'سبعه': '7', 'سبعة': '7', 'سبع': '7', 'سابعه': '7',
-    'تمانيه': '8', 'ثمانية': '8', 'ثمانيه': '8', 'تمانية': '8', 'تمن': '8', 'ثمن': '8',
-    'تسعه': '9', 'تسعة': '9', 'تسع': '9', 'تيسعة': '9',
+    'صفر': '0', 'صِفر': '0', 'زيرو': '0', 'zero': '0',
+    'واحد': '1', 'واحده': '1', 'واحدة': '1', 'وحد': '1', 'one': '1', 'wahid': '1',
+    'اتنين': '2', 'اثنين': '2', 'إثنين': '2', 'تنين': '2', 'اثنان': '2', 'اتنان': '2', 'two': '2',
+    'تلاته': '3', 'ثلاثة': '3', 'تلات': '3', 'تلاتة': '3', 'ثلاثه': '3', 'ثلاث': '3', 'three': '3',
+    'اربعة': '4', 'اربعه': '4', 'أربعة': '4', 'أربعه': '4', 'اربع': '4', 'أربع': '4', 'four': '4',
+    'خمسه': '5', 'خمسة': '5', 'خمس': '5', 'خامسه': '5', 'five': '5', 'khamsa': '5',
+    'سته': '6', 'ستة': '6', 'ست': '6', 'سيتة': '6', 'six': '6', 'sitta': '6',
+    'سبعه': '7', 'سبعة': '7', 'سبع': '7', 'سابعه': '7', 'seven': '7', 'sabaa': '7',
+    'تمانيه': '8', 'ثمانية': '8', 'ثمانيه': '8', 'تمانية': '8', 'تمن': '8', 'ثمن': '8', 'eight': '8',
+    'تسعه': '9', 'تسعة': '9', 'تسع': '9', 'تيسعة': '9', 'nine': '9', 'tisaa': '9',
   };
 
   // 2. قاموس أنواع السيارات الذكي (شاملاً الـ 27 ماركة + الأنواع التجارية في الفيديو وبدائل نطقها)
   static final Map<String, List<String>> vehicleTypesMap = {
-    // الأنواع التجارية (التي تظهر في الفيديو والشغل الميداني)
     'نقل عام': ['نقل عام', 'نقل عن', 'نقلي عام', 'نقل عمل'],
-    'جراند ماكس': ['جراند ماكس', 'قراند ماكس', 'جراند مكس', 'جراند', 'قراند'],
+    'جراند ماكس': ['جراند ماكس', 'قراند ماكس', 'جراند مكس', 'جراند', 'قراند', 'grand max'],
     'تلاجة كبيرة': ['تلاجة كبيرة', 'تلاجه كبيره', 'ثلاجة كبيرة', 'ثلاجه كبيره', 'تلاجه', 'ثلاجة', 'ثلاجه'],
-    'هاي اس': ['هاي اس', 'هايس', 'هاي آيس', 'هايسن', 'هاي ايس', 'هائس', 'هاي إس'],
-    'فان': ['فان', 'فن', 'فام', 'بان'],
+    'هاي اس': ['هاي اس', 'هايس', 'هاي آيس', 'هايسن', 'هاي ايس', 'هائس', 'هاي إس', 'hiace'],
+    'فان': ['فان', 'فن', 'فام', 'بان', 'van'],
     'نقل': ['نقل', 'نأل', 'ناقل', 'نقلي'],
-    'بيك اب': ['بيك اب', 'بيك آب', 'بيكب', 'دباب'],
-    'اتوبيس': ['اتوبيس', 'أتوبيس', 'باص', 'بص', 'ميكروباص'],
-    // الـ 27 ماركة المطلوبة مع جميع احتمالات كتابتها صوتياً
-    'تويوتا': ['تويوتا', 'تيوتا', 'تايوتا', 'توياتا'],
-    'نيسان': ['نيسان', 'نسان', 'نيسن'],
-    'مازدا': ['مازدا', 'مزدا', 'مازده', 'مزده'],
-    'هوندا': ['هوندا', 'هندا', 'هونده'],
-    'لكزس': ['لكزس', 'لكزيس', 'لاجسس', 'لكسز', 'لكسس'],
-    'سوزوكي': ['سوزوكي', 'سزوكي', 'سوزوكى', 'سوزكي'],
-    'هيونداي': ['هيونداي', 'هونداي', 'هينداي', 'هيونداى', 'هونداى'],
-    'كيا': ['كيا', 'كيه', 'كييا'],
-    'جينيسيس': ['جينيسيس', 'جنسس', 'جينسس', 'جنيسس'],
-    'فورد': ['فورد', 'فرد', 'فرود'],
-    'شيفروليه': ['شيفروليه', 'شفروليه', 'شيفرولية', 'شفرولية', 'شفر', 'شيفر'],
-    'جي إم سي': ['جي إم سي', 'جي ام سي', 'جيمس', 'جمس', 'جى ام سى'],
-    'كاديلاك': ['كاديلاك', 'كديلاك', 'كاديلك', 'كدلك'],
-    'رام': ['رام', 'رم'],
-    'هافال': ['هافال', 'هفال', 'هافل'],
-    'شانجان': ['شانجان', 'شنجان', 'شانقان', 'شنقان'],
-    'جيلي': ['جيلي', 'جلى', 'جيلى', 'جلي'],
-    'جيتور': ['جيتور', 'جتور', 'جيتار'],
-    'إم جي': ['إم جي', 'ام جي', 'ام جى', 'إم جى', 'امجي'],
-    'شيري': ['شيري', 'شيرى', 'شري', 'شرى'],
-    'بي واي دي': ['بي واي دي', 'بى واى دى', 'بي وايدي'],
-    'مرسيدس-بنز': ['مرسيدس بنز', 'مرسيدس-بنز', 'مرسيدس', 'مرسيديس', 'بنز'],
-    'بي إم دبليو': ['بي إم دبليو', 'بي ام دبليو', 'بى ام دبليو', 'بي ام', 'بى ام'],
-    'أودي': ['أودي', 'اودي', 'أودى', 'اودى'],
-    'فولكس فاجن': ['فولكس فاجن', 'فولكس واجن', 'فولكس', 'فوكس فاجن', 'فولكسفاجن'],
-    'لاند روفر': ['لاند روفر', 'لاندروفر', 'رنج روفر', 'رانج روفر'],
-    'بورش': ['بورش', 'بورشه', 'بورشيه'],
+    'بيك اب': ['بيك اب', 'بيك آب', 'بيكب', 'دباب', 'pickup'],
+    'اتوبيس': ['اتوبيس', 'أتوبيس', 'باص', 'بص', 'ميكروباص', 'bus'],
+    'تويوتا': ['تويوتا', 'تيوتا', 'تايوتا', 'توياتا', 'toyota'],
+    'نيسان': ['نيسان', 'نسان', 'نيسن', 'nissan'],
+    'مازدا': ['مازدا', 'مزدا', 'مازده', 'مزده', 'mazda'],
+    'هوندا': ['هوندا', 'هندا', 'هونده', 'honda'],
+    'لكزس': ['لكزس', 'لكزيس', 'لاجسس', 'لكسز', 'لكسس', 'lexus'],
+    'سوزوكي': ['سوزوكي', 'سزوكي', 'سوزوكى', 'سوزكي', 'suzuki'],
+    'هيونداي': ['هيونداي', 'هونداي', 'هينداي', 'هيونداى', 'هونداى', 'hyundai'],
+    'كيا': ['كيا', 'كيه', 'كييا', 'kia'],
+    'جينيسيس': ['جينيسيس', 'جنسس', 'جينسس', 'جنيسس', 'genesis'],
+    'فورد': ['فورد', 'فرد', 'فرود', 'ford'],
+    'شيفروليه': ['شيفروليه', 'شفروليه', 'شيفرولية', 'شفرولية', 'شفر', 'شيفر', 'chevrolet', 'chevy'],
+    'جي إم سي': ['جي إم سي', 'جي ام سي', 'جيمس', 'جمس', 'جى ام سى', 'gmc'],
+    'كاديلاك': ['كاديلاك', 'كديلاك', 'كاديلك', 'كدلك', 'cadillac'],
+    'رام': ['رام', 'رم', 'ram'],
+    'هافال': ['هافال', 'هفال', 'هافل', 'haval'],
+    'شانجان': ['شانجان', 'شنجان', 'شانقان', 'شنقان', 'changan'],
+    'جيلي': ['جيلي', 'جلى', 'جيلى', 'جلي', 'geely'],
+    'جيتور': ['جيتور', 'جتور', 'جيتار', 'jetour'],
+    'إم جي': ['إم جي', 'ام جي', 'ام جى', 'إم جى', 'امجي', 'mg'],
+    'شيري': ['شيري', 'شيرى', 'شري', 'شرى', 'chery'],
+    'بي واي دي': ['بي واي دي', 'بى واى دى', 'بي وايدي', 'byd'],
+    'مرسيدس-بنز': ['مرسيدس بنز', 'مرسيدس-بنز', 'مرسيدس', 'مرسيديس', 'بنز', 'mercedes', 'benz'],
+    'بي إم دبليو': ['بي إم دبليو', 'بي ام دبليو', 'بى ام دبليو', 'بي ام', 'بى ام', 'bmw'],
+    'أودي': ['أودي', 'اودي', 'أودى', 'اودى', 'audi'],
+    'فولكس فاجن': ['فولكس فاجن', 'فولكس واجن', 'فولكس', 'فوكس فاجن', 'فولكسفاجن', 'volkswagen', 'vw'],
+    'لاند روفر': ['لاند روفر', 'لاندروفر', 'رنج روفر', 'رانج روفر', 'land rover', 'range rover'],
+    'بورش': ['بورش', 'بورشه', 'بورشيه', 'porsche'],
     'ملاكي': ['ملاكي', 'ملاكى', 'خصوصي', 'سيدان'],
   };
 
-  // دالة استخراج نوع السيارة من أي نص منطوق (Fuzzy Vehicle Matcher)
   static String? extractVehicleType(String text) {
-    String clean = text.trim();
+    String clean = text.trim().toLowerCase();
     if (clean.isEmpty) return null;
 
-    // 1. فحص ذاكرة التعلم الشخصي أولاً
     for (var entry in userLearnedMap.entries) {
       if (vehicleTypesMap.containsKey(entry.value) && clean.contains(entry.key)) {
         return entry.value;
       }
     }
 
-    // 2. فحص العبارات متعددة الكلمات أولاً (مثل: نقل عام، جراند ماكس، تلاجة كبيرة، جي إم سي)
     for (var entry in vehicleTypesMap.entries) {
       for (String synonym in entry.value) {
-        if (synonym.contains(' ') && clean.contains(synonym)) {
+        if (synonym.contains(' ') && clean.contains(synonym.toLowerCase())) {
           return entry.key;
         }
       }
     }
 
-    // 3. فحص الكلمات المفردة
     List<String> words = clean.split(RegExp(r'\s+'));
     for (String w in words) {
-      String cw = w.replaceAll(RegExp(r'[^\u0621-\u064A]'), '');
+      String cw = w.replaceAll(RegExp(r'[^\u0621-\u064Aa-z]'), '');
       if (cw.isEmpty) continue;
 
       if (userLearnedMap.containsKey(cw) && vehicleTypesMap.containsKey(userLearnedMap[cw])) {
@@ -634,7 +643,8 @@ class SheekhaFullEngine {
 
       for (var entry in vehicleTypesMap.entries) {
         for (String synonym in entry.value) {
-          if (cw == synonym || (cw.length >= 3 && cw.startsWith('ال') && cw.substring(2) == synonym)) {
+          String synLower = synonym.toLowerCase();
+          if (cw == synLower || (cw.length >= 3 && cw.startsWith('ال') && cw.substring(2) == synLower)) {
             return entry.key;
           }
         }
@@ -643,18 +653,16 @@ class SheekhaFullEngine {
     return null;
   }
 
-  // المحرك الرئيسي لفلترة النص واستخراج (3 حروف + 4 أرقام + النوع إن وُجد) وتجاهل الكلام العادي
   static Map<String, dynamic>? parsePlateAndType(String text) {
     if (text.trim().isEmpty) return null;
 
     String normalized = normalizeDigits(text);
 
-    // استخراج النوع من النص قبل تقطيع الحروف والأرقام، وحذفه من الجملة حتى لا تتداخل حروفه مع حروف اللوحة
     String? detectedType = extractVehicleType(normalized);
     String textForPlate = normalized;
     if (detectedType != null && vehicleTypesMap.containsKey(detectedType)) {
       for (String syn in vehicleTypesMap[detectedType]!) {
-        textForPlate = textForPlate.replaceAll(syn, ' ');
+        textForPlate = textForPlate.replaceAll(RegExp(syn, caseSensitive: false), ' ');
       }
     }
 
@@ -662,10 +670,9 @@ class SheekhaFullEngine {
     List<String> stream = [];
 
     for (String token in rawTokens) {
-      String w = token.replaceAll(RegExp(r'[^\u0621-\u064A0-9]'), '');
+      String w = token.toLowerCase().replaceAll(RegExp(r'[^\u0621-\u064Aa-z0-9]'), '');
       if (w.isEmpty) continue;
 
-      // أ) فحص ذاكرة التعلم الشخصي للمستخدم أولاً
       if (userLearnedMap.containsKey(w)) {
         String learned = userLearnedMap[w]!;
         if (RegExp(r'^\d+$').hasMatch(learned)) {
@@ -680,24 +687,15 @@ class SheekhaFullEngine {
         }
       }
 
-      // ب) فحص الأرقام المنطوقة
       if (digitsMap.containsKey(w)) {
         stream.add(digitsMap[w]!);
-      }
-      // ج) فحص الأرقام المتصلة (مثل 2517)
-      else if (RegExp(r'^\d+$').hasMatch(w)) {
+      } else if (RegExp(r'^\d+$').hasMatch(w)) {
         for (int i = 0; i < w.length; i++) stream.add(w[i]);
-      }
-      // د) فحص الكلمات المركبة
-      else if (compounds.containsKey(w)) {
+      } else if (compounds.containsKey(w)) {
         stream.addAll(compounds[w]!);
-      }
-      // هـ) فحص قاموس الحروف والبدائل المصرية
-      else if (lettersMap.containsKey(w)) {
+      } else if (lettersMap.containsKey(w)) {
         stream.add(lettersMap[w]!);
-      }
-      // و) فحص الحروف المفردة فقط (وتجاهل الكلمات العادية الطويلة مثل: "مش"، "عارف"، "اللهم"، "خلينا")
-      else if (w.length == 1 && RegExp(r'[\u0621-\u064A]').hasMatch(w)) {
+      } else if (w.length == 1 && RegExp(r'[\u0621-\u064A]').hasMatch(w)) {
         String ch = w;
         if (lettersMap.containsKey(ch)) {
           stream.add(lettersMap[ch]!);
@@ -707,7 +705,6 @@ class SheekhaFullEngine {
       }
     }
 
-    // البحث عن نمط لوحة صحيحة وسط الكلام (3 حروف متتالية أو حرفين + 3 أو 4 أرقام)
     List<String> letters = [];
     String digitsStr = '';
 
@@ -721,14 +718,12 @@ class SheekhaFullEngine {
         if (digitsStr.length >= 3 && letters.length >= 2) {
           break;
         } else if (digitsStr.isNotEmpty && digitsStr.length < 3) {
-          // إذا قُطعت الأرقام قبل اكتمالها نبدأ تجميع لوحة جديدة
           letters = [item];
           digitsStr = '';
         } else {
           if (letters.length < 3) {
             letters.add(item);
           } else {
-            // نافذة متحركة لآخر 3 حروف تم نطقها قبل الأرقام مباشرة (لتجاهل أي حرف عابر في الكلام السابق)
             letters.removeAt(0);
             letters.add(item);
           }
@@ -788,8 +783,8 @@ class _SheekhaHomeScreenState extends State<SheekhaHomeScreen> {
   final Map<String, DateTime> _cooldowns = {};
   final stt.SpeechToText _speech = stt.SpeechToText();
   bool _speechEnabled = false;
+  String? _arabicLocaleId;
 
-  // متغيرات State Machine للانتظار الذكي للوحات التي تبدأ بـ (أ) أو (ب)
   Timer? _pendingPlateTimer;
   Map<String, String>? _pendingPlate;
   DateTime? _lastRegisteredTime;
@@ -845,6 +840,30 @@ class _SheekhaHomeScreenState extends State<SheekhaHomeScreen> {
           }
         },
       );
+
+      if (available) {
+        // اكتشاف كود اللغة العربية المتاح فعلياً في محرك صوت الأندرويد على الهاتف
+        var locales = await _speech.locales();
+        stt.LocaleName? arLocale;
+        for (var loc in locales) {
+          String id = loc.localeId.toLowerCase();
+          if (id == 'ar-eg' || id == 'ar_eg') {
+            arLocale = loc;
+            break;
+          }
+        }
+        if (arLocale == null) {
+          for (var loc in locales) {
+            String id = loc.localeId.toLowerCase();
+            if (id == 'ar-sa' || id == 'ar_sa' || id.startsWith('ar')) {
+              arLocale = loc;
+              break;
+            }
+          }
+        }
+        _arabicLocaleId = arLocale?.localeId;
+      }
+
       setState(() => _speechEnabled = available);
     } catch (_) {}
   }
@@ -875,14 +894,9 @@ class _SheekhaHomeScreenState extends State<SheekhaHomeScreen> {
       }
       setState(() {
         _isListening = true;
-        _currentStatusText = AppStrings.isAr ? 'جاري تجهيز القاموس...' : 'Preparing...';
+        _currentStatusText = AppStrings.listeningNow;
       });
-      // تهيئة سريعة لتحميل القاموس والميكروفون قبل بدء الاستماع المباشر
-      await Future.delayed(const Duration(milliseconds: 500));
-      if (mounted && _isListening) {
-        setState(() => _currentStatusText = AppStrings.listeningNow);
-        _startListeningSession();
-      }
+      _startListeningSession();
     }
   }
 
@@ -905,7 +919,7 @@ class _SheekhaHomeScreenState extends State<SheekhaHomeScreen> {
     if (!_isListening) return;
 
     await _speech.listen(
-      localeId: 'ar_EG',
+      localeId: _arabicLocaleId,
       listenMode: stt.ListenMode.dictation,
       partialResults: true,
       cancelOnError: false,
@@ -921,7 +935,6 @@ class _SheekhaHomeScreenState extends State<SheekhaHomeScreen> {
 
         setState(() => _currentStatusText = spoken);
 
-        // 1. إذا كانت هناك لوحة تبدأ بـ (أ أو ب) في نافذة الانتظار وسمعنا نوعها الآن
         if (_pendingPlate != null) {
           String? lateType = SheekhaFullEngine.extractVehicleType(spoken);
           if (lateType != null) {
@@ -933,7 +946,6 @@ class _SheekhaHomeScreenState extends State<SheekhaHomeScreen> {
           }
         }
 
-        // 2. تحليل النص المنطوق لاستخراج اللوحة والنوع
         var plateData = SheekhaFullEngine.parsePlateAndType(spoken);
         if (plateData != null) {
           String letters = plateData['letters']!;
@@ -943,7 +955,6 @@ class _SheekhaHomeScreenState extends State<SheekhaHomeScreen> {
           bool startsWithAlefOrBaa = plateData['startsWithAlefOrBaa'] == true;
           String key = '$letters-$digits';
 
-          // لو نفس اللوحة المعلقة في الانتظار نُطق معها النوع في التحديث اللحظي
           if (_pendingPlate != null && _pendingPlate!['key'] == key) {
             if (hasExplicitType) {
               _pendingPlate!['type'] = carType;
@@ -954,7 +965,6 @@ class _SheekhaHomeScreenState extends State<SheekhaHomeScreen> {
             return;
           }
 
-          // لو دخلت لوحة جديدة بينما توجد لوحة سابقة في الانتظار، سجل السابقة فوراً
           if (_pendingPlate != null && _pendingPlate!['key'] != key) {
             _commitPendingPlateNow();
           }
@@ -964,14 +974,12 @@ class _SheekhaHomeScreenState extends State<SheekhaHomeScreen> {
               now.difference(_cooldowns[key]!).inSeconds < 5;
 
           if (!isRecent) {
-            // انتظر اكتمال الـ 4 أرقام أولاً (إلا لو توقف الصوت وكان 3 أرقام)
             if (digits.length < 4 && !result.finalResult) {
               return;
             }
 
             _cooldowns[key] = now;
 
-            // السر الثالث: اللوحات التي تبدأ بـ (أ) أو (ب) تنتظر ثانيتين لسماع النوع إذا لم يُنطق معها
             if (startsWithAlefOrBaa && !hasExplicitType) {
               _pendingPlate = {
                 'key': key,
@@ -988,13 +996,11 @@ class _SheekhaHomeScreenState extends State<SheekhaHomeScreen> {
                 }
               });
             } else {
-              // اللوحات العادية (أو التي قيل نوعها معها) تنزل في الجدول فوراً بدون انتظار
               _registerDetectedPlate(letters, digits, carType, rawSpoken: spoken);
               _resetSpeechStreamForNextPlate();
             }
           }
         } else {
-          // 3. لو نطق المستخدم النوع متأخراً بعد نزول اللوحة في الجدول مباشرة (خلال 6 ثوانٍ)
           if (_records.isNotEmpty && _lastRegisteredTime != null) {
             if (DateTime.now().difference(_lastRegisteredTime!).inSeconds <= 6) {
               String? standaloneType = SheekhaFullEngine.extractVehicleType(spoken);
@@ -1366,7 +1372,6 @@ class _SheekhaHomeScreenState extends State<SheekhaHomeScreen> {
     }
   }
 
-  // تعديل السجل يدوياً مع حفظ النطق في القاموس الشخصي للتعلم التلقائي 100%
   void _editRecordManually(int index) {
     var rec = _records[index];
     String oldLettersStr = rec['letters'] ?? '';
@@ -1444,12 +1449,10 @@ class _SheekhaHomeScreenState extends State<SheekhaHomeScreen> {
               String newTypeStr = typCtrl.text.trim();
               String customWrongWord = wrongWordCtrl.text.trim();
 
-              // تنسيق الحروف بمسافة بين كل حرف وآخر لو كتبها متصلة
               if (newLettersStr.isNotEmpty && !newLettersStr.contains(' ') && newLettersStr.length <= 3) {
                 newLettersStr = newLettersStr.split('').join(' ');
               }
 
-              // 1. إذا كتب المستخدم كلمة محددة يريد تعليمها للقاموس
               if (customWrongWord.isNotEmpty) {
                 if (newTypeStr != oldTypeStr) {
                   await SheekhaFullEngine.learnNewPronunciation(customWrongWord, newTypeStr);
@@ -1458,7 +1461,6 @@ class _SheekhaHomeScreenState extends State<SheekhaHomeScreen> {
                 }
               }
 
-              // 2. التعلم الذكي التلقائي بمقارنة ما سمعه الميكروفون بالحروف التي عدلها المستخدم
               if (rawSpoken.isNotEmpty && newLettersStr != oldLettersStr) {
                 List<String> oldL = oldLettersStr.split(RegExp(r'\s+'));
                 List<String> newL = newLettersStr.split(RegExp(r'\s+'));
