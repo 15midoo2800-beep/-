@@ -14,7 +14,7 @@ import 'package:url_launcher/url_launcher.dart';
 
 void main() => runApp(const MyApp());
 
-// نظام حماية التراخيص والتحكم عن بُعد
+// نظام حماية التراخيص والتحكم عن بُعد (النسخة التجارية الذكية والآمنة)
 class RasedLicenseManager {
   static const String _secretSalt = "RASED_PRO_2026_SECRET_KEY";
   
@@ -79,8 +79,16 @@ class RasedLicenseManager {
     }
   }
 
-  // التحقق السحابي من حالة العميل (مع دعم إعادة التوجيه لـ GitHub ومانع الإيقاف)
+  // التحقق السحابي التجاري والذكي
   static Future<Map<String, dynamic>> checkRemoteStatus(String myDeviceId, String currentExpiryIso) async {
+    final prefs = await SharedPreferences.getInstance();
+    
+    // 1. فحص هل تم حظر هذا الجهاز مسبقاً من الإدارة وتم تخزين الحظر محلياً (يمنع العمل حتى لو قطع الإنترنت)
+    bool isPermanentlyBanned = prefs.getBool('rased_perm_ban_$myDeviceId') ?? false;
+    if (isPermanentlyBanned) {
+      return {'allowed': false, 'reason': 'تم إيقاف اشتراكك من قِبل الإدارة'};
+    }
+
     try {
       if (remoteControlJsonUrl.contains("YOUR_USERNAME")) {
         DateTime exp = DateTime.parse(currentExpiryIso);
@@ -89,7 +97,7 @@ class RasedLicenseManager {
 
       Uri uri = Uri.parse("$remoteControlJsonUrl?t=${DateTime.now().millisecondsSinceEpoch}");
       HttpClient client = HttpClient();
-      client.connectionTimeout = const Duration(seconds: 5);
+      client.connectionTimeout = const Duration(seconds: 6);
       
       HttpClientRequest req = await client.getUrl(uri);
       HttpClientResponse res = await req.close();
@@ -109,15 +117,22 @@ class RasedLicenseManager {
       if (res.statusCode == 200) {
         String body = await res.transform(utf8.decoder).join();
         List<dynamic> list = json.decode(body);
+        
         for (var item in list) {
           if (item['deviceId'].toString().toUpperCase() == myDeviceId.toUpperCase()) {
             bool active = item['isActive'] ?? true;
+            
             if (!active) {
+              // 2. إذا تم إيقافه من اللوحة، نقوم بتسجيل حظره محلياً للأبد ليقفل فوراً
+              await prefs.setBool('rased_perm_ban_$myDeviceId', true);
               return {'allowed': false, 'reason': 'تم إيقاف اشتراكك من قِبل الإدارة'};
+            } else {
+              // إذا أعيد تفعيله من اللوحة، نزيل الحظر المحلي
+              await prefs.setBool('rased_perm_ban_$myDeviceId', false);
             }
+
             if (item['expiry'] != null) {
               DateTime remoteExp = DateTime.parse("${item['expiry']}T23:59:59");
-              final prefs = await SharedPreferences.getInstance();
               await prefs.setString('rased_license_expiry', remoteExp.toIso8601String());
               if (DateTime.now().isAfter(remoteExp)) {
                 return {'allowed': false, 'reason': 'انتهت فترة اشتراكك، يرجى التجديد'};
@@ -127,7 +142,9 @@ class RasedLicenseManager {
           }
         }
       }
-    } catch (_) {}
+    } catch (_) {
+      // 3. في حالة انقطاع الإنترنت العرضي، نسمح للعميل بالعمل الطبيعي طالما لم يصدر بحقه أمر حظر مسبق
+    }
 
     DateTime exp = DateTime.parse(currentExpiryIso);
     if (DateTime.now().isAfter(exp)) {
