@@ -457,7 +457,7 @@ class _SubscriptionGateScreenState extends State<SubscriptionGateScreen> with Wi
   }
 }
 
-// محرك المعالجة الصوتي الذكي (الأسرار الأربعة + مصفوفة اللهجة المصرية + قاموس السيارات + التعلم الشخصي)
+// محرك المعالجة الصوتي السريع والدقيق
 class SheekhaFullEngine {
   static Map<String, String> userLearnedMap = {};
 
@@ -467,13 +467,13 @@ class SheekhaFullEngine {
       final String? saved = prefs.getString('rased_user_learned_pronunciations');
       if (saved != null && saved.isNotEmpty) {
         Map<String, dynamic> decoded = json.decode(saved);
-        userLearnedMap = decoded.map((k, v) => MapEntry(k.toString().toLowerCase(), v.toString()));
+        userLearnedMap = decoded.map((k, v) => MapEntry(k.toString().trim(), v.toString().trim()));
       }
     } catch (_) {}
   }
 
   static Future<void> learnNewPronunciation(String wrongSpokenWord, String correctTarget) async {
-    String cleanSpoken = wrongSpokenWord.trim().toLowerCase().replaceAll(RegExp(r'[^\u0621-\u064Aa-z0-9\s]'), '');
+    String cleanSpoken = wrongSpokenWord.trim().replaceAll(RegExp(r'[^\u0621-\u064A0-9\s]'), '');
     String cleanTarget = correctTarget.trim();
     if (cleanSpoken.isEmpty || cleanTarget.isEmpty) return;
 
@@ -484,129 +484,122 @@ class SheekhaFullEngine {
     } catch (_) {}
   }
 
-  // 1. مصفوفة اللهجة المصرية والنطق الشخصي للحروف
+  // مصفوفة الحروف الدقيقة بدون أي تبديل أو تقريب مشوه للحروف
   static final Map<String, String> lettersMap = {
-    'الف': 'أ', 'ألف': 'أ', 'إلف': 'أ', 'آلف': 'أ', 'الالف': 'أ', 'الألف': 'أ',
-    'ا': 'أ', 'أ': 'أ', 'إ': 'أ', 'آ': 'أ', 'ء': 'أ', 'اه': 'أ', 'أة': 'أ', 'همزه': 'أ', 'همزة': 'أ',
-    'alif': 'أ', 'alef': 'أ', 'alfa': 'أ', 'alpha': 'أ',
-
-    'باء': 'ب', 'به': 'ب', 'بة': 'ب', 'با': 'ب', 'بي': 'ب', 'بى': 'ب', 'ب': 'ب', 'الباء': 'ب', 'البه': 'ب', 'تاء': 'ب', 'ته': 'ب',
-    'ba': 'ب', 'baa': 'ب', 'beh': 'ب',
-
-    'جيم': 'ح', 'جه': 'ح', 'جا': 'ح', 'جي': 'ح', 'ج': 'ح',
-    'حاء': 'ح', 'حه': 'ح', 'حة': 'ح', 'حا': 'ح', 'حي': 'ح', 'حى': 'ح', 'ح': 'ح', 'الحاء': 'ح', 'الحه': 'ح', 'خاء': 'ح', 'خه': 'ح',
-    'ha': 'ح', 'haa': 'ح', 'heh': 'ح',
-
-    'دال': 'د', 'ده': 'د', 'دة': 'د', 'دا': 'د', 'دي': 'د', 'دى': 'د', 'د': 'د', 'الدال': 'د', 'ذال': 'د', 'ذه': 'د', 'دلو': 'د',
-    'dal': 'د', 'del': 'د', 'da': 'د',
-
-    'راء': 'ر', 'ره': 'ر', 'رة': 'ر', 'را': 'ر', 'ري': 'ر', 'رى': 'ر', 'ر': 'ر', 'الراء': 'ر', 'الره': 'ر', 'رع': 'ر', 'زين': 'ر', 'زه': 'ر', 'زاي': 'ر',
-    'ra': 'ر', 'raa': 'ر', 'reh': 'ر',
-
-    'سين': 'س', 'سه': 'س', 'سة': 'س', 'سا': 'س', 'سي': 'س', 'سى': 'س', 'س': 'س', 'السين': 'س', 'شين': 'س', 'شه': 'س', 'ثاء': 'س', 'ثه': 'س',
-    'seen': 'س', 'sin': 'س', 'sen': 'س',
-
-    'صاد': 'ص', 'صاه': 'ص', 'صه': 'ص', 'صة': 'ص', 'صا': 'ص', 'صي': 'ص', 'ص': 'ص', 'الصاد': 'ص', 'ضاد': 'ص', 'ضه': 'ص', 'صوت': 'ص', 'صاط': 'ص',
-    'sad': 'ص', 'saad': 'ص',
-
-    'طاء': 'ط', 'طه': 'ط', 'طة': 'ط', 'طا': 'ط', 'طي': 'ط', 'طى': 'ط', 'ط': 'ط', 'الطاء': 'ط', 'ظاء': 'ط', 'ظه': 'ط', 'طايه': 'ط',
-    'ta': 'ط', 'taa': 'ط', 'tah': 'ط',
-
-    'عين': 'ع', 'عه': 'ع', 'عة': 'ع', 'عن': 'ع', 'عاين': 'ع', 'عا': 'ع', 'عي': 'ع', 'عى': 'ع', 'ع': 'ع', 'العين': 'ع', 'غين': 'ع', 'غه': 'ع', 'عام': 'ع',
-    'ain': 'ع', 'ayn': 'ع', 'ein': 'ع',
-
-    'فاء': 'ق', 'فه': 'ق', 'فة': 'ق', 'فا': 'ق', 'في': 'ق', 'ف': 'ق',
-    'قاف': 'ق', 'قه': 'ق', 'قة': 'ق', 'قا': 'ق', 'قف': 'ق', 'قي': 'ق', 'ق': 'ق', 'القاف': 'ق', 'كافيه': 'ق',
-    'qaf': 'ق', 'kaf': 'ك',
-
-    'كاف': 'ك', 'كه': 'ك', 'كة': 'ك', 'كا': 'ك', 'كي': 'ك', 'كى': 'ك', 'ك': 'ك', 'الكاف': 'ك', 'كف': 'ك', 'كافي': 'ك',
-
-    'لام': 'ل', 'له': 'ل', 'لة': 'ل', 'لا': 'ل', 'لي': 'ل', 'لى': 'ل', 'ل': 'ل', 'اللام': 'ل', 'لم': 'ل', 'لان': 'ل',
-    'lam': 'ل',
-
-    'ميم': 'م', 'مه': 'م', 'مة': 'م', 'ما': 'م', 'مي': 'م', 'مى': 'م', 'مين': 'م', 'م': 'م', 'الميم': 'م', 'من': 'م',
-    'meem': 'م', 'mim': 'م',
-
-    'نون': 'ن', 'نه': 'ن', 'نة': 'ن', 'نا': 'ن', 'ني': 'ن', 'نى': 'ن', 'ن': 'ن', 'النون': 'ن', 'نور': 'ن', 'نوم': 'ن',
-    'noon': 'ن', 'non': 'ن', 'nun': 'ن',
-
-    'هاء': 'ه', 'هه': 'ه', 'هة': 'ه', 'ها': 'ه', 'هي': 'ه', 'هى': 'ه', 'هـ': 'ه', 'ه': 'ه', 'الهاء': 'ه',
-
-    'واو': 'و', 'وه': 'و', 'وة': 'و', 'وا': 'و', 'وي': 'و', 'وى': 'و', 'و': 'و', 'الواو': 'و', 'وو': 'و',
-    'waw': 'و', 'wow': 'و',
-
-    'ياء': 'ي', 'يه': 'ي', 'ية': 'ي', 'يا': 'ي', 'يي': 'ي', 'ى': 'ي', 'ي': 'ي', 'الياء': 'ي', 'اليه': 'ي',
-    'ya': 'ي', 'yaa': 'ي', 'yeh': 'ي',
+    // أ
+    'الف': 'أ', 'ألف': 'أ', 'إلف': 'أ', 'ا': 'أ', 'أ': 'أ', 'إ': 'أ', 'آ': 'أ', 'ء': 'أ',
+    // ب
+    'باء': 'ب', 'به': 'ب', 'بة': 'ب', 'با': 'ب', 'بي': 'ب', 'ب': 'ب',
+    // ت
+    'تاء': 'ت', 'ته': 'ت', 'ت': 'ت',
+    // ث
+    'ثاء': 'ث', 'ثه': 'ث', 'ث': 'ث',
+    // ج
+    'جيم': 'ج', 'جه': 'ج', 'ج': 'ج',
+    // ح
+    'حاء': 'ح', 'حه': 'ح', 'حة': 'ح', 'حا': 'ح', 'ح': 'ح',
+    // خ
+    'خاء': 'خ', 'خه': 'خ', 'خ': 'خ',
+    // د
+    'دال': 'د', 'ده': 'د', 'دا': 'د', 'د': 'د',
+    // ذ
+    'ذال': 'ذ', 'ذه': 'ذ', 'ذ': 'ذ',
+    // ر
+    'راء': 'ر', 'ره': 'ر', 'رة': 'ر', 'را': 'ر', 'ر': 'ر',
+    // ز
+    'زين': 'ز', 'زه': 'ز', 'زا': 'ز', 'زاي': 'ز', 'ز': 'ز',
+    // س
+    'سين': 'س', 'سه': 'س', 'سا': 'س', 'س': 'س',
+    // ش
+    'شين': 'ش', 'شه': 'ش', 'شا': 'ش', 'ش': 'ش',
+    // ص
+    'صاد': 'ص', 'صاه': 'ص', 'صه': 'ص', 'صا': 'ص', 'ص': 'ص',
+    // ض
+    'ضاد': 'ض', 'ضه': 'ض', 'ضا': 'ض', 'ض': 'ض',
+    // ط
+    'طاء': 'ط', 'طه': 'ط', 'طا': 'ط', 'ط': 'ط',
+    // ظ
+    'ظاء': 'ظ', 'ظه': 'ظ', 'ظ': 'ظ',
+    // ع
+    'عين': 'ع', 'عه': 'ع', 'عا': 'ع', 'ع': 'ع',
+    // غ
+    'غين': 'غ', 'غه': 'غ', 'غ': 'غ',
+    // ف
+    'فاء': 'ف', 'فه': 'ف', 'فة': 'ف', 'فا': 'ف', 'ف': 'ف',
+    // ق
+    'قاف': 'ق', 'قه': 'ق', 'قا': 'ق', 'ق': 'ق',
+    // ك
+    'كاف': 'ك', 'كه': 'ك', 'كا': 'ك', 'ك': 'ك',
+    // ل
+    'لام': 'ل', 'له': 'ل', 'لا': 'ل', 'ل': 'ل',
+    // م
+    'ميم': 'م', 'مه': 'م', 'ما': 'م', 'م': 'م',
+    // ن
+    'نون': 'ن', 'نه': 'ن', 'نا': 'ن', 'ن': 'ن',
+    // هـ
+    'هاء': 'ه', 'هه': 'ه', 'ها': 'ه', 'ه': 'ه',
+    // و
+    'واو': 'و', 'وه': 'و', 'وا': 'و', 'و': 'و',
+    // ي
+    'ياء': 'ي', 'يه': 'ي', 'ية': 'ي', 'يا': 'ي', 'ى': 'ي', 'ي': 'ي',
   };
 
-  static final Map<String, List<String>> compounds = {
-    'واوقاف': ['و', 'ق'], 'أوقاف': ['و', 'ق'], 'اوقاف': ['و', 'ق'],
-    'واوساط': ['و', 'ص'], 'أوساط': ['و', 'ص'], 'اوساط': ['و', 'ص'],
-    'اوصاد': ['أ', 'و', 'ص'], 'أوصاد': ['أ', 'و', 'ص'], 'اوص': ['أ', 'و', 'ص'], 'أوص': ['أ', 'و', 'ص'],
-    'نوعين': ['ن', 'ع'], 'نهاء': ['ن', 'ه'], 'تقديم': ['ك', 'ه', 'ج'], 'خطه': ['خ', 'ط'],
-    'خطف': ['خ', 'ط', 'ف'], 'افلام': ['ل', 'ق'], 'لمن': ['ل', 'م', 'ن'],
-    'منوعين': ['م', 'ن', 'ع'], 'وعج': ['و', 'ع', 'ج'], 'عقب': ['ع', 'ق', 'ب'],
-    'راهدال': ['ر', 'د'], 'رهدال': ['ر', 'د'], 'رادال': ['ر', 'د'],
-    'عينرا': ['ع', 'ر'], 'عينره': ['ع', 'ر'], 'عرب': ['ع', 'ر', 'ب'],
-    'الفنون': ['أ', 'ن'], 'ألفنون': ['أ', 'ن'], 'بهلام': ['ب', 'ل'], 'بالام': ['ب', 'ل'], 'بلام': ['ب', 'ل'],
-    'يهبه': ['ي', 'ب'], 'يابه': ['ي', 'ب'], 'يهدال': ['ي', 'د'], 'واودال': ['و', 'د'],
-  };
-
+  // الأرقام المنطوقة
   static final Map<String, String> digitsMap = {
-    'صفر': '0', 'صِفر': '0', 'زيرو': '0', 'zero': '0',
-    'واحد': '1', 'واحده': '1', 'واحدة': '1', 'وحد': '1', 'one': '1', 'wahid': '1',
-    'اتنين': '2', 'اثنين': '2', 'إثنين': '2', 'تنين': '2', 'اثنان': '2', 'اتنان': '2', 'two': '2',
-    'تلاته': '3', 'ثلاثة': '3', 'تلات': '3', 'تلاتة': '3', 'ثلاثه': '3', 'ثلاث': '3', 'three': '3',
-    'اربعة': '4', 'اربعه': '4', 'أربعة': '4', 'أربعه': '4', 'اربع': '4', 'أربع': '4', 'four': '4',
-    'خمسه': '5', 'خمسة': '5', 'خمس': '5', 'خامسه': '5', 'five': '5', 'khamsa': '5',
-    'سته': '6', 'ستة': '6', 'ست': '6', 'سيتة': '6', 'six': '6', 'sitta': '6',
-    'سبعه': '7', 'سبعة': '7', 'سبع': '7', 'سابعه': '7', 'seven': '7', 'sabaa': '7',
-    'تمانيه': '8', 'ثمانية': '8', 'ثمانيه': '8', 'تمانية': '8', 'تمن': '8', 'ثمن': '8', 'eight': '8',
-    'تسعه': '9', 'تسعة': '9', 'تسع': '9', 'تيسعة': '9', 'nine': '9', 'tisaa': '9',
+    'صفر': '0', 'صِفر': '0', 'زيرو': '0',
+    'واحد': '1', 'واحده': '1', 'واحدة': '1', 'وحد': '1',
+    'اتنين': '2', 'اثنين': '2', 'إثنين': '2', 'تنين': '2', 'اثنان': '2', 'اتنان': '2',
+    'تلاته': '3', 'ثلاثة': '3', 'تلات': '3', 'تلاتة': '3', 'ثلاثه': '3', 'ثلاث': '3',
+    'اربعة': '4', 'اربعه': '4', 'أربعة': '4', 'أربعه': '4', 'اربع': '4', 'أربع': '4',
+    'خمسه': '5', 'خمسة': '5', 'خمس': '5',
+    'سته': '6', 'ستة': '6', 'ست': '6',
+    'سبعه': '7', 'سبعة': '7', 'سبع': '7',
+    'تمانيه': '8', 'ثمانية': '8', 'ثمانيه': '8', 'تمانية': '8', 'تمن': '8',
+    'تسعه': '9', 'تسعة': '9', 'تسع': '9',
   };
 
-  // 2. قاموس أنواع السيارات الشامل
+  // قاموس أنواع السيارات الشامل (الـ 27 ماركة + الأنواع التجارية)
   static final Map<String, List<String>> vehicleTypesMap = {
-    'نقل عام': ['نقل عام', 'نقل عن', 'نقلي عام', 'نقل عمل'],
-    'جراند ماكس': ['جراند ماكس', 'قراند ماكس', 'جراند مكس', 'جراند', 'قراند', 'grand max'],
+    'نقل عام': ['نقل عام', 'نقلي عام'],
+    'جراند ماكس': ['جراند ماكس', 'قراند ماكس', 'جراند مكس', 'جراند', 'قراند'],
     'تلاجة كبيرة': ['تلاجة كبيرة', 'تلاجه كبيره', 'ثلاجة كبيرة', 'ثلاجه كبيره', 'تلاجه', 'ثلاجة', 'ثلاجه'],
-    'هاي اس': ['هاي اس', 'هايس', 'هاي آيس', 'هايسن', 'هاي ايس', 'هائس', 'هاي إس', 'hiace'],
-    'فان': ['فان', 'فن', 'فام', 'بان', 'van'],
-    'نقل': ['نقل', 'نأل', 'ناقل', 'نقلي'],
-    'بيك اب': ['بيك اب', 'بيك آب', 'بيكب', 'دباب', 'pickup'],
-    'اتوبيس': ['اتوبيس', 'أتوبيس', 'باص', 'بص', 'ميكروباص', 'bus'],
-    'تويوتا': ['تويوتا', 'تيوتا', 'تايوتا', 'توياتا', 'toyota'],
-    'نيسان': ['نيسان', 'نسان', 'نيسن', 'nissan'],
-    'مازدا': ['مازدا', 'مزدا', 'مازده', 'مزده', 'mazda'],
-    'هوندا': ['هوندا', 'هندا', 'هونده', 'honda'],
-    'لكزس': ['لكزس', 'لكزيس', 'لاجسس', 'لكسز', 'لكسس', 'lexus'],
-    'سوزوكي': ['سوزوكي', 'سزوكي', 'سوزوكى', 'سوزكي', 'suzuki'],
-    'هيونداي': ['هيونداي', 'هونداي', 'هينداي', 'هيونداى', 'هونداى', 'hyundai'],
-    'كيا': ['كيا', 'كيه', 'كييا', 'kia'],
-    'جينيسيس': ['جينيسيس', 'جنسس', 'جينسس', 'جنيسس', 'genesis'],
-    'فورد': ['فورد', 'فرد', 'فرود', 'ford'],
-    'شيفروليه': ['شيفروليه', 'شفروليه', 'شيفرولية', 'شفرولية', 'شفر', 'شيفر', 'chevrolet', 'chevy'],
-    'جي إم سي': ['جي إم سي', 'جي ام سي', 'جيمس', 'جمس', 'جى ام سى', 'gmc'],
-    'كاديلاك': ['كاديلاك', 'كديلاك', 'كاديلك', 'كدلك', 'cadillac'],
-    'رام': ['رام', 'رم', 'ram'],
-    'هافال': ['هافال', 'هفال', 'هافل', 'haval'],
-    'شانجان': ['شانجان', 'شنجان', 'شانقان', 'شنقان', 'changan'],
-    'جيلي': ['جيلي', 'جلى', 'جيلى', 'جلي', 'geely'],
-    'جيتور': ['جيتور', 'جتور', 'جيتار', 'jetour'],
-    'إم جي': ['إم جي', 'ام جي', 'ام جى', 'إم جى', 'امجي', 'mg'],
-    'شيري': ['شيري', 'شيرى', 'شري', 'شرى', 'chery'],
-    'بي واي دي': ['بي واي دي', 'بى واى دى', 'بي وايدي', 'byd'],
-    'مرسيدس-بنز': ['مرسيدس بنز', 'مرسيدس-بنز', 'مرسيدس', 'مرسيديس', 'بنز', 'mercedes', 'benz'],
-    'بي إم دبليو': ['بي إم دبليو', 'بي ام دبليو', 'بى ام دبليو', 'بي ام', 'بى ام', 'bmw'],
-    'أودي': ['أودي', 'اودي', 'أودى', 'اودى', 'audi'],
-    'فولكس فاجن': ['فولكس فاجن', 'فولكس واجن', 'فولكس', 'فوكس فاجن', 'فولكسفاجن', 'volkswagen', 'vw'],
-    'لاند روفر': ['لاند روفر', 'لاندروفر', 'رنج روفر', 'رانج روفر', 'land rover', 'range rover'],
-    'بورش': ['بورش', 'بورشه', 'بورشيه', 'porsche'],
-    'ملاكي': ['ملاكي', 'ملاكى', 'خصوصي', 'سيدان'],
+    'هاي اس': ['هاي اس', 'هايس', 'هاي آيس', 'هايسن', 'هاي ايس', 'هاي إس'],
+    'فان': ['فان', 'فن', 'بان'],
+    'نقل': ['نقل', 'ناقل'],
+    'بيك اب': ['بيك اب', 'بيك آب', 'بيكب', 'دباب'],
+    'اتوبيس': ['اتوبيس', 'أتوبيس', 'باص', 'ميكروباص'],
+    'تويوتا': ['تويوتا', 'تيوتا', 'تايوتا'],
+    'نيسان': ['نيسان', 'نسان'],
+    'مازدا': ['مازدا', 'مزدا'],
+    'هوندا': ['هوندا', 'هندا'],
+    'لكزس': ['لكزس', 'لكزيس', 'لكسز'],
+    'سوزوكي': ['سوزوكي', 'سزوكي'],
+    'هيونداي': ['هيونداي', 'هونداي', 'هينداي'],
+    'كيا': ['كيا'],
+    'جينيسيس': ['جينيسيس', 'جنسس', 'جينسس'],
+    'فورد': ['فورد'],
+    'شيفروليه': ['شيفروليه', 'شفروليه', 'شفر'],
+    'جي إم سي': ['جي إم سي', 'جي ام سي', 'جيمس', 'جمس'],
+    'كاديلاك': ['كاديلاك', 'كديلاك'],
+    'رام': ['رام'],
+    'هافال': ['هافال'],
+    'شانجان': ['شانجان', 'شنجان'],
+    'جيلي': ['جيلي', 'جلي'],
+    'جيتور': ['جيتور'],
+    'إم جي': ['إم جي', 'ام جي', 'امجي'],
+    'شيري': ['شيري', 'شري'],
+    'بي واي دي': ['بي واي دي', 'بي وايدي'],
+    'مرسيدس-بنز': ['مرسيدس بنز', 'مرسيدس-بنز', 'مرسيدس', 'بنز'],
+    'بي إم دبليو': ['بي إم دبليو', 'بي ام دبليو', 'بي ام'],
+    'أودي': ['أودي', 'اودي'],
+    'فولكس فاجن': ['فولكس فاجن', 'فولكس واجن', 'فولكس'],
+    'لاند روفر': ['لاند روفر', 'لاندروفر', 'رنج روفر'],
+    'بورش': ['بورش', 'بورشه'],
+    'ملاكي': ['ملاكي', 'خصوصي'],
   };
 
   static String? extractVehicleType(String text) {
-    String clean = text.trim().toLowerCase();
+    String clean = text.trim();
     if (clean.isEmpty) return null;
 
     for (var entry in userLearnedMap.entries) {
@@ -617,43 +610,25 @@ class SheekhaFullEngine {
 
     for (var entry in vehicleTypesMap.entries) {
       for (String synonym in entry.value) {
-        if (synonym.contains(' ') && clean.contains(synonym.toLowerCase())) {
+        if (clean.contains(synonym)) {
           return entry.key;
-        }
-      }
-    }
-
-    List<String> words = clean.split(RegExp(r'\s+'));
-    for (String w in words) {
-      String cw = w.replaceAll(RegExp(r'[^\u0621-\u064Aa-z]'), '');
-      if (cw.isEmpty) continue;
-
-      if (userLearnedMap.containsKey(cw) && vehicleTypesMap.containsKey(userLearnedMap[cw])) {
-        return userLearnedMap[cw];
-      }
-
-      for (var entry in vehicleTypesMap.entries) {
-        for (String synonym in entry.value) {
-          String synLower = synonym.toLowerCase();
-          if (cw == synLower || (cw.length >= 3 && cw.startsWith('ال') && cw.substring(2) == synLower)) {
-            return entry.key;
-          }
         }
       }
     }
     return null;
   }
 
+  // الاستخراج والتحليل الفوري للحروف والأرقام
   static Map<String, dynamic>? parsePlateAndType(String text) {
     if (text.trim().isEmpty) return null;
 
     String normalized = normalizeDigits(text);
-
     String? detectedType = extractVehicleType(normalized);
+
     String textForPlate = normalized;
     if (detectedType != null && vehicleTypesMap.containsKey(detectedType)) {
       for (String syn in vehicleTypesMap[detectedType]!) {
-        textForPlate = textForPlate.replaceAll(RegExp(syn, caseSensitive: false), ' ');
+        textForPlate = textForPlate.replaceAll(syn, ' ');
       }
     }
 
@@ -661,7 +636,7 @@ class SheekhaFullEngine {
     List<String> stream = [];
 
     for (String token in rawTokens) {
-      String w = token.toLowerCase().replaceAll(RegExp(r'[^\u0621-\u064Aa-z0-9]'), '');
+      String w = token.replaceAll(RegExp(r'[^\u0621-\u064A0-9]'), '');
       if (w.isEmpty) continue;
 
       if (userLearnedMap.containsKey(w)) {
@@ -672,7 +647,7 @@ class SheekhaFullEngine {
         } else if (lettersMap.containsKey(learned)) {
           stream.add(lettersMap[learned]!);
           continue;
-        } else if (learned.length == 1 && RegExp(r'[\u0621-\u064A]').hasMatch(learned)) {
+        } else if (learned.length == 1) {
           stream.add(learned);
           continue;
         }
@@ -682,16 +657,15 @@ class SheekhaFullEngine {
         stream.add(digitsMap[w]!);
       } else if (RegExp(r'^\d+$').hasMatch(w)) {
         for (int i = 0; i < w.length; i++) stream.add(w[i]);
-      } else if (compounds.containsKey(w)) {
-        stream.addAll(compounds[w]!);
       } else if (lettersMap.containsKey(w)) {
         stream.add(lettersMap[w]!);
-      } else if (w.length == 1 && RegExp(r'[\u0621-\u064A]').hasMatch(w)) {
-        String ch = w;
-        if (lettersMap.containsKey(ch)) {
-          stream.add(lettersMap[ch]!);
-        } else {
-          stream.add(ch == 'أ' || ch == 'إ' || ch == 'آ' || ch == 'ا' ? 'أ' : ch);
+      } else {
+        // لو كلمات عادية ملتصقة بالحروف
+        for (int i = 0; i < w.length; i++) {
+          String ch = w[i];
+          if (lettersMap.containsKey(ch)) {
+            stream.add(lettersMap[ch]!);
+          }
         }
       }
     }
@@ -723,15 +697,15 @@ class SheekhaFullEngine {
     }
 
     if (letters.length >= 2 && digitsStr.length >= 3) {
-      String firstLetter = letters.first;
-      bool startsWithAlefOrBaa = (firstLetter == 'أ' || firstLetter == 'ا' || firstLetter == 'ب');
+      String firstL = letters.first;
+      bool startsWithAorB = (firstL == 'أ' || firstL == 'ا' || firstL == 'ب');
 
       return {
         'letters': letters.join(' '),
-        'digits': digitsStr.substring(0, digitsStr.length > 4 ? 4 : digitsStr.length),
-        'type': detectedType ?? (startsWithAlefOrBaa ? '-' : 'ملاكي'),
+        'digits': digitsStr,
+        'type': detectedType ?? (startsWithAorB ? '-' : 'ملاكي'),
         'hasExplicitType': detectedType != null,
-        'startsWithAlefOrBaa': startsWithAlefOrBaa,
+        'startsWithAlefOrBaa': startsWithAorB,
       };
     }
 
@@ -775,9 +749,8 @@ class _SheekhaHomeScreenState extends State<SheekhaHomeScreen> {
   final stt.SpeechToText _speech = stt.SpeechToText();
   bool _speechEnabled = false;
 
-  Timer? _pendingPlateTimer;
+  Timer? _pendingTimer;
   Map<String, String>? _pendingPlate;
-  DateTime? _lastRegisteredTime;
 
   final List<String> _districts = ['الروضة', 'السلام', 'المنيل', 'المعادي'];
   String _currentDistrict = 'الروضة';
@@ -808,7 +781,7 @@ class _SheekhaHomeScreenState extends State<SheekhaHomeScreen> {
 
   @override
   void dispose() {
-    _pendingPlateTimer?.cancel();
+    _pendingTimer?.cancel();
     super.dispose();
   }
 
@@ -835,7 +808,7 @@ class _SheekhaHomeScreenState extends State<SheekhaHomeScreen> {
 
   void _restartListeningSafely() {
     if (!_isListening) return;
-    Future.microtask(() {
+    Future.delayed(const Duration(milliseconds: 200), () {
       if (_isListening && mounted && !_speech.isListening) {
         _startListeningSession();
       }
@@ -844,7 +817,7 @@ class _SheekhaHomeScreenState extends State<SheekhaHomeScreen> {
 
   void _toggleLiveListening() async {
     if (_isListening) {
-      _commitPendingPlateNow();
+      _commitPendingPlate();
       setState(() {
         _isListening = false;
         _soundLevel = 0.0;
@@ -865,31 +838,25 @@ class _SheekhaHomeScreenState extends State<SheekhaHomeScreen> {
     }
   }
 
-  void _commitPendingPlateNow() {
-    _pendingPlateTimer?.cancel();
-    _pendingPlateTimer = null;
+  void _commitPendingPlate() {
+    _pendingTimer?.cancel();
+    _pendingTimer = null;
     if (_pendingPlate != null) {
       var p = _pendingPlate!;
       _pendingPlate = null;
-      _registerDetectedPlate(
-        p['letters']!,
-        p['digits']!,
-        p['type']!,
-        rawSpoken: p['raw'] ?? '',
-      );
+      _registerDetectedPlate(p['letters']!, p['digits']!, p['type']!, rawSpoken: p['raw'] ?? '');
     }
   }
 
   void _startListeningSession() async {
     if (!_isListening) return;
 
-    // تم إرجاعها بدون أي فرض لـ localeId لتعمل باللغة العربية الافتراضية للجهاز كما في كودك الأصلي
     await _speech.listen(
       listenMode: stt.ListenMode.dictation,
       partialResults: true,
       cancelOnError: false,
-      listenFor: const Duration(hours: 2),
-      pauseFor: const Duration(minutes: 5),
+      listenFor: const Duration(hours: 3),
+      pauseFor: const Duration(minutes: 10),
       onSoundLevelChange: (level) {
         if (mounted) setState(() => _soundLevel = level.clamp(0.0, 15.0));
       },
@@ -900,17 +867,18 @@ class _SheekhaHomeScreenState extends State<SheekhaHomeScreen> {
 
         setState(() => _currentStatusText = spoken);
 
+        // 1. لو لوحة معلقة تنتظر نوع السيارة
         if (_pendingPlate != null) {
-          String? lateType = SheekhaFullEngine.extractVehicleType(spoken);
-          if (lateType != null) {
-            _pendingPlate!['type'] = lateType;
+          String? carType = SheekhaFullEngine.extractVehicleType(spoken);
+          if (carType != null) {
+            _pendingPlate!['type'] = carType;
             _pendingPlate!['raw'] = spoken;
-            _commitPendingPlateNow();
-            _resetSpeechStreamForNextPlate();
+            _commitPendingPlate();
             return;
           }
         }
 
+        // 2. تحليل اللوحة فوراً في نفس جلسة الاستماع دون إيقاف الميكروفون
         var plateData = SheekhaFullEngine.parsePlateAndType(spoken);
         if (plateData != null) {
           String letters = plateData['letters']!;
@@ -923,28 +891,23 @@ class _SheekhaHomeScreenState extends State<SheekhaHomeScreen> {
           if (_pendingPlate != null && _pendingPlate!['key'] == key) {
             if (hasExplicitType) {
               _pendingPlate!['type'] = carType;
-              _pendingPlate!['raw'] = spoken;
-              _commitPendingPlateNow();
-              _resetSpeechStreamForNextPlate();
+              _commitPendingPlate();
             }
             return;
           }
 
           if (_pendingPlate != null && _pendingPlate!['key'] != key) {
-            _commitPendingPlateNow();
+            _commitPendingPlate();
           }
 
           DateTime now = DateTime.now();
           bool isRecent = _cooldowns.containsKey(key) &&
-              now.difference(_cooldowns[key]!).inSeconds < 5;
+              now.difference(_cooldowns[key]!).inSeconds < 4;
 
           if (!isRecent) {
-            if (digits.length < 4 && !result.finalResult) {
-              return;
-            }
-
             _cooldowns[key] = now;
 
+            // لو بدأت بـ أ أو ب بدون ذكر النوع: نفتح نافذة انتظار 1.8 ثانية
             if (startsWithAlefOrBaa && !hasExplicitType) {
               _pendingPlate = {
                 'key': key,
@@ -953,44 +916,29 @@ class _SheekhaHomeScreenState extends State<SheekhaHomeScreen> {
                 'type': 'ملاكي',
                 'raw': spoken,
               };
-              _pendingPlateTimer?.cancel();
-              _pendingPlateTimer = Timer(const Duration(milliseconds: 2200), () {
-                if (mounted) {
-                  _commitPendingPlateNow();
-                  _resetSpeechStreamForNextPlate();
-                }
+              _pendingTimer?.cancel();
+              _pendingTimer = Timer(const Duration(milliseconds: 1800), () {
+                if (mounted) _commitPendingPlate();
               });
             } else {
+              // تسجيل فوري وبسرعة البرق
               _registerDetectedPlate(letters, digits, carType, rawSpoken: spoken);
-              _resetSpeechStreamForNextPlate();
             }
           }
         } else {
-          if (_records.isNotEmpty && _lastRegisteredTime != null) {
-            if (DateTime.now().difference(_lastRegisteredTime!).inSeconds <= 6) {
-              String? standaloneType = SheekhaFullEngine.extractVehicleType(spoken);
-              if (standaloneType != null &&
-                  (_records[0]['type'] == 'ملاكي' || _records[0]['type'] == '-')) {
-                setState(() {
-                  _records[0]['type'] = standaloneType;
-                  _saveData();
-                });
-                _lastRegisteredTime = null;
-                _resetSpeechStreamForNextPlate();
-              }
+          // لو قال النوع بعد نزول اللوحة مباشرة
+          if (_records.isNotEmpty) {
+            String? standaloneType = SheekhaFullEngine.extractVehicleType(spoken);
+            if (standaloneType != null && (_records[0]['type'] == 'ملاكي' || _records[0]['type'] == '-')) {
+              setState(() {
+                _records[0]['type'] = standaloneType;
+                _saveData();
+              });
             }
           }
         }
       },
     );
-  }
-
-  void _resetSpeechStreamForNextPlate() {
-    _speech.stop().then((_) {
-      if (_isListening && mounted) {
-        _startListeningSession();
-      }
-    });
   }
 
   void _registerDetectedPlate(String letters, String digits, String spokenType, {String rawSpoken = ''}) async {
@@ -1027,7 +975,6 @@ class _SheekhaHomeScreenState extends State<SheekhaHomeScreen> {
     }
 
     setState(() {
-      _lastRegisteredTime = DateTime.now();
       _records.insert(0, {
         'id': (_records.length + 1).toString(),
         'letters': letters,
@@ -1422,19 +1369,6 @@ class _SheekhaHomeScreenState extends State<SheekhaHomeScreen> {
                   await SheekhaFullEngine.learnNewPronunciation(customWrongWord, newTypeStr);
                 } else if (newLettersStr.replaceAll(' ', '').length == 1) {
                   await SheekhaFullEngine.learnNewPronunciation(customWrongWord, newLettersStr.trim());
-                }
-              }
-
-              if (rawSpoken.isNotEmpty && newLettersStr != oldLettersStr) {
-                List<String> oldL = oldLettersStr.split(RegExp(r'\s+'));
-                List<String> newL = newLettersStr.split(RegExp(r'\s+'));
-                List<String> spokenTokens = rawSpoken.split(RegExp(r'\s+'));
-                if (oldL.length == newL.length) {
-                  for (int i = 0; i < oldL.length; i++) {
-                    if (oldL[i] != newL[i] && i < spokenTokens.length) {
-                      await SheekhaFullEngine.learnNewPronunciation(spokenTokens[i], newL[i]);
-                    }
-                  }
                 }
               }
 
