@@ -457,14 +457,14 @@ class _SubscriptionGateScreenState extends State<SubscriptionGateScreen> with Wi
   }
 }
 
-// محرك المعالجة الصوتي السريع والدقيق + التعلم الذكي التلقائي
+// محرك المعالجة الصوتي السريع والدقيق المطابق لـ SHEEKHA
 class SheekhaFullEngine {
   static Map<String, dynamic> userLearnedMap = {};
 
   static Future<void> loadLearnedDictionary() async {
     try {
       final prefs = await SharedPreferences.getInstance();
-      final String? saved = prefs.getString('rased_user_learned_v2');
+      final String? saved = prefs.getString('rased_user_learned_v3');
       if (saved != null && saved.isNotEmpty) {
         userLearnedMap = json.decode(saved);
       }
@@ -483,15 +483,16 @@ class SheekhaFullEngine {
 
     try {
       final prefs = await SharedPreferences.getInstance();
-      await prefs.setString('rased_user_learned_v2', json.encode(userLearnedMap));
+      await prefs.setString('rased_user_learned_v3', json.encode(userLearnedMap));
     } catch (_) {}
   }
 
+  // مصفوفة الحروف العربية الدقيقة المطابقة للفيديو
   static final Map<String, String> lettersMap = {
-    'الف': 'أ', 'ألف': 'أ', 'إلف': 'أ', 'ا': 'أ', 'أ': 'أ', 'إ': 'أ', 'آ': 'أ', 'ء': 'أ',
+    'الف': 'أ', 'ألف': 'أ', 'إلف': 'أ', 'ا': 'أ', 'أ': 'أ', 'إ': 'أ', 'آ': 'أ',
     'باء': 'ب', 'به': 'ب', 'بة': 'ب', 'با': 'ب', 'بي': 'ب', 'ب': 'ب',
     'تاء': 'ت', 'ته': 'ت', 'تا': 'ت', 'ت': 'ت',
-    'ثاء': 'ث', 'ثه': 'ث', 'ث': 'ث',
+    'ثاء': 'ث', 'ثه': 'ث', 'ثا': 'ث', 'ث': 'ث',
     'جيم': 'ج', 'جه': 'ج', 'جا': 'ج', 'ج': 'ج',
     'حاء': 'ح', 'حه': 'ح', 'حة': 'ح', 'حا': 'ح', 'ح': 'ح',
     'خاء': 'خ', 'خه': 'خ', 'خا': 'خ', 'خ': 'خ',
@@ -504,8 +505,8 @@ class SheekhaFullEngine {
     'صاد': 'ص', 'صاه': 'ص', 'صه': 'ص', 'صا': 'ص', 'ص': 'ص',
     'ضاد': 'ض', 'ضه': 'ض', 'ضا': 'ض', 'ض': 'ض',
     'طاء': 'ط', 'طه': 'ط', 'طا': 'ط', 'ط': 'ط',
-    'ظاء': 'ظ', 'ظه': 'ظ', 'ظ': 'ظ',
-    'عين': 'ع', 'عه': 'ع', 'عا': 'ع', 'ع': 'ع',
+    'ظاء': 'ظ', 'ظه': 'ظ', 'ظا': 'ظ', 'ظ': 'ظ',
+    'عين': 'ع', 'عه': 'ع', 'عا': 'ع', 'عن': 'ع', 'ع': 'ع',
     'غين': 'غ', 'غه': 'غ', 'غا': 'غ', 'غ': 'غ',
     'فاء': 'ف', 'فه': 'ف', 'فة': 'ف', 'فا': 'ف', 'ف': 'ف',
     'قاف': 'ق', 'قه': 'ق', 'قا': 'ق', 'ق': 'ق',
@@ -518,6 +519,7 @@ class SheekhaFullEngine {
     'ياء': 'ي', 'يه': 'ي', 'ية': 'ي', 'يا': 'ي', 'ى': 'ي', 'ي': 'ي',
   };
 
+  // تفكيك الكلمات المركبة التي ينتجها جوجل في اللهجة المصرية
   static final Map<String, List<String>> compounds = {
     'واويه': ['و', 'ي'], 'واوية': ['و', 'ي'], 'واوياء': ['و', 'ي'],
     'واودال': ['و', 'د'], 'واوقاف': ['و', 'ق'], 'أوقاف': ['و', 'ق'],
@@ -532,6 +534,7 @@ class SheekhaFullEngine {
     'نوعين': ['ن', 'ع'], 'نهاء': ['ن', 'ه'],
   };
 
+  // الأرقام المنطوقة
   static final Map<String, String> digitsMap = {
     'صفر': '0', 'صِفر': '0', 'زيرو': '0',
     'واحد': '1', 'واحده': '1', 'واحدة': '1', 'وحد': '1',
@@ -545,6 +548,7 @@ class SheekhaFullEngine {
     'تسعه': '9', 'تسعة': '9', 'تسع': '9',
   };
 
+  // قائمة أنواع وماركات السيارات الشاملة
   static final Map<String, List<String>> vehicleTypesMap = {
     'نقل عام': ['نقل عام', 'نقلي عام'],
     'جراند ماكس': ['جراند ماكس', 'قراند ماكس', 'جراند مكس', 'جراند', 'قراند'],
@@ -598,9 +602,11 @@ class SheekhaFullEngine {
     return null;
   }
 
+  // الاستخراج الفوري المطابق لتطبيق SHEEKHA
   static Map<String, dynamic>? parsePlateAndType(String text) {
     if (text.trim().isEmpty) return null;
 
+    // 1. فحص الذاكرة المتعلمة
     String normalizedVoice = normalizeFlexible(text);
     if (userLearnedMap.containsKey(normalizedVoice)) {
       var learned = userLearnedMap[normalizedVoice];
@@ -621,6 +627,7 @@ class SheekhaFullEngine {
       }
     }
 
+    // تفكيك الكلمات المدمجة
     compounds.forEach((k, v) {
       textForPlate = textForPlate.replaceAll(k, v.join(' '));
     });
@@ -644,6 +651,7 @@ class SheekhaFullEngine {
       }
     }
 
+    // مطابقة سريعة عند توفر حرفين أو ثلاثة مع 3 أو 4 أرقام
     if (letters.length >= 2 && digitsStr.length >= 3) {
       return {
         'letters': letters.join(' '),
@@ -771,6 +779,7 @@ class _SheekhaHomeScreenState extends State<SheekhaHomeScreen> {
     }
   }
 
+  // الاستماع المتدفق السريع دون إيقاف المحرك
   void _startListeningSession() async {
     if (!_isListening) return;
 
@@ -788,6 +797,7 @@ class _SheekhaHomeScreenState extends State<SheekhaHomeScreen> {
 
         setState(() => _currentStatusText = spoken);
 
+        // تحديث نوع السيارة لآخر لوحة مسجلة إن نُطق النوع منفرداً
         String? standaloneType = SheekhaFullEngine.extractVehicleType(spoken);
         if (standaloneType != null && _records.isNotEmpty) {
           if (_records[0]['type'] == 'ملاكي' || _records[0]['type'] == '-') {
@@ -798,6 +808,7 @@ class _SheekhaHomeScreenState extends State<SheekhaHomeScreen> {
           }
         }
 
+        // استخراج اللوحة لحظياً وبسرعة فائقة
         var plateData = SheekhaFullEngine.parsePlateAndType(spoken);
         if (plateData != null) {
           String letters = plateData['letters']!;
@@ -1228,6 +1239,7 @@ class _SheekhaHomeScreenState extends State<SheekhaHomeScreen> {
                 newLettersStr = newLettersStr.split('').join(' ');
               }
 
+              // حفظ التعلم الصوتي الفوري في الذاكرة
               if (rawSpoken.isNotEmpty) {
                 await SheekhaFullEngine.saveLearnedMapping(
                   rawSpoken,
