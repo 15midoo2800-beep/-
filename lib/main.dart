@@ -67,15 +67,15 @@ class _HomeScreenState extends State<HomeScreen> {
   late FlutterTts _flutterTts;
   bool _isListening = false;
   String _text = 'اضغط على الميكروفون وابدأ الحديث...';
-  String _liveTranscript = ''; // الشريط المباشر لما يتم استماعه
+  String _liveTranscript = ''; 
   List<CarRecord> _records = [];
-  
-  // التحكم في حالة انتظار نوع السيارة
+
+  // تحكم انتظار نوع السيارة للوحات أ و ب
   String? _pendingLetters;
   String? _pendingNumbers;
   Timer? _typeWaitTimer;
 
-  // القواميس المخصصة للنطق الشخصي واللهجة المصرية
+  // قاموس الحروف المصرية والأبجدية
   final Map<String, String> _lettersMap = {
     'ألف': 'أ', 'الف': 'أ', 'أ': 'أ', 'ا': 'أ', 'آ': 'أ',
     'باء': 'ب', 'به': 'ب', 'بة': 'ب', 'با': 'ب', 'ب': 'ب', 'بي': 'ب',
@@ -96,12 +96,13 @@ class _HomeScreenState extends State<HomeScreen> {
     'ياء': 'ي', 'يه': 'ي', 'ية': 'ي', 'يا': 'ي', 'ي': 'ي', 'ى': 'ي',
   };
 
+  // قاموس الأرقام
   final Map<String, String> _digitsMap = {
     'صفر': '0', '0': '0', '٠': '0',
     'واحد': '1', 'واحدة': '1', 'واحده': '1', '1': '1', '١': '1',
     'اثنان': '2', 'اثنين': '2', 'إثنين': '2', 'اتنين': '2', '2': '2', '٢': '2',
     'ثلاثة': '3', 'ثلاثه': '3', 'تلاتة': '3', 'تلاته': '3', '3': '3', '٣': '3',
-    'أربعة': '4', 'اربعة': '4', 'اربعة': '4', 'اربعة': '4', 'اربعة': '4', '4': '4', '٤': '4', 'اربعه': '4',
+    'أربعة': '4', 'اربعة': '4', 'اربعه': '4', '4': '4', '٤': '4',
     'خمسة': '5', 'خمسه': '5', '5': '5', '٥': '5',
     'ستة': '6', 'سته': '6', '6': '6', '٦': '6',
     'سبعة': '7', 'سبعه': '7', '7': '7', '٧': '7',
@@ -109,6 +110,7 @@ class _HomeScreenState extends State<HomeScreen> {
     'تسعة': '9', 'تسعه': '9', '9': '9', '٩': '9',
   };
 
+  // قاموس أنواع السيارات الذكي
   final Map<String, String> _vehicleTypesMap = {
     'جراند ماكس': 'جراند ماكس',
     'قراند ماكس': 'جراند ماكس',
@@ -135,7 +137,7 @@ class _HomeScreenState extends State<HomeScreen> {
 
   @override
   void initState() {
-    super.initState() ;
+    super.initState();
     _speech = stt.SpeechToText();
     _flutterTts = FlutterTts();
     _initTts();
@@ -200,11 +202,9 @@ class _HomeScreenState extends State<HomeScreen> {
     }
   }
 
-  // دالة معالجة الصوت والربط بالأنماط والمصفوفات الذكية
   void _processVoiceInput(String input) {
     if (input.isEmpty) return;
 
-    // حالة انتظار إدخال نوع السيارة للوحات أ أو ب
     if (_pendingLetters != null && _pendingNumbers != null) {
       for (var entry in _vehicleTypesMap.entries) {
         if (input.contains(entry.key)) {
@@ -215,7 +215,6 @@ class _HomeScreenState extends State<HomeScreen> {
       }
     }
 
-    // استخلاص الحروف والأرقام من النص المسموع
     List<String> words = input.trim().split(RegExp(r'\s+'));
     List<String> extractedLetters = [];
     List<String> extractedNumbers = [];
@@ -226,7 +225,6 @@ class _HomeScreenState extends State<HomeScreen> {
       } else if (_digitsMap.containsKey(word)) {
         extractedNumbers.add(_digitsMap[word]!);
       } else {
-        // فحص الأرقام إذا جاءت كأرقام مدمجة داخل الكلمة
         for (int i = 0; i < word.length; i++) {
           String char = word[i];
           if (_digitsMap.containsKey(char)) {
@@ -236,7 +234,6 @@ class _HomeScreenState extends State<HomeScreen> {
       }
     }
 
-    // مطابقة النمط (3 حروف + 4 أرقام أو أرقام من مكتشف الصوت)
     if (extractedLetters.length >= 3 && extractedNumbers.isNotEmpty) {
       String lettersStr = extractedLetters.take(3).join(' ');
       String numbersStr = extractedNumbers.join();
@@ -245,13 +242,11 @@ class _HomeScreenState extends State<HomeScreen> {
         numbersStr = numbersStr.substring(0, 4);
       }
 
-      // التحقق مما إذا كانت اللوحة تبدأ بـ (أ) أو (ب) لاستدعاء حالة الانتظار الذكية للنوع
       String firstLetter = extractedLetters.first;
       if (firstLetter == 'أ' || firstLetter == 'ب') {
         _pendingLetters = lettersStr;
         _pendingNumbers = numbersStr;
 
-        // البحث إن كان النوع قد نُطق بالفعل في نفس الجملة
         String detectedType = 'غير محدد';
         for (var entry in _vehicleTypesMap.entries) {
           if (input.contains(entry.key)) {
@@ -264,7 +259,6 @@ class _HomeScreenState extends State<HomeScreen> {
           _commitRecord(lettersStr, numbersStr, detectedType);
           _clearPendingState();
         } else {
-          // فتح نافذة انتظار لمدة ثانيتين للالتقاط
           _typeWaitTimer?.cancel();
           _typeWaitTimer = Timer(const Duration(seconds: 2), () {
             if (_pendingLetters != null) {
@@ -274,14 +268,12 @@ class _HomeScreenState extends State<HomeScreen> {
           });
         }
       } else {
-        // لوحة عادية تسجل فوراً
         _commitRecord(lettersStr, numbersStr, 'عام');
       }
     }
   }
 
   void _commitRecord(String letters, String numbers, String type) {
-    // منع التكرار المباشر للنفس اللوحة
     if (_records.isNotEmpty &&
         _records.first.letters == letters &&
         _records.first.numbers == numbers) {
@@ -436,7 +428,6 @@ class _HomeScreenState extends State<HomeScreen> {
       ),
       body: Column(
         children: [
-          // شريط الحالة والاستماع المباشر
           Container(
             padding: const EdgeInsets.all(16.0),
             color: _isListening ? Colors.indigo.shade50 : Colors.grey.shade100,
@@ -462,7 +453,6 @@ class _HomeScreenState extends State<HomeScreen> {
                   ],
                 ),
                 const SizedBox(height: 8),
-                // الشريط اللبني الذي يظهر النص المكتشف فوراً
                 Container(
                   width: double.infinity,
                   padding: const EdgeInsets.symmetric(
@@ -486,8 +476,6 @@ class _HomeScreenState extends State<HomeScreen> {
               ],
             ),
           ),
-          
-          // عرض القائمة السفلية للسجلات
           Expanded(
             child: _records.isEmpty
                 ? const Center(
