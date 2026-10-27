@@ -79,7 +79,7 @@ class RasedLicenseManager {
     }
   }
 
-  // التحقق السحابي من حالة العميل (إيقاف عن بُعد أو تمديد المدة)
+  // التحقق السحابي من حالة العميل (مع دعم إعادة التوجيه لـ GitHub ومانع الإيقاف)
   static Future<Map<String, dynamic>> checkRemoteStatus(String myDeviceId, String currentExpiryIso) async {
     try {
       if (remoteControlJsonUrl.contains("YOUR_USERNAME")) {
@@ -87,10 +87,24 @@ class RasedLicenseManager {
         return {'allowed': DateTime.now().isBefore(exp), 'expiry': currentExpiryIso};
       }
 
+      Uri uri = Uri.parse("$remoteControlJsonUrl?t=${DateTime.now().millisecondsSinceEpoch}");
       HttpClient client = HttpClient();
       client.connectionTimeout = const Duration(seconds: 5);
-      final req = await client.getUrl(Uri.parse("$remoteControlJsonUrl?t=${DateTime.now().millisecondsSinceEpoch}"));
-      final res = await req.close();
+      
+      HttpClientRequest req = await client.getUrl(uri);
+      HttpClientResponse res = await req.close();
+
+      while (res.statusCode == HttpStatus.movedPermanently ||
+             res.statusCode == HttpStatus.movedTemporarily ||
+             res.statusCode == HttpStatus.seeOther ||
+             res.statusCode == HttpStatus.temporaryRedirect) {
+        uri = res.headers.value(HttpHeaders.locationHeader) != null
+            ? Uri.parse(res.headers.value(HttpHeaders.locationHeader)!)
+            : uri;
+        await res.drain();
+        req = await client.getUrl(uri);
+        res = await req.close();
+      }
 
       if (res.statusCode == 200) {
         String body = await res.transform(utf8.decoder).join();
