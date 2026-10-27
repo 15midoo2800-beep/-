@@ -457,14 +457,14 @@ class _SubscriptionGateScreenState extends State<SubscriptionGateScreen> with Wi
   }
 }
 
-// محرك المعالجة الصوتي السريع والدقيق المطابق لـ SHEEKHA
+// محرك المعالجة الصوتي فائق السرعة والدقة الميدانية
 class SheekhaFullEngine {
   static Map<String, dynamic> userLearnedMap = {};
 
   static Future<void> loadLearnedDictionary() async {
     try {
       final prefs = await SharedPreferences.getInstance();
-      final String? saved = prefs.getString('rased_user_learned_v3');
+      final String? saved = prefs.getString('rased_user_learned_v4');
       if (saved != null && saved.isNotEmpty) {
         userLearnedMap = json.decode(saved);
       }
@@ -483,11 +483,11 @@ class SheekhaFullEngine {
 
     try {
       final prefs = await SharedPreferences.getInstance();
-      await prefs.setString('rased_user_learned_v3', json.encode(userLearnedMap));
+      await prefs.setString('rased_user_learned_v4', json.encode(userLearnedMap));
     } catch (_) {}
   }
 
-  // مصفوفة الحروف العربية الدقيقة المطابقة للفيديو
+  // مصفوفة الحروف الدقيقة المعتمدة في اللوحات
   static final Map<String, String> lettersMap = {
     'الف': 'أ', 'ألف': 'أ', 'إلف': 'أ', 'ا': 'أ', 'أ': 'أ', 'إ': 'أ', 'آ': 'أ',
     'باء': 'ب', 'به': 'ب', 'بة': 'ب', 'با': 'ب', 'بي': 'ب', 'ب': 'ب',
@@ -519,7 +519,7 @@ class SheekhaFullEngine {
     'ياء': 'ي', 'يه': 'ي', 'ية': 'ي', 'يا': 'ي', 'ى': 'ي', 'ي': 'ي',
   };
 
-  // تفكيك الكلمات المركبة التي ينتجها جوجل في اللهجة المصرية
+  // معالجة فورية وتفكيك الكلمات المركبة باللهجة المصرية
   static final Map<String, List<String>> compounds = {
     'واويه': ['و', 'ي'], 'واوية': ['و', 'ي'], 'واوياء': ['و', 'ي'],
     'واودال': ['و', 'د'], 'واوقاف': ['و', 'ق'], 'أوقاف': ['و', 'ق'],
@@ -548,7 +548,7 @@ class SheekhaFullEngine {
     'تسعه': '9', 'تسعة': '9', 'تسع': '9',
   };
 
-  // قائمة أنواع وماركات السيارات الشاملة
+  // قاموس أنواع وماركات السيارات الشامل
   static final Map<String, List<String>> vehicleTypesMap = {
     'نقل عام': ['نقل عام', 'نقلي عام'],
     'جراند ماكس': ['جراند ماكس', 'قراند ماكس', 'جراند مكس', 'جراند', 'قراند'],
@@ -602,11 +602,11 @@ class SheekhaFullEngine {
     return null;
   }
 
-  // الاستخراج الفوري المطابق لتطبيق SHEEKHA
+  // خوارزمية الفحص السريع والذكي للتدفق الصوتي المستمر
   static Map<String, dynamic>? parsePlateAndType(String text) {
     if (text.trim().isEmpty) return null;
 
-    // 1. فحص الذاكرة المتعلمة
+    // 1. فحص التعلم المباشر السابق أولاً
     String normalizedVoice = normalizeFlexible(text);
     if (userLearnedMap.containsKey(normalizedVoice)) {
       var learned = userLearnedMap[normalizedVoice];
@@ -627,37 +627,62 @@ class SheekhaFullEngine {
       }
     }
 
-    // تفكيك الكلمات المدمجة
+    // تفكيك الكلمات المتصلة المكتشفة
     compounds.forEach((k, v) {
       textForPlate = textForPlate.replaceAll(k, v.join(' '));
     });
 
     List<String> rawTokens = textForPlate.split(RegExp(r'\s+'));
-    List<String> letters = [];
-    String digitsStr = '';
+    List<String> stream = [];
 
     for (String token in rawTokens) {
       String w = token.replaceAll(RegExp(r'[^\u0621-\u064A0-9]'), '');
       if (w.isEmpty) continue;
 
       if (digitsMap.containsKey(w)) {
-        digitsStr += digitsMap[w]!;
+        stream.add(digitsMap[w]!);
       } else if (RegExp(r'^\d+$').hasMatch(w)) {
-        digitsStr += w;
+        for (int i = 0; i < w.length; i++) stream.add(w[i]);
       } else if (lettersMap.containsKey(w)) {
-        if (letters.length < 3) letters.add(lettersMap[w]!);
+        stream.add(lettersMap[w]!);
       } else if (w.length == 1 && RegExp(r'[\u0621-\u064A]').hasMatch(w)) {
-        if (letters.length < 3) letters.add(w);
+        stream.add(w);
       }
     }
 
-    // مطابقة سريعة عند توفر حرفين أو ثلاثة مع 3 أو 4 أرقام
-    if (letters.length >= 2 && digitsStr.length >= 3) {
-      return {
-        'letters': letters.join(' '),
-        'digits': digitsStr.substring(0, digitsStr.length > 4 ? 4 : digitsStr.length),
-        'type': detectedType ?? 'ملاكي',
-      };
+    // استخراج أحدث نافذة مطابقة (حروف تليها أرقام مباشرة) من التدفق الصوتي الحي
+    for (int i = stream.length - 1; i >= 0; i--) {
+      // البحث عن نقطة نهاية الأرقام
+      if (RegExp(r'^\d$').hasMatch(stream[i])) {
+        int dEnd = i;
+        int dStart = i;
+        while (dStart >= 0 && RegExp(r'^\d$').hasMatch(stream[dStart])) {
+          dStart--;
+        }
+        dStart++; // بداية سلسلة الأرقام
+        int numDigits = dEnd - dStart + 1;
+
+        if (numDigits >= 3 && numDigits <= 4) {
+          // نبحث عن الحروف التي تسبق هذه الأرقام مباشرة
+          List<String> lettersFound = [];
+          for (int j = dStart - 1; j >= 0 && lettersFound.length < 3; j--) {
+            if (RegExp(r'^[\u0621-\u064A]$').hasMatch(stream[j])) {
+              lettersFound.insert(0, stream[j]);
+            } else {
+              break;
+            }
+          }
+
+          if (lettersFound.length >= 2) {
+            String digitsStr = stream.sublist(dStart, dEnd + 1).join('');
+            return {
+              'letters': lettersFound.join(' '),
+              'digits': digitsStr,
+              'type': detectedType ?? 'ملاكي',
+            };
+          }
+        }
+      }
     }
 
     return null;
@@ -750,7 +775,7 @@ class _SheekhaHomeScreenState extends State<SheekhaHomeScreen> {
 
   void _restartListeningSafely() {
     if (!_isListening) return;
-    Future.delayed(const Duration(milliseconds: 150), () {
+    Future.delayed(const Duration(milliseconds: 100), () {
       if (_isListening && mounted && !_speech.isListening) {
         _startListeningSession();
       }
@@ -779,7 +804,7 @@ class _SheekhaHomeScreenState extends State<SheekhaHomeScreen> {
     }
   }
 
-  // الاستماع المتدفق السريع دون إيقاف المحرك
+  // الاستماع المباشر المتدفق بنفس سلاسة الفيديو
   void _startListeningSession() async {
     if (!_isListening) return;
 
@@ -797,7 +822,7 @@ class _SheekhaHomeScreenState extends State<SheekhaHomeScreen> {
 
         setState(() => _currentStatusText = spoken);
 
-        // تحديث نوع السيارة لآخر لوحة مسجلة إن نُطق النوع منفرداً
+        // 1. تحديث نوع السيارة في أول سجل إذا نطق المستخدم اسم السيارة منفرداً بعد اللوحة
         String? standaloneType = SheekhaFullEngine.extractVehicleType(spoken);
         if (standaloneType != null && _records.isNotEmpty) {
           if (_records[0]['type'] == 'ملاكي' || _records[0]['type'] == '-') {
@@ -808,7 +833,7 @@ class _SheekhaHomeScreenState extends State<SheekhaHomeScreen> {
           }
         }
 
-        // استخراج اللوحة لحظياً وبسرعة فائقة
+        // 2. فحص واستخراج اللوحة لحظياً
         var plateData = SheekhaFullEngine.parsePlateAndType(spoken);
         if (plateData != null) {
           String letters = plateData['letters']!;
@@ -1239,7 +1264,7 @@ class _SheekhaHomeScreenState extends State<SheekhaHomeScreen> {
                 newLettersStr = newLettersStr.split('').join(' ');
               }
 
-              // حفظ التعلم الصوتي الفوري في الذاكرة
+              // تثبيت النطق في الذاكرة ليتعرف عليه فوراً مستقبلاً
               if (rawSpoken.isNotEmpty) {
                 await SheekhaFullEngine.saveLearnedMapping(
                   rawSpoken,
@@ -1604,7 +1629,7 @@ class _SheekhaHomeScreenState extends State<SheekhaHomeScreen> {
           _buildLiveMicBox(),
           const SizedBox(height: 12),
           Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            mainAxisAlignment: ChangeDirectional.isRtl(context) ? MainAxisAlignment.spaceBetween : MainAxisAlignment.spaceBetween,
             children: [
               Text('${AppStrings.recordsCount} ${_records.length}', style: const TextStyle(color: Colors.grey, fontSize: 13)),
               Text(AppStrings.editPlateHint, style: const TextStyle(color: Color(0xFF06D6A0), fontSize: 11)),
