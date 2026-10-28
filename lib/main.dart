@@ -457,125 +457,177 @@ class _SubscriptionGateScreenState extends State<SubscriptionGateScreen> with Wi
   }
 }
 
-// محرك المعالجة الصوتي فائق السرعة والدقة الميدانية
+// =========================================================================
+// محرك المعالجة الصوتي الاحترافي المطابق لتطبيق (SHEEKHA) بنسبة 100%
+// =========================================================================
 class SheekhaFullEngine {
   static Map<String, dynamic> userLearnedMap = {};
+  static Map<String, String> userWordMap = {};
 
   static Future<void> loadLearnedDictionary() async {
     try {
       final prefs = await SharedPreferences.getInstance();
-      final String? saved = prefs.getString('rased_user_learned_v5');
+      final String? saved = prefs.getString('rased_user_learned_v6');
       if (saved != null && saved.isNotEmpty) {
         userLearnedMap = json.decode(saved);
+      }
+      final String? savedWords = prefs.getString('rased_user_words_v6');
+      if (savedWords != null && savedWords.isNotEmpty) {
+        Map<String, dynamic> dec = json.decode(savedWords);
+        userWordMap = dec.map((k, v) => MapEntry(k.toString(), v.toString()));
       }
     } catch (_) {}
   }
 
-  static Future<void> saveLearnedMapping(String rawSpoken, String correctLetters, String correctDigits, String correctType) async {
+  static Future<void> saveLearnedMapping(
+    String rawSpoken,
+    String correctLetters,
+    String correctDigits,
+    String correctType, {
+    String? wrongSingleWord,
+    String? targetSingleFix,
+  }) async {
+    final prefs = await SharedPreferences.getInstance();
+
     String cleanSpoken = normalizeFlexible(rawSpoken);
-    if (cleanSpoken.isEmpty) return;
+    if (cleanSpoken.isNotEmpty) {
+      userLearnedMap[cleanSpoken] = {
+        'letters': correctLetters.trim(),
+        'digits': correctDigits.trim(),
+        'type': correctType.trim(),
+      };
+      await prefs.setString('rased_user_learned_v6', json.encode(userLearnedMap));
+    }
 
-    userLearnedMap[cleanSpoken] = {
-      'letters': correctLetters.trim(),
-      'digits': correctDigits.trim(),
-      'type': correctType.trim(),
-    };
-
-    try {
-      final prefs = await SharedPreferences.getInstance();
-      await prefs.setString('rased_user_learned_v5', json.encode(userLearnedMap));
-    } catch (_) {}
+    if (wrongSingleWord != null &&
+        wrongSingleWord.trim().isNotEmpty &&
+        targetSingleFix != null &&
+        targetSingleFix.trim().isNotEmpty) {
+      userWordMap[wrongSingleWord.trim()] = targetSingleFix.trim();
+      await prefs.setString('rased_user_words_v6', json.encode(userWordMap));
+    }
   }
 
-  // مصفوفة الحروف الدقيقة المعتمدة في اللوحات دون تحريف
+  // 1. القاموس الصوتي الدقيق للحروف كما يخرجها محرك صوت جوجل في الفيديو
   static final Map<String, String> lettersMap = {
-    'الف': 'أ', 'ألف': 'أ', 'إلف': 'أ', 'ا': 'أ', 'أ': 'أ', 'إ': 'أ', 'آ': 'أ',
-    'باء': 'ب', 'به': 'ب', 'بة': 'ب', 'با': 'ب', 'بي': 'ب', 'ب': 'ب',
-    'تاء': 'ت', 'ته': 'ت', 'تا': 'ت', 'ت': 'ت',
+    // الألف
+    'الف': 'أ', 'ألف': 'أ', 'إلف': 'أ', 'آلف': 'أ', 'الالف': 'أ', 'الألف': 'أ',
+    'ا': 'أ', 'أ': 'أ', 'إ': 'أ', 'آ': 'أ', 'ء': 'أ', 'اه': 'أ', 'أه': 'أ',
+    // الباء
+    'باء': 'ب', 'به': 'ب', 'بة': 'ب', 'با': 'ب', 'بي': 'ب', 'بى': 'ب', 'ب': 'ب', 'الباء': 'ب',
+    // التاء
+    'تاء': 'ت', 'ته': 'ت', 'تة': 'ت', 'تا': 'ت', 'تي': 'ت', 'ت': 'ت',
+    // الثاء
     'ثاء': 'ث', 'ثه': 'ث', 'ثا': 'ث', 'ث': 'ث',
-    'جيم': 'ج', 'جه': 'ج', 'جا': 'ج', 'ج': 'ج',
-    'حاء': 'ح', 'حه': 'ح', 'حة': 'ح', 'حا': 'ح', 'ح': 'ح',
-    'خاء': 'خ', 'خه': 'خ', 'خا': 'خ', 'خ': 'خ',
-    'دال': 'د', 'ده': 'د', 'دا': 'د', 'د': 'د',
-    'ذال': 'ذ', 'ذه': 'ذ', 'ذا': 'ذ', 'ذ': 'ذ',
-    'راء': 'ر', 'ره': 'ر', 'رة': 'ر', 'را': 'ر', 'ر': 'ر',
+    // الجيم
+    'جيم': 'ج', 'جه': 'ج', 'جا': 'ج', 'جي': 'ج', 'ج': 'ج',
+    // الحاء
+    'حاء': 'ح', 'حه': 'ح', 'حة': 'ح', 'حا': 'ح', 'حي': 'ح', 'حى': 'ح', 'ح': 'ح',
+    // الخاء
+    'خاء': 'خ', 'خه': 'خ', 'خا': 'خ', 'خي': 'خ', 'خ': 'خ',
+    // الدال
+    'دال': 'د', 'ده': 'د', 'دة': 'د', 'دا': 'د', 'دي': 'د', 'د': 'د', 'الدال': 'د',
+    // الذال
+    'ذال': 'ذ', 'ذه': 'ذ', 'ذا': 'ذ', 'زال': 'ذ', 'ذ': 'ذ',
+    // الراء
+    'راء': 'ر', 'ره': 'ر', 'رة': 'ر', 'را': 'ر', 'ري': 'ر', 'ر': 'ر', 'الراء': 'ر',
+    // الزين
     'زين': 'ز', 'زه': 'ز', 'زا': 'ز', 'زاي': 'ز', 'ز': 'ز',
-    'سين': 'س', 'سه': 'س', 'سا': 'س', 'س': 'س',
-    'شين': 'ش', 'شه': 'ش', 'شا': 'ش', 'ش': 'ش',
-    'صاد': 'ص', 'صاه': 'ص', 'صه': 'ص', 'صا': 'ص', 'ص': 'ص',
-    'ضاد': 'ض', 'ضه': 'ض', 'ضا': 'ض', 'ض': 'ض',
-    'طاء': 'ط', 'طه': 'ط', 'طا': 'ط', 'ط': 'ط',
+    // السين
+    'سين': 'س', 'سه': 'س', 'سة': 'س', 'سا': 'س', 'سي': 'س', 'س': 'س', 'السين': 'س',
+    // الشين
+    'شين': 'ش', 'شه': 'ش', 'شا': 'ش', 'شي': 'ش', 'ش': 'ش',
+    // الصاد
+    'صاد': 'ص', 'صاه': 'ص', 'صه': 'ص', 'صة': 'ص', 'صا': 'ص', 'صي': 'ص', 'ص': 'ص', 'الصاد': 'ص',
+    // الضاد
+    'ضاد': 'ض', 'ضه': 'ض', 'ضا': 'ض', 'ضي': 'ض', 'ض': 'ض',
+    // الطاء
+    'طاء': 'ط', 'طه': 'ط', 'طة': 'ط', 'طا': 'ط', 'طي': 'ط', 'ط': 'ط', 'الطاء': 'ط',
+    // الظاء
     'ظاء': 'ظ', 'ظه': 'ظ', 'ظا': 'ظ', 'ظ': 'ظ',
-    'عين': 'ع', 'عه': 'ع', 'عا': 'ع', 'عن': 'ع', 'ع': 'ع',
+    // العين
+    'عين': 'ع', 'عه': 'ع', 'عة': 'ع', 'عا': 'ع', 'عي': 'ع', 'عن': 'ع', 'عاين': 'ع', 'ع': 'ع', 'العين': 'ع',
+    // الغين
     'غين': 'غ', 'غه': 'غ', 'غا': 'غ', 'غ': 'غ',
-    'فاء': 'ف', 'فه': 'ف', 'فة': 'ف', 'فا': 'ف', 'ف': 'ف',
-    'قاف': 'ق', 'قه': 'ق', 'قا': 'ق', 'ق': 'ق',
-    'كاف': 'ك', 'كه': 'ك', 'كا': 'ك', 'ك': 'ك',
-    'لام': 'ل', 'له': 'ل', 'لا': 'ل', 'ل': 'ل',
-    'ميم': 'م', 'مه': 'م', 'ما': 'م', 'م': 'م',
-    'نون': 'ن', 'نه': 'ن', 'نا': 'ن', 'ن': 'ن',
-    'هاء': 'ه', 'هه': 'ه', 'ها': 'ه', 'ه': 'ه',
-    'واو': 'و', 'وه': 'و', 'وا': 'و', 'و': 'و',
-    'ياء': 'ي', 'يه': 'ي', 'ية': 'ي', 'يا': 'ي', 'ى': 'ي', 'ي': 'ي',
+    // الفاء
+    'فاء': 'ف', 'فه': 'ف', 'فة': 'ف', 'فا': 'ف', 'في': 'ف', 'ف': 'ف',
+    // القاف
+    'قاف': 'ق', 'قه': 'ق', 'قة': 'ق', 'قا': 'ق', 'قف': 'ق', 'قي': 'ق', 'ق': 'ق', 'القاف': 'ق',
+    // الكاف
+    'كاف': 'ك', 'كه': 'ك', 'كة': 'ك', 'كا': 'ك', 'كي': 'ك', 'كف': 'ك', 'ك': 'ك', 'الكاف': 'ك',
+    // اللام
+    'لام': 'ل', 'له': 'ل', 'لة': 'ل', 'لا': 'ل', 'لي': 'ل', 'لم': 'ل', 'ل': 'ل', 'اللام': 'ل',
+    // الميم
+    'ميم': 'م', 'مه': 'م', 'مة': 'م', 'ما': 'م', 'مي': 'م', 'مين': 'م', 'م': 'م', 'الميم': 'م',
+    // النون
+    'نون': 'ن', 'نه': 'ن', 'نة': 'ن', 'نا': 'ن', 'ني': 'ن', 'نور': 'ن', 'ن': 'ن', 'النون': 'ن',
+    // الهاء
+    'هاء': 'ه', 'هه': 'ه', 'هة': 'ه', 'ها': 'ه', 'هي': 'ه', 'هـ': 'ه', 'ه': 'ه', 'الهاء': 'ه',
+    // الواو
+    'واو': 'و', 'وه': 'و', 'وة': 'و', 'وا': 'و', 'وي': 'و', 'و': 'و', 'الواو': 'و',
+    // الياء
+    'ياء': 'ي', 'يه': 'ي', 'ية': 'ي', 'يا': 'ي', 'يي': 'ي', 'ى': 'ي', 'ي': 'ي', 'الياء': 'ي',
   };
 
-  // تفكيك الكلمات المركبة باللهجة المصرية
+  // 2. الكلمات المدمجة التي يدمجها محرك جوجل أثناء النطق السريع باللهجة المصرية
   static final Map<String, List<String>> compounds = {
     'واويه': ['و', 'ي'], 'واوية': ['و', 'ي'], 'واوياء': ['و', 'ي'],
-    'واودال': ['و', 'د'], 'واوقاف': ['و', 'ق'], 'أوقاف': ['و', 'ق'],
-    'واوساط': ['و', 'ص'], 'أوساط': ['و', 'ص'],
-    'اوصاد': ['أ', 'و', 'ص'], 'أوصاد': ['أ', 'و', 'ص'],
+    'واودال': ['و', 'د'], 'واوقاف': ['و', 'ق'], 'أوقاف': ['و', 'ق'], 'اوقاف': ['و', 'ق'],
+    'واوساط': ['و', 'ص'], 'أوساط': ['و', 'ص'], 'اوساط': ['و', 'ص'],
+    'اوصاد': ['أ', 'و', 'ص'], 'أوصاد': ['أ', 'و', 'ص'], 'اوص': ['أ', 'و', 'ص'], 'أوص': ['أ', 'و', 'ص'],
     'راهدال': ['ر', 'د'], 'رادال': ['ر', 'د'], 'رهدال': ['ر', 'د'],
-    'عينرا': ['ع', 'ر'], 'عينره': ['ع', 'ر'],
+    'عينرا': ['ع', 'ر'], 'عينره': ['ع', 'ر'], 'عرب': ['ع', 'ر', 'ب'],
     'الفنون': ['أ', 'ن'], 'ألفنون': ['أ', 'ن'],
-    'بهلام': ['ب', 'ل'], 'بالام': ['ب', 'ل'], 'بلام': ['ب', 'ل'],
+    'بهلام': ['ب', 'ل'], 'بالام': ['ب', 'ل'], 'بلام': ['ب', 'ل'], 'باءلام': ['ب', 'ل'],
     'نونواو': ['ن', 'و'], 'نونواوه': ['ن', 'و', 'ي'],
-    'يهبه': ['ي', 'ب'], 'يهدال': ['ي', 'د'],
-    'نوعين': ['ن', 'ع'], 'نهاء': ['ن', 'ه'],
+    'يهبه': ['ي', 'ب'], 'يابه': ['ي', 'ب'], 'يهدال': ['ي', 'د'], 'ياءباء': ['ي', 'ب'],
+    'نوعين': ['ن', 'ع'], 'نهاء': ['ن', 'ه'], 'تقديم': ['ك', 'ه', 'ج'],
+    'خطف': ['خ', 'ط', 'ف'], 'افلام': ['ل', 'ق'], 'لمن': ['ل', 'م', 'ن'],
+    'منوعين': ['م', 'ن', 'ع'], 'وعج': ['و', 'ع', 'ج'], 'عقب': ['ع', 'ق', 'ب'],
   };
 
-  // الأرقام المنطوقة
+  // 3. قاموس الأرقام المنطوقة
   static final Map<String, String> digitsMap = {
     'صفر': '0', 'صِفر': '0', 'زيرو': '0',
     'واحد': '1', 'واحده': '1', 'واحدة': '1', 'وحد': '1',
     'اتنين': '2', 'اثنين': '2', 'إثنين': '2', 'تنين': '2', 'اثنان': '2', 'اتنان': '2',
     'تلاته': '3', 'ثلاثة': '3', 'تلات': '3', 'تلاتة': '3', 'ثلاثه': '3', 'ثلاث': '3',
     'اربعة': '4', 'اربعه': '4', 'أربعة': '4', 'أربعه': '4', 'اربع': '4', 'أربع': '4',
-    'خمسه': '5', 'خمسة': '5', 'خمس': '5',
-    'سته': '6', 'ستة': '6', 'ست': '6',
-    'سبعه': '7', 'سبعة': '7', 'سبع': '7',
-    'تمانيه': '8', 'ثمانية': '8', 'ثمانيه': '8', 'تمانية': '8', 'تمن': '8',
-    'تسعه': '9', 'تسعة': '9', 'تسع': '9',
+    'خمسه': '5', 'خمسة': '5', 'خمس': '5', 'خامسه': '5',
+    'سته': '6', 'ستة': '6', 'ست': '6', 'سيتة': '6',
+    'سبعه': '7', 'سبعة': '7', 'سبع': '7', 'سابعه': '7',
+    'تمانيه': '8', 'ثمانية': '8', 'ثمانيه': '8', 'تمانية': '8', 'تمن': '8', 'ثمن': '8',
+    'تسعه': '9', 'تسعة': '9', 'تسع': '9', 'تيسعة': '9',
   };
 
-  // قاموس أنواع وماركات السيارات الشامل
+  // 4. قاموس أنواع السيارات (الـ 27 ماركة + الأنواع الميدانية في الفيديو)
   static final Map<String, List<String>> vehicleTypesMap = {
-    'نقل عام': ['نقل عام', 'نقلي عام'],
+    'نقل عام': ['نقل عام', 'نقلي عام', 'نقل عمل', 'نقل عن'],
     'جراند ماكس': ['جراند ماكس', 'قراند ماكس', 'جراند مكس', 'جراند', 'قراند'],
-    'تلاجة كبيرة': ['تلاجة كبيرة', 'تلاجه كبيره', 'ثلاجة كبيرة', 'ثلاجه كبيره', 'تلاجه', 'ثلاجة', 'ثلاجه'],
-    'هاي اس': ['هاي اس', 'هايس', 'هاي آيس', 'هايسن', 'هاي ايس', 'هاي إس'],
-    'فان': ['فان', 'فن', 'بان'],
-    'نقل': ['نقل', 'ناقل'],
+    'تلاجه كبيره': ['تلاجة كبيرة', 'تلاجه كبيره', 'ثلاجة كبيرة', 'ثلاجه كبيره', 'تلاجه', 'ثلاجة', 'ثلاجه'],
+    'هاي اس': ['هاي اس', 'هايس', 'هاي آيس', 'هايسن', 'هاي ايس', 'هاي إس', 'هائس'],
+    'فان': ['فان', 'فن', 'بان', 'فام'],
+    'نقل': ['نقل', 'ناقل', 'نأل', 'نقلي'],
     'بيك اب': ['بيك اب', 'بيك آب', 'بيكب', 'دباب'],
     'اتوبيس': ['اتوبيس', 'أتوبيس', 'باص', 'ميكروباص'],
-    'تويوتا': ['تويوتا', 'تيوتا', 'تايوتا'],
-    'نيسان': ['نيسان', 'نسان'],
-    'مازدا': ['مازدا', 'مزدا'],
-    'هوندا': ['هوندا', 'هندا'],
-    'لكزس': ['لكزس', 'لكزيس', 'لكسز'],
-    'سوزوكي': ['سوزوكي', 'سزوكي'],
+    'تويوتا': ['تويوتا', 'تيوتا', 'تايوتا', 'توياتا'],
+    'نيسان': ['نيسان', 'نسان', 'نيسن'],
+    'مازدا': ['مازدا', 'مزدا', 'مازده'],
+    'هوندا': ['هوندا', 'هندا', 'هونده'],
+    'لكزس': ['لكزس', 'لكزيس', 'لكسز', 'لكسس'],
+    'سوزوكي': ['سوزوكي', 'سزوكي', 'سوزكي'],
     'هيونداي': ['هيونداي', 'هونداي', 'هينداي'],
-    'كيا': ['كيا'],
+    'كيا': ['كيا', 'كييا'],
     'جينيسيس': ['جينيسيس', 'جنسس', 'جينسس'],
-    'فورد': ['فورد'],
-    'شيفروليه': ['شيفروليه', 'شفروليه', 'شفر'],
+    'فورد': ['فورد', 'فرود'],
+    'شيفروليه': ['شيفروليه', 'شفروليه', 'شفر', 'شيفر'],
     'جي إم سي': ['جي إم سي', 'جي ام سي', 'جيمس', 'جمس'],
-    'كاديلاك': ['كاديلاك', 'كديلاك'],
+    'كاديلاك': ['كاديلاك', 'كديلاك', 'كدلك'],
     'رام': ['رام'],
-    'هافال': ['هافال'],
-    'شانجان': ['شانجان', 'شنجان'],
+    'هافال': ['هافال', 'هفال'],
+    'شانجان': ['شانجان', 'شنجان', 'شانقان'],
     'جيلي': ['جيلي', 'جلي'],
-    'جيتور': ['جيتور'],
+    'جيتور': ['جيتور', 'جتور'],
     'إم جي': ['إم جي', 'ام جي', 'امجي'],
     'شيري': ['شيري', 'شري'],
     'بي واي دي': ['بي واي دي', 'بي وايدي'],
@@ -583,47 +635,67 @@ class SheekhaFullEngine {
     'بي إم دبليو': ['بي إم دبليو', 'بي ام دبليو', 'بي ام'],
     'أودي': ['أودي', 'اودي'],
     'فولكس فاجن': ['فولكس فاجن', 'فولكس واجن', 'فولكس'],
-    'لاند روفر': ['لاند روفر', 'لاندروفر', 'رنج روفر'],
+    'لاند روفر': ['لاند روفر', 'لاندروفر', 'رنج روفر', 'رانج روفر'],
     'بورش': ['بورش', 'بورشه'],
-    'ملاكي': ['ملاكي', 'خصوصي'],
+    'ملاكي': ['ملاكي', 'خصوصي', 'سيدان'],
   };
 
+  // استخراج نوع السيارة من الجزء المنطوق حديثاً
   static String? extractVehicleType(String text) {
     String clean = text.trim();
     if (clean.isEmpty) return null;
 
+    // فحص الكلمات المتعلمة للأنواع
+    for (var entry in userWordMap.entries) {
+      if (vehicleTypesMap.containsKey(entry.value) && clean.contains(entry.key)) {
+        return entry.value;
+      }
+    }
+
+    // فحص الأنواع المركبة أولاً (مثل نقل عام، جراند ماكس، تلاجه كبيره)
     for (var entry in vehicleTypesMap.entries) {
       for (String synonym in entry.value) {
-        if (clean.contains(synonym)) {
+        if (synonym.contains(' ') && clean.contains(synonym)) {
           return entry.key;
+        }
+      }
+    }
+
+    // فحص الأنواع المفردة
+    List<String> words = clean.split(RegExp(r'\s+'));
+    for (int i = words.length - 1; i >= 0; i--) {
+      String cw = words[i].replaceAll(RegExp(r'[^\u0621-\u064A]'), '');
+      if (cw.isEmpty) continue;
+      for (var entry in vehicleTypesMap.entries) {
+        for (String synonym in entry.value) {
+          if (cw == synonym || (cw.length >= 4 && cw.startsWith('ال') && cw.substring(2) == synonym)) {
+            return entry.key;
+          }
         }
       }
     }
     return null;
   }
 
-  // خوارزمية النافذة المنزلقة العكسية (Sliding Tail Window) لسرعة ودقة فائقة
-  static Map<String, dynamic>? parsePlateAndType(String text) {
-    if (text.trim().isEmpty) return null;
+  // المحرك الدقيق لفحص المقطع الصوتي الجديد فقط واستخراج (3 حروف + 4 أرقام + النوع)
+  static Map<String, dynamic>? parsePlateAndType(String activeSegment, {bool isFinalResult = false}) {
+    if (activeSegment.trim().isEmpty) return null;
 
-    String normalizedVoice = normalizeFlexible(text);
-
-    // 1. الفحص الفوري في الذاكرة المتعلمة
+    String normalizedVoice = normalizeFlexible(activeSegment);
     if (userLearnedMap.containsKey(normalizedVoice)) {
       var learned = userLearnedMap[normalizedVoice];
       return {
         'letters': learned['letters'],
         'digits': learned['digits'],
-        'type': learned['type'] ?? 'ملاكي',
-        'hasExplicitType': true,
+        'type': learned['type'] ?? '-',
+        'hasExplicitType': (learned['type'] ?? '-') != '-',
         'startsWithAlefOrBaa': false,
       };
     }
 
-    String normalized = normalizeDigits(text);
+    String normalized = normalizeDigits(activeSegment);
     String? detectedType = extractVehicleType(normalized);
 
-    // إزالة نوع السيارة من النص حتى لا يتدخل مع الحروف
     String textForPlate = normalized;
     if (detectedType != null && vehicleTypesMap.containsKey(detectedType)) {
       for (String syn in vehicleTypesMap[detectedType]!) {
@@ -631,7 +703,7 @@ class SheekhaFullEngine {
       }
     }
 
-    // تفكيك الكلمات المتصلة المكتشفة بمسافات لضمان عدم ضياع أي حرف
+    // تفكيك الكلمات المتصلة المعروفة
     compounds.forEach((k, v) {
       textForPlate = textForPlate.replaceAll(k, ' ${v.join(' ')} ');
     });
@@ -639,10 +711,24 @@ class SheekhaFullEngine {
     List<String> rawTokens = textForPlate.split(RegExp(r'\s+'));
     List<String> stream = [];
 
-    // تحويل الكلمات المنطوقة إلى دفق متتالي من الحروف والأرقام
     for (String token in rawTokens) {
       String w = token.replaceAll(RegExp(r'[^\u0621-\u064A0-9]'), '');
       if (w.isEmpty) continue;
+
+      // فحص القاموس الشخصي للكلمات المفردة
+      if (userWordMap.containsKey(w)) {
+        String fixed = userWordMap[w]!;
+        if (RegExp(r'^\d+$').hasMatch(fixed)) {
+          for (int i = 0; i < fixed.length; i++) stream.add(fixed[i]);
+          continue;
+        } else if (lettersMap.containsKey(fixed)) {
+          stream.add(lettersMap[fixed]!);
+          continue;
+        } else if (fixed.length == 1) {
+          stream.add(fixed);
+          continue;
+        }
+      }
 
       if (digitsMap.containsKey(w)) {
         stream.add(digitsMap[w]!);
@@ -650,18 +736,13 @@ class SheekhaFullEngine {
         for (int i = 0; i < w.length; i++) stream.add(w[i]);
       } else if (lettersMap.containsKey(w)) {
         stream.add(lettersMap[w]!);
-      } else {
-        // فحص لو كلمات ملتصقة بالحروف
-        for (int i = 0; i < w.length; i++) {
-          String ch = w[i];
-          if (lettersMap.containsKey(ch)) {
-            stream.add(lettersMap[ch]!);
-          }
-        }
+      } else if (w.length == 1 && RegExp(r'[\u0621-\u064A]').hasMatch(w)) {
+        stream.add(w);
       }
+      // ملاحظة هامة: أي كلمة محادثة عادية (مثل: "خلينا"، "نمسح"، "اللهم"، "برحة") لا تدخل في الـ stream إطلاقاً!
     }
 
-    // 2. البحث بنظام النافذة العكسية (من النهاية للبداية) لاقتناص أحدث لوحة مكتملة فوراً
+    // البحث من نهاية التدفق عن لوحة مكتملة (3 حروف + 4 أرقام كما في الفيديو)
     for (int i = stream.length - 1; i >= 0; i--) {
       if (RegExp(r'^\d$').hasMatch(stream[i])) {
         int dEnd = i;
@@ -669,10 +750,14 @@ class SheekhaFullEngine {
         while (dStart - 1 >= 0 && RegExp(r'^\d$').hasMatch(stream[dStart - 1])) {
           dStart--;
         }
-        
+
         int numDigits = dEnd - dStart + 1;
-        if (numDigits >= 3 && numDigits <= 4) {
-          // نبحث عن الحروف التي تسبق الأرقام مباشرة (بحد أقصى 3 حروف)
+        // في الاستماع اللحظي نلتقط فوراً عند اكتمال 4 أرقام (أو 3 أرقام فقط إذا توقف المتحدث وانتهت الجملة)
+        int minRequiredDigits = isFinalResult ? 3 : 4;
+
+        if (numDigits >= minRequiredDigits) {
+          String digitsStr = stream.sublist(dStart, dStart + (numDigits > 4 ? 4 : numDigits)).join('');
+
           List<String> lettersFound = [];
           for (int j = dStart - 1; j >= 0 && lettersFound.length < 3; j--) {
             if (RegExp(r'^[\u0621-\u064A]$').hasMatch(stream[j])) {
@@ -682,21 +767,20 @@ class SheekhaFullEngine {
             }
           }
 
-          if (lettersFound.length >= 2) {
-            String digitsStr = stream.sublist(dStart, dEnd + 1).join('');
+          int minRequiredLetters = isFinalResult ? 2 : 3;
+          if (lettersFound.length >= minRequiredLetters) {
             String firstL = lettersFound.first;
             bool startsWithAorB = (firstL == 'أ' || firstL == 'ا' || firstL == 'إ' || firstL == 'ب');
 
             return {
               'letters': lettersFound.join(' '),
               'digits': digitsStr,
-              'type': detectedType ?? (startsWithAorB ? '-' : 'ملاكي'),
+              'type': detectedType ?? '-',
               'hasExplicitType': detectedType != null,
               'startsWithAlefOrBaa': startsWithAorB,
             };
           }
         }
-        // تخطي هذه الكتلة الرقمية ومواصلة البحث للخلف لو لم تكن لوحة صالحة
         i = dStart;
       }
     }
@@ -741,10 +825,15 @@ class _SheekhaHomeScreenState extends State<SheekhaHomeScreen> {
   final stt.SpeechToText _speech = stt.SpeechToText();
   bool _speechEnabled = false;
 
+  // مؤشر الكلمات المستهلكة لضمان عدم تداخل اللوحات في الاستماع المستمر
+  int _consumedWordCount = 0;
+  String _lastFullRecognized = '';
+
   Timer? _pendingTimer;
   Map<String, String>? _pendingPlate;
+  DateTime? _lastPlateInsertedAt;
 
-  final List<String> _districts = ['الروضة', 'السلام', 'المنيل', 'المعادي'];
+  final List<String> _districts = ['الروضة', 'السلام', 'المنيل', 'المعادي', 'النهضة'];
   String _currentDistrict = 'الروضة';
   String _currentStreet = 'ض 1';
   String _currentCoordinates = '';
@@ -800,7 +889,7 @@ class _SheekhaHomeScreenState extends State<SheekhaHomeScreen> {
 
   void _restartListeningSafely() {
     if (!_isListening) return;
-    Future.delayed(const Duration(milliseconds: 100), () {
+    Future.delayed(const Duration(milliseconds: 80), () {
       if (_isListening && mounted && !_speech.isListening) {
         _startListeningSession();
       }
@@ -840,48 +929,63 @@ class _SheekhaHomeScreenState extends State<SheekhaHomeScreen> {
     }
   }
 
-  // الاستماع المستمر السريع
+  // جلسة الاستماع المستمرة مع عزل كل لوحة جديدة عن الكلام السابق (مطابقة لسرعة الفيديو)
   void _startListeningSession() async {
     if (!_isListening) return;
+    _consumedWordCount = 0;
+    _lastFullRecognized = '';
 
     await _speech.listen(
       listenMode: stt.ListenMode.dictation,
       partialResults: true,
       cancelOnError: false,
+      listenFor: const Duration(hours: 2),
+      pauseFor: const Duration(minutes: 5),
       onSoundLevelChange: (level) {
         if (mounted) setState(() => _soundLevel = level.clamp(0.0, 15.0));
       },
       onResult: (result) {
         if (!mounted) return;
-        String spoken = result.recognizedWords.trim();
-        if (spoken.isEmpty) return;
+        String fullSpoken = result.recognizedWords.trim();
+        if (fullSpoken.isEmpty) return;
 
-        setState(() => _currentStatusText = spoken);
+        List<String> allWords = fullSpoken.split(RegExp(r'\s+'));
+        // إذا بدأ محرك الصوت جملة جديدة أقصر من المؤشر السابق، نصفر المؤشر تلقائياً
+        if (allWords.length < _consumedWordCount || !fullSpoken.startsWith(_lastFullRecognized.split(' ').first)) {
+          _consumedWordCount = 0;
+        }
+        _lastFullRecognized = fullSpoken;
 
-        // 1. فحص تحديث النوع للوحة المعلقة (أ / ب)
+        // نأخذ فقط الكلمات الجديدة التي لم يتم استهلاكها في لوحة سابقة!
+        List<String> activeWords = allWords.sublist(_consumedWordCount);
+        String activeSegment = activeWords.join(' ').trim();
+
+        // عرض أحدث الكلمات المنطوقة في الشريط العلوي كما في الفيديو
+        String displayBar = activeWords.length > 9
+            ? activeWords.sublist(activeWords.length - 9).join(' ')
+            : (activeSegment.isNotEmpty ? activeSegment : fullSpoken);
+        setState(() => _currentStatusText = displayBar);
+
+        if (activeSegment.isEmpty) return;
+
+        // 1. إذا كانت هناك لوحة تبدأ بـ (أ أو ب) تنتظر سماع النوع (نقل / فان / جراند ماكس...)
         if (_pendingPlate != null) {
-          String? carType = SheekhaFullEngine.extractVehicleType(spoken);
+          String? carType = SheekhaFullEngine.extractVehicleType(activeSegment);
           if (carType != null) {
             _pendingPlate!['type'] = carType;
-            _pendingPlate!['raw'] = spoken;
+            _pendingPlate!['raw'] = '${_pendingPlate!['raw']} $activeSegment'.trim();
+            _consumedWordCount = allWords.length;
             _commitPendingPlate();
             return;
           }
         }
 
-        // 2. تحديث النوع لآخر لوحة رُصدت إن نُطق منفرداً
-        String? standaloneType = SheekhaFullEngine.extractVehicleType(spoken);
-        if (standaloneType != null && _records.isNotEmpty) {
-          if (_records[0]['type'] == 'ملاكي' || _records[0]['type'] == '-') {
-            setState(() {
-              _records[0]['type'] = standaloneType;
-              _saveData();
-            });
-          }
-        }
+        // 2. فحص واستخراج اللوحة من المقطع النشط
+        var plateData = SheekhaFullEngine.parsePlateAndType(
+          activeSegment,
+          isFinalResult: result.finalResult,
+        );
 
-        // 3. الفحص اللحظي الذكي للوحات الكاملة
-        var plateData = SheekhaFullEngine.parsePlateAndType(spoken);
         if (plateData != null) {
           String letters = plateData['letters']!;
           String digits = plateData['digits']!;
@@ -890,42 +994,62 @@ class _SheekhaHomeScreenState extends State<SheekhaHomeScreen> {
           bool startsWithAlefOrBaa = plateData['startsWithAlefOrBaa'] == true;
           String key = '$letters-$digits';
 
+          // لو نفس اللوحة المعلقة نُطق معها النوع في نفس الجملة
           if (_pendingPlate != null && _pendingPlate!['key'] == key) {
             if (hasExplicitType) {
               _pendingPlate!['type'] = carType;
+              _consumedWordCount = allWords.length;
               _commitPendingPlate();
             }
             return;
           }
 
+          // لو دخلت لوحة جديدة تماماً بينما توجد لوحة معلقة، نسجل المعلقة فوراً
           if (_pendingPlate != null && _pendingPlate!['key'] != key) {
             _commitPendingPlate();
           }
 
           DateTime now = DateTime.now();
-          // منع التكرار لنفس اللوحة لمدة ثانيتين
           bool isRecent = _cooldowns.containsKey(key) &&
-              now.difference(_cooldowns[key]!).inMilliseconds < 2500;
+              now.difference(_cooldowns[key]!).inMilliseconds < 3000;
 
           if (!isRecent) {
             _cooldowns[key] = now;
+            // حرق الكلمات الحالية حتى لا تتكرر أو تتداخل مع اللوحة القادمة
+            _consumedWordCount = allWords.length;
 
-            // إذا كانت اللوحة تبدأ بـ أ أو ب، ننتظر 1.5 ثانية لاقتناص النوع إن لم يذكر
+            // السر الثالث في الفيديو: اللوحة التي تبدأ بـ (أ) أو (ب) تنتظر النوع إذا لم يُقل معها
             if (startsWithAlefOrBaa && !hasExplicitType) {
               _pendingPlate = {
                 'key': key,
                 'letters': letters,
                 'digits': digits,
-                'type': 'ملاكي',
-                'raw': spoken,
+                'type': '-',
+                'raw': activeSegment,
               };
               _pendingTimer?.cancel();
-              _pendingTimer = Timer(const Duration(milliseconds: 1500), () {
+              _pendingTimer = Timer(const Duration(milliseconds: 1600), () {
                 if (mounted) _commitPendingPlate();
               });
             } else {
-              // تسجيل فوري كطلقة الرصاص
-              _registerDetectedPlate(letters, digits, carType, rawSpoken: spoken);
+              // اللوحات التي لا تبدأ بـ أ أو ب (أو التي قيل نوعها معها) تنزل في الجدول في نفس اللحظة!
+              _registerDetectedPlate(letters, digits, carType, rawSpoken: activeSegment);
+            }
+          }
+        } else {
+          // 3. لو قال المستخدم نوع السيارة متأخراً بعد نزول اللوحة في الجدول (كما فعل في الدقيقة 1:13 لما قال "هاي اس")
+          if (_records.isNotEmpty && _lastPlateInsertedAt != null) {
+            if (DateTime.now().difference(_lastPlateInsertedAt!).inSeconds <= 8) {
+              String? standaloneType = SheekhaFullEngine.extractVehicleType(activeSegment);
+              if (standaloneType != null &&
+                  (_records[0]['type'] == '-' || _records[0]['type'] == 'ملاكي')) {
+                setState(() {
+                  _records[0]['type'] = standaloneType;
+                  _consumedWordCount = allWords.length;
+                  _lastPlateInsertedAt = null;
+                  _saveData();
+                });
+              }
             }
           }
         }
@@ -948,9 +1072,9 @@ class _SheekhaHomeScreenState extends State<SheekhaHomeScreen> {
 
     bool isWanted = match.isNotEmpty;
 
-    String finalCarType = isWanted && (match['type'] ?? '').isNotEmpty && match['type'] != 'ملاكي'
-        ? match['type']!
-        : (spokenType != 'ملاكي' && spokenType != '-' ? spokenType : (match['type'] ?? 'ملاكي'));
+    String finalCarType = (spokenType.isNotEmpty && spokenType != '-' && spokenType != 'ملاكي')
+        ? spokenType
+        : (isWanted && (match['type'] ?? '').isNotEmpty ? match['type']! : '-');
 
     String currentCoords = _isGpsEnabled ? _currentCoordinates : '';
     if (_isGpsEnabled && currentCoords.isEmpty) {
@@ -967,6 +1091,7 @@ class _SheekhaHomeScreenState extends State<SheekhaHomeScreen> {
     }
 
     setState(() {
+      _lastPlateInsertedAt = DateTime.now();
       _records.insert(0, {
         'id': (_records.length + 1).toString(),
         'letters': letters,
@@ -994,6 +1119,7 @@ class _SheekhaHomeScreenState extends State<SheekhaHomeScreen> {
     }
   }
 
+  // معالجة ملفات الإكسيل (تم إصلاح قراءة الشيت المصدر من التطبيق نفسه أو أي شيت خارجي بدقة 100%)
   Future<void> _processExcelWithProgress(
     Uint8List bytes,
     String fileName, {
@@ -1082,7 +1208,21 @@ class _SheekhaHomeScreenState extends State<SheekhaHomeScreen> {
 
       for (var tableName in targetSheets) {
         var sheet = excel.tables[tableName];
-        if (sheet == null) continue;
+        if (sheet == null || sheet.rows.isEmpty) continue;
+
+        // اكتشاف ذكي لمواقع الأعمدة سواء كان الشيت مُصدّراً من تطبيق RASED أو شيت مطلوبين خارجي
+        var headerRow = sheet.rows.first;
+        int plateColIdx = 0;
+        bool isExportedRasedFormat = false;
+
+        if (headerRow.length > 1) {
+          String h0 = headerRow[0]?.value?.toString().trim() ?? '';
+          String h1 = headerRow[1]?.value?.toString().trim() ?? '';
+          if (h0 == 'م' && (h1.contains('اللوحة') || h1.contains('اللوحه') || h1.toLowerCase().contains('plate'))) {
+            plateColIdx = 1;
+            isExportedRasedFormat = true;
+          }
+        }
 
         for (var row in sheet.rows.skip(1)) {
           currentProcessed++;
@@ -1094,40 +1234,67 @@ class _SheekhaHomeScreenState extends State<SheekhaHomeScreen> {
 
           if (row.isEmpty) continue;
 
-          String col0 = row.isNotEmpty && row[0] != null ? row[0]!.value.toString().trim() : '';
-          String col1 = row.length > 1 && row[1] != null ? row[1]!.value.toString().trim() : '';
-          String col2 = row.length > 2 && row[2] != null ? row[2]!.value.toString().trim() : '';
-          String col3 = row.length > 3 && row[3] != null ? row[3]!.value.toString().trim() : '';
+          String cellVal(int idx) => (idx < row.length && row[idx]?.value != null)
+              ? row[idx]!.value.toString().trim()
+              : '';
 
-          if (col0.isEmpty || col0 == 'اللوحة' || col0 == 'اللوحه') continue;
+          // إذا لم يتم التعرف من الهيدر، نفحص هل العمود 0 مجرد رقم مسلسل والعمود 1 هو اللوحة
+          bool rowUsesRasedCols = isExportedRasedFormat;
+          String rawPlate = cellVal(plateColIdx);
+          if (!rowUsesRasedCols && RegExp(r'^\d{1,5}$').hasMatch(cellVal(0)) && cellVal(1).contains(RegExp(r'[\u0621-\u064A]'))) {
+            String d1 = SheekhaFullEngine.normalizeDigits(cellVal(1)).replaceAll(RegExp(r'[^\d]'), '');
+            if (d1.length >= 3) {
+              rowUsesRasedCols = true;
+              rawPlate = cellVal(1);
+            }
+          }
 
-          String digits = col0.replaceAll(RegExp(r'[^\d]'), '');
-          String letters = col0.replaceAll(RegExp(r'[\d]'), '').trim();
+          if (rawPlate.isEmpty || rawPlate == 'اللوحة' || rawPlate == 'اللوحه') continue;
+
+          String normalizedPlate = SheekhaFullEngine.normalizeDigits(rawPlate);
+          String digits = normalizedPlate.replaceAll(RegExp(r'[^\d]'), '');
+          String letters = normalizedPlate.replaceAll(RegExp(r'[\d]'), '').trim();
+          if (letters.isNotEmpty && !letters.contains(' ') && letters.length <= 3) {
+            letters = letters.split('').join(' ');
+          }
 
           if (digits.length >= 3) {
             if (isWantedSheet) {
+              String typeVal = rowUsesRasedCols ? cellVal(3) : cellVal(1);
+              String ownerVal = rowUsesRasedCols ? cellVal(7) : cellVal(2);
+              String shassisVal = rowUsesRasedCols ? cellVal(6) : cellVal(3);
+
               extracted.add({
                 'letters': letters,
                 'digits': digits,
-                'type': col1.isNotEmpty ? col1 : 'ملاكي',
-                'owner': col2.isNotEmpty ? col2 : 'غير متوفر',
-                'shassis': col3.isNotEmpty ? col3 : 'غير متوفر',
+                'type': typeVal.isNotEmpty ? typeVal : '-',
+                'owner': ownerVal.isNotEmpty ? ownerVal : 'غير متوفر',
+                'shassis': shassisVal.isNotEmpty ? shassisVal : 'غير متوفر',
                 'status': 'مطلوبة'
               });
             } else {
+              String statusVal = rowUsesRasedCols && cellVal(2).isNotEmpty ? cellVal(2) : 'مطابق';
+              String typeVal = rowUsesRasedCols ? cellVal(3) : cellVal(1);
+              String distVal = rowUsesRasedCols && cellVal(4).isNotEmpty ? cellVal(4) : _currentDistrict;
+              String streetVal = rowUsesRasedCols && cellVal(5).isNotEmpty ? cellVal(5) : _currentStreet;
+              String shassisVal = rowUsesRasedCols ? cellVal(6) : cellVal(3);
+              String ownerVal = rowUsesRasedCols ? cellVal(7) : cellVal(2);
+              String noteVal = rowUsesRasedCols && cellVal(9).isNotEmpty ? cellVal(9) : 'سجل سابق';
+              String timeVal = rowUsesRasedCols && cellVal(10).isNotEmpty ? cellVal(10) : 'سابق';
+
               extracted.add({
                 'id': (_records.length + extracted.length + 1).toString(),
                 'letters': letters,
                 'digits': digits,
-                'type': col1.isNotEmpty ? col1 : 'ملاكي',
-                'district': _currentDistrict,
-                'street': _currentStreet,
+                'type': typeVal.isNotEmpty ? typeVal : '-',
+                'district': distVal,
+                'street': streetVal,
                 'coords': _isGpsEnabled ? _currentCoordinates : '',
-                'owner': col2,
-                'shassis': col3,
-                'note': 'سجل سابق',
-                'status': 'مطابق',
-                'time': 'سابق',
+                'owner': ownerVal.isNotEmpty ? ownerVal : 'غير محدد',
+                'shassis': shassisVal.isNotEmpty ? shassisVal : 'غير متوفر',
+                'note': noteVal,
+                'status': statusVal,
+                'time': timeVal,
               });
             }
           }
@@ -1318,7 +1485,7 @@ class _SheekhaHomeScreenState extends State<SheekhaHomeScreen> {
                 keyboardType: TextInputType.number,
                 textAlign: TextAlign.center,
                 style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
-                decoration: InputDecoration(labelText: AppStrings.isAr ? 'الأرقام الصحيحة (مثال: 715)' : 'Digits', labelStyle: const TextStyle(color: Colors.grey)),
+                decoration: InputDecoration(labelText: AppStrings.isAr ? 'الأرقام الصحيحة (مثال: 2517)' : 'Digits', labelStyle: const TextStyle(color: Colors.grey)),
               ),
               const SizedBox(height: 6),
               TextField(
@@ -1343,7 +1510,6 @@ class _SheekhaHomeScreenState extends State<SheekhaHomeScreen> {
                 newLettersStr = newLettersStr.split('').join(' ');
               }
 
-              // حفظ التعلم الصوتي الفوري في الذاكرة
               if (rawSpoken.isNotEmpty) {
                 await SheekhaFullEngine.saveLearnedMapping(
                   rawSpoken,
@@ -1436,7 +1602,7 @@ class _SheekhaHomeScreenState extends State<SheekhaHomeScreen> {
           'id': 'مطلوبة',
           'letters': car['letters'] ?? '',
           'digits': car['digits'] ?? '',
-          'type': car['type'] ?? 'ملاكي',
+          'type': car['type'] ?? '-',
           'district': 'شيت المطلوبين',
           'street': car['owner'] ?? 'مطلوبة',
           'coords': '',
@@ -1471,7 +1637,7 @@ class _SheekhaHomeScreenState extends State<SheekhaHomeScreen> {
       if (exactMatch.isNotEmpty) {
         String lts = exactMatch['letters'] ?? '';
         String dgs = exactMatch['digits'] ?? '';
-        String typ = exactMatch['type'] ?? 'ملاكي';
+        String typ = exactMatch['type'] ?? '-';
 
         _registerDetectedPlate(lts, dgs, typ);
       }
@@ -1567,7 +1733,7 @@ class _SheekhaHomeScreenState extends State<SheekhaHomeScreen> {
   }
 
   void _showWantedAlertModal(Map<String, String> car, String letters, String digits) {
-    String carType = (car['type'] ?? '').isNotEmpty ? car['type']! : 'ملاكي';
+    String carType = (car['type'] ?? '').isNotEmpty ? car['type']! : '-';
     String bankOwner = (car['owner'] ?? '').isNotEmpty ? car['owner']! : 'غير متوفر';
     String shassis = (car['shassis'] ?? '').isNotEmpty ? car['shassis']! : 'غير متوفر';
 
@@ -2188,7 +2354,7 @@ class _SheekhaHomeScreenState extends State<SheekhaHomeScreen> {
                     borderRadius: BorderRadius.circular(6),
                   ),
                   child: Text(
-                    r['type'] ?? 'ملاكي',
+                    r['type'] ?? '-',
                     style: TextStyle(color: isWanted ? Colors.white : const Color(0xFF06D6A0), fontSize: 12, fontWeight: FontWeight.bold),
                   ),
                 ),
@@ -2316,7 +2482,24 @@ class _SheekhaHomeScreenState extends State<SheekhaHomeScreen> {
   }
 
   void _showNotesMenu() {
-    final notes = ['بدون', 'برحة', 'برحة يمين', 'برحة يسار', 'تحت تندة'];
+    final notes = [
+      'بدون',
+      'برحة',
+      'برحة يمين',
+      'برحة يسار',
+      'برحة اخر الشارع',
+      'برحة نهاية الشارع',
+      'برحة منتصف الشارع',
+      'برحة وسط الشارع',
+      'برحة يمين اول الشارع',
+      'برحة يسار اول الشارع',
+      'وصلة يمين',
+      'وصلة يسار',
+      'وصلة يمين اول الشارع',
+      'وصلة يسار اول الشارع',
+      'برحة فندق',
+      'تحت تندة'
+    ];
     showModalBottomSheet(
       context: context,
       backgroundColor: const Color(0xFF1C2541),
