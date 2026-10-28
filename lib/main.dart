@@ -14,7 +14,6 @@ import 'package:url_launcher/url_launcher.dart';
 
 void main() => runApp(const MyApp());
 
-// نظام حماية التراخيص والتحكم عن بُعد
 class RasedLicenseManager {
   static const String _secretSalt = "RASED_PRO_2026_SECRET_KEY";
   
@@ -82,6 +81,7 @@ class RasedLicenseManager {
   static Future<String?> _fetchControlJson() async {
     HttpClient client = HttpClient();
     client.connectionTimeout = const Duration(seconds: 7);
+
     try {
       Uri apiUri = Uri.parse("$githubApiUrl?t=${DateTime.now().millisecondsSinceEpoch}");
       HttpClientRequest req = await client.getUrl(apiUri);
@@ -91,6 +91,7 @@ class RasedLicenseManager {
       HttpClientResponse res = await req.close();
       if (res.statusCode == 200) return await res.transform(utf8.decoder).join();
     } catch (_) {}
+
     try {
       Uri rawUri = Uri.parse("$remoteControlJsonUrl?t=${DateTime.now().millisecondsSinceEpoch}");
       HttpClientRequest req = await client.getUrl(rawUri);
@@ -111,12 +112,14 @@ class RasedLicenseManager {
       }
       if (res.statusCode == 200) return await res.transform(utf8.decoder).join();
     } catch (_) {}
+
     return null;
   }
 
   static Future<Map<String, dynamic>> checkRemoteStatus(String myDeviceId, String currentExpiryIso) async {
     final prefs = await SharedPreferences.getInstance();
     bool remoteCheckSuccessful = false;
+
     try {
       if (!remoteControlJsonUrl.contains("YOUR_USERNAME")) {
         String? body = await _fetchControlJson();
@@ -135,7 +138,9 @@ class RasedLicenseManager {
               if (item['expiry'] != null) {
                 DateTime remoteExp = DateTime.parse("${item['expiry']}T23:59:59");
                 await prefs.setString('rased_license_expiry', remoteExp.toIso8601String());
-                if (DateTime.now().isAfter(remoteExp)) return {'allowed': false, 'reason': 'انتهت فترة اشتراكك، يرجى التجديد'};
+                if (DateTime.now().isAfter(remoteExp)) {
+                  return {'allowed': false, 'reason': 'انتهت فترة اشتراكك، يرجى التجديد'};
+                }
                 return {'allowed': true, 'expiry': remoteExp.toIso8601String()};
               }
             }
@@ -145,10 +150,12 @@ class RasedLicenseManager {
     } catch (_) {
       remoteCheckSuccessful = false;
     }
+
     if (!remoteCheckSuccessful) {
       bool isPermanentlyBanned = prefs.getBool('rased_perm_ban_$myDeviceId') ?? false;
       if (isPermanentlyBanned) return {'allowed': false, 'reason': 'تم إيقاف اشتراكك من قِبل الإدارة'};
     }
+
     DateTime exp = DateTime.parse(currentExpiryIso);
     if (DateTime.now().isAfter(exp)) return {'allowed': false, 'reason': 'انتهت فترة اشتراكك، يرجى التواصل للتجديد'};
     return {'allowed': true, 'expiry': currentExpiryIso};
@@ -199,6 +206,7 @@ class _MyAppState extends State<MyApp> {
       AppStrings.isAr = loc.languageCode == 'ar';
     });
   }
+
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
@@ -254,6 +262,7 @@ class _SubscriptionGateScreenState extends State<SubscriptionGateScreen> with Wi
     final prefs = await SharedPreferences.getInstance();
     String? savedExpiry = prefs.getString('rased_license_expiry');
     if (_deviceId.isEmpty || savedExpiry == null) return;
+
     var remoteCheck = await RasedLicenseManager.checkRemoteStatus(_deviceId, savedExpiry);
     if (mounted) {
       setState(() {
@@ -274,6 +283,7 @@ class _SubscriptionGateScreenState extends State<SubscriptionGateScreen> with Wi
     final prefs = await SharedPreferences.getInstance();
     String? savedCode = prefs.getString('rased_license_code');
     String? savedExpiry = prefs.getString('rased_license_expiry');
+
     if (savedCode != null && savedExpiry != null) {
       var localCheck = RasedLicenseManager.verifyActivationCode(savedCode, _deviceId);
       if (localCheck['valid'] == true) {
@@ -289,6 +299,7 @@ class _SubscriptionGateScreenState extends State<SubscriptionGateScreen> with Wi
         }
       }
     }
+
     setState(() {
       _isActivated = false;
       _isChecking = false;
@@ -321,11 +332,7 @@ class _SubscriptionGateScreenState extends State<SubscriptionGateScreen> with Wi
           child: SingleChildScrollView(
             child: Container(
               padding: const EdgeInsets.all(20),
-              decoration: BoxDecoration(
-                color: const Color(0xFF1C2541),
-                borderRadius: BorderRadius.circular(20),
-                border: Border.all(color: const Color(0xFF06D6A0), width: 1.5),
-              ),
+              decoration: BoxDecoration(color: const Color(0xFF1C2541), borderRadius: BorderRadius.circular(20), border: Border.all(color: const Color(0xFF06D6A0), width: 1.5)),
               child: Column(
                 mainAxisSize: MainAxisSize.min,
                 children: [
@@ -363,13 +370,7 @@ class _SubscriptionGateScreenState extends State<SubscriptionGateScreen> with Wi
                     controller: _codeCtrl,
                     textAlign: TextAlign.center,
                     style: const TextStyle(color: Colors.white),
-                    decoration: InputDecoration(
-                      hintText: 'أدخل كود التفعيل هنا (ACT-...)',
-                      hintStyle: const TextStyle(color: Colors.grey, fontSize: 12),
-                      filled: true,
-                      fillColor: const Color(0xFF0B132B),
-                      border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none),
-                    ),
+                    decoration: InputDecoration(hintText: 'أدخل كود التفعيل هنا (ACT-...)', hintStyle: const TextStyle(color: Colors.grey, fontSize: 12), filled: true, fillColor: const Color(0xFF0B132B), border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none)),
                   ),
                   if (_errorMessage.isNotEmpty) ...[
                     const SizedBox(height: 10),
@@ -405,12 +406,9 @@ class _SubscriptionGateScreenState extends State<SubscriptionGateScreen> with Wi
   }
 }
 
-// =========================================================================
-// المحرك الصوتي الذكي (فائق السرعة) مع النافذة العكسية والتعلم الذاتي
-// =========================================================================
 class SheekhaFullEngine {
   static Map<String, dynamic> userLearnedMap = {};
-
+  
   static Future<void> loadLearnedDictionary() async {
     try {
       final prefs = await SharedPreferences.getInstance();
@@ -424,11 +422,13 @@ class SheekhaFullEngine {
   static Future<void> saveLearnedMapping(String rawSpoken, String correctLetters, String correctDigits, String correctType) async {
     String cleanSpoken = normalizeFlexible(rawSpoken);
     if (cleanSpoken.isEmpty) return;
+
     userLearnedMap[cleanSpoken] = {
       'letters': correctLetters.trim(),
       'digits': correctDigits.trim(),
       'type': correctType.trim(),
     };
+
     try {
       final prefs = await SharedPreferences.getInstance();
       await prefs.setString('rased_user_learned_v8', json.encode(userLearnedMap));
@@ -469,13 +469,11 @@ class SheekhaFullEngine {
   static final Map<String, List<String>> compounds = {
     'واويه': ['و', 'ي'], 'واوية': ['و', 'ي'], 'واوياء': ['و', 'ي'],
     'واودال': ['و', 'د'], 'واوقاف': ['و', 'ق'], 'أوقاف': ['و', 'ق'],
-    'اوصاد': ['أ', 'و', 'ص'], 'أوصاد': ['أ', 'و', 'ص'],
+    'واوساط': ['و', 'ص'], 'أوساط': ['و', 'ص'], 'اوصاد': ['أ', 'و', 'ص'], 'أوصاد': ['أ', 'و', 'ص'],
     'راهدال': ['ر', 'د'], 'رادال': ['ر', 'د'], 'رهدال': ['ر', 'د'],
-    'عينرا': ['ع', 'ر'], 'عينره': ['ع', 'ر'],
-    'الفنون': ['أ', 'ن'], 'ألفنون': ['أ', 'ن'],
+    'عينرا': ['ع', 'ر'], 'عينره': ['ع', 'ر'], 'الفنون': ['أ', 'ن'], 'ألفنون': ['أ', 'ن'],
     'بهلام': ['ب', 'ل'], 'بالام': ['ب', 'ل'], 'بلام': ['ب', 'ل'],
-    'نونواو': ['ن', 'و'], 'نونواوه': ['ن', 'و', 'ي'],
-    'يهبه': ['ي', 'ب'], 'يهدال': ['ي', 'د'],
+    'نونواو': ['ن', 'و'], 'نونواوه': ['ن', 'و', 'ي'], 'يهبه': ['ي', 'ب'], 'يهدال': ['ي', 'د'],
     'نوعين': ['ن', 'ع'], 'نهاء': ['ن', 'ه'],
   };
 
@@ -484,10 +482,8 @@ class SheekhaFullEngine {
     'اتنين': '2', 'اثنين': '2', 'إثنين': '2', 'تنين': '2', 'اثنان': '2', 'اتنان': '2',
     'تلاته': '3', 'ثلاثة': '3', 'تلات': '3', 'تلاتة': '3', 'ثلاثه': '3', 'ثلاث': '3',
     'اربعة': '4', 'اربعه': '4', 'أربعة': '4', 'أربعه': '4', 'اربع': '4', 'أربع': '4',
-    'خمسه': '5', 'خمسة': '5', 'خمس': '5',
-    'سته': '6', 'ستة': '6', 'ست': '6',
-    'سبعه': '7', 'سبعة': '7', 'سبع': '7',
-    'تمانيه': '8', 'ثمانية': '8', 'ثمانيه': '8', 'تمانية': '8', 'تمن': '8',
+    'خمسه': '5', 'خمسة': '5', 'خمس': '5', 'سته': '6', 'ستة': '6', 'ست': '6',
+    'سبعه': '7', 'سبعة': '7', 'سبع': '7', 'تمانيه': '8', 'ثمانية': '8', 'ثمانيه': '8', 'تمانية': '8', 'تمن': '8',
     'تسعه': '9', 'تسعة': '9', 'تسع': '9',
   };
 
@@ -520,34 +516,25 @@ class SheekhaFullEngine {
     return null;
   }
 
-  // خوارزمية النافذة العكسية للرصد بدون توقف
-  static Map<String, dynamic>? parsePlateAndType(String text) {
-    if (text.trim().isEmpty) return null;
+  // تطبيق خوارزمية Stream Buffer والتقاط الأنماط عبر النافذة المنزلقة (Regex-like parsing)
+  static Map<String, dynamic>? parsePlateAndType(String bufferText) {
+    if (bufferText.trim().isEmpty) return null;
 
-    String normalizedVoice = normalizeFlexible(text);
+    String normalizedVoice = normalizeFlexible(bufferText);
     if (userLearnedMap.containsKey(normalizedVoice)) {
       var learned = userLearnedMap[normalizedVoice];
-      return {
-        'letters': learned['letters'],
-        'digits': learned['digits'],
-        'type': learned['type'] ?? '-',
-        'hasExplicitType': (learned['type'] ?? '-') != '-',
-        'startsWithAlefOrBaa': false,
-      };
+      return {'letters': learned['letters'], 'digits': learned['digits'], 'type': learned['type'] ?? '-', 'hasExplicitType': true, 'startsWithAlefOrBaa': false};
     }
 
-    String normalized = normalizeDigits(text);
+    String normalized = normalizeDigits(bufferText);
     String? detectedType = extractVehicleType(normalized);
+
     String textForPlate = normalized;
-    
     if (detectedType != null && vehicleTypesMap.containsKey(detectedType)) {
       for (String syn in vehicleTypesMap[detectedType]!) textForPlate = textForPlate.replaceAll(syn, ' ');
     }
 
-    compounds.forEach((k, v) {
-      textForPlate = textForPlate.replaceAll(k, ' ${v.join(' ')} ');
-    });
-
+    compounds.forEach((k, v) => textForPlate = textForPlate.replaceAll(k, ' ${v.join(' ')} '));
     List<String> rawTokens = textForPlate.split(RegExp(r'\s+'));
     List<String> stream = [];
 
@@ -569,7 +556,6 @@ class SheekhaFullEngine {
       }
     }
 
-    // النافذة العكسية (تبحث عن الأرقام أولاً من الخلف، ثم الحروف التي تسبقها)
     for (int i = stream.length - 1; i >= 0; i--) {
       if (RegExp(r'^\d$').hasMatch(stream[i])) {
         int dEnd = i;
@@ -582,9 +568,7 @@ class SheekhaFullEngine {
           for (int j = dStart - 1; j >= 0 && lettersFound.length < 3; j--) {
             if (RegExp(r'^[\u0621-\u064A]$').hasMatch(stream[j])) {
               lettersFound.insert(0, stream[j]);
-            } else {
-              break;
-            }
+            } else break;
           }
           if (lettersFound.length >= 2) {
             String digitsStr = stream.sublist(dStart, dEnd + 1).join('');
@@ -638,10 +622,11 @@ class _SheekhaHomeScreenState extends State<SheekhaHomeScreen> {
   final Map<String, DateTime> _cooldowns = {};
   final stt.SpeechToText _speech = stt.SpeechToText();
   bool _speechEnabled = false;
-
+  
+  // Stream Buffer Variables
+  String _circularBuffer = '';
   Timer? _pendingTimer;
   Map<String, String>? _pendingPlate;
-  DateTime? _lastPlateInsertedAt;
 
   final List<String> _districts = ['الروضة', 'السلام', 'المنيل', 'المعادي'];
   String _currentDistrict = 'الروضة';
@@ -654,12 +639,11 @@ class _SheekhaHomeScreenState extends State<SheekhaHomeScreen> {
   bool _isGpsEnabled = true;
 
   List<Map<String, String>> _records = [];
-  List<Map<String, String>> _wantedDatabase = []; 
   
-  // 🚀 الفهرسة اللحظية (Hash-Map O(1)) لسرعة البرق في المطابقة
+  // O(1) Hash-Map Index for extreme fast searching
   Map<String, List<Map<String, String>>> _wantedDatabaseIndexed = {};
-
   final Set<String> _selectedWantedIds = {};
+  int _totalWantedCount = 0;
 
   final TextEditingController _manualSearchCtrl = TextEditingController();
   List<Map<String, String>> _manualSearchResults = [];
@@ -677,17 +661,6 @@ class _SheekhaHomeScreenState extends State<SheekhaHomeScreen> {
   void dispose() {
     _pendingTimer?.cancel();
     super.dispose();
-  }
-
-  void _rebuildWantedIndex() {
-    _wantedDatabaseIndexed.clear();
-    for (var car in _wantedDatabase) {
-      String d = SheekhaFullEngine.normalizeDigits(car['digits'] ?? '');
-      if (d.isNotEmpty) {
-        if (_wantedDatabaseIndexed[d] == null) _wantedDatabaseIndexed[d] = [];
-        _wantedDatabaseIndexed[d]!.add(car);
-      }
-    }
   }
 
   Future<void> _initEngine() async {
@@ -720,6 +693,7 @@ class _SheekhaHomeScreenState extends State<SheekhaHomeScreen> {
         _isListening = false;
         _soundLevel = 0.0;
         _currentStatusText = AppStrings.stopped;
+        _circularBuffer = '';
       });
       await _speech.stop();
     } else {
@@ -731,6 +705,7 @@ class _SheekhaHomeScreenState extends State<SheekhaHomeScreen> {
       setState(() {
         _isListening = true;
         _currentStatusText = AppStrings.listeningNow;
+        _circularBuffer = '';
       });
       _startListeningSession();
     }
@@ -748,7 +723,6 @@ class _SheekhaHomeScreenState extends State<SheekhaHomeScreen> {
 
   void _startListeningSession() async {
     if (!_isListening) return;
-
     await _speech.listen(
       listenMode: stt.ListenMode.dictation,
       partialResults: true,
@@ -762,6 +736,11 @@ class _SheekhaHomeScreenState extends State<SheekhaHomeScreen> {
         if (spoken.isEmpty) return;
 
         setState(() => _currentStatusText = spoken);
+        
+        // Add to Stream Buffer (keep only last ~15 words to avoid memory pollution)
+        List<String> words = spoken.split(' ');
+        if (words.length > 15) words = words.sublist(words.length - 15);
+        _circularBuffer = words.join(' ');
 
         if (_pendingPlate != null) {
           String? carType = SheekhaFullEngine.extractVehicleType(spoken);
@@ -769,11 +748,20 @@ class _SheekhaHomeScreenState extends State<SheekhaHomeScreen> {
             _pendingPlate!['type'] = carType;
             _pendingPlate!['raw'] = spoken;
             _commitPendingPlate();
+            _circularBuffer = ''; // Flush buffer
             return;
           }
         }
 
-        var plateData = SheekhaFullEngine.parsePlateAndType(spoken);
+        String? standaloneType = SheekhaFullEngine.extractVehicleType(spoken);
+        if (standaloneType != null && _records.isNotEmpty) {
+          if (_records[0]['type'] == 'ملاكي' || _records[0]['type'] == '-') {
+            setState(() { _records[0]['type'] = standaloneType; _saveData(); });
+            _circularBuffer = ''; // Flush buffer
+          }
+        }
+
+        var plateData = SheekhaFullEngine.parsePlateAndType(_circularBuffer);
         if (plateData != null) {
           String letters = plateData['letters']!;
           String digits = plateData['digits']!;
@@ -786,40 +774,27 @@ class _SheekhaHomeScreenState extends State<SheekhaHomeScreen> {
             if (hasExplicitType) {
               _pendingPlate!['type'] = carType;
               _commitPendingPlate();
+              _circularBuffer = ''; // Flush buffer
             }
             return;
           }
 
-          if (_pendingPlate != null && _pendingPlate!['key'] != key) {
-            _commitPendingPlate();
-          }
+          if (_pendingPlate != null && _pendingPlate!['key'] != key) _commitPendingPlate();
 
           DateTime now = DateTime.now();
-          bool isRecent = _cooldowns.containsKey(key) && now.difference(_cooldowns[key]!).inSeconds < 2;
+          bool isRecent = _cooldowns.containsKey(key) && now.difference(_cooldowns[key]!).inMilliseconds < 3000;
 
           if (!isRecent) {
             _cooldowns[key] = now;
-            
             if (startsWithAlefOrBaa && !hasExplicitType) {
-              _pendingPlate = { 'key': key, 'letters': letters, 'digits': digits, 'type': 'ملاكي', 'raw': spoken };
+              _pendingPlate = {'key': key, 'letters': letters, 'digits': digits, 'type': '-', 'raw': spoken};
               _pendingTimer?.cancel();
               _pendingTimer = Timer(const Duration(milliseconds: 1500), () {
-                if (mounted) _commitPendingPlate();
+                if (mounted) { _commitPendingPlate(); _circularBuffer = ''; }
               });
             } else {
               _registerDetectedPlate(letters, digits, carType, rawSpoken: spoken);
-            }
-          }
-        } else {
-          // تحديث نوع السيارة متأخراً لآخر لوحة
-          if (_records.isNotEmpty && _lastPlateInsertedAt != null && DateTime.now().difference(_lastPlateInsertedAt!).inSeconds <= 5) {
-            String? standaloneType = SheekhaFullEngine.extractVehicleType(spoken);
-            if (standaloneType != null && (_records[0]['type'] == 'ملاكي' || _records[0]['type'] == '-')) {
-              setState(() {
-                _records[0]['type'] = standaloneType;
-                _saveData();
-              });
-              _lastPlateInsertedAt = null;
+              _circularBuffer = ''; // Flush buffer to avoid re-capturing
             }
           }
         }
@@ -833,7 +808,7 @@ class _SheekhaHomeScreenState extends State<SheekhaHomeScreen> {
 
     Map<String, String> match = {};
     
-    // 🚀 بحث O(1) باستخدام الفهرس اللحظي الخارق
+    // 🚀 O(1) Fast Hash-Map searching instead of Linear search
     if (_wantedDatabaseIndexed.containsKey(cleanDigits)) {
       var possibleMatches = _wantedDatabaseIndexed[cleanDigits]!;
       for (var car in possibleMatches) {
@@ -846,9 +821,9 @@ class _SheekhaHomeScreenState extends State<SheekhaHomeScreen> {
     }
 
     bool isWanted = match.isNotEmpty;
-    String finalCarType = isWanted && (match['type'] ?? '').isNotEmpty && match['type'] != 'ملاكي'
-        ? match['type']!
-        : (spokenType != 'ملاكي' && spokenType != '-' ? spokenType : (match['type'] ?? 'ملاكي'));
+    String finalCarType = (spokenType.isNotEmpty && spokenType != '-' && spokenType != 'ملاكي')
+        ? spokenType
+        : (isWanted && (match['type'] ?? '').isNotEmpty ? match['type']! : '-');
 
     String currentCoords = _isGpsEnabled ? _currentCoordinates : '';
     if (_isGpsEnabled && currentCoords.isEmpty) {
@@ -865,7 +840,6 @@ class _SheekhaHomeScreenState extends State<SheekhaHomeScreen> {
     }
 
     setState(() {
-      _lastPlateInsertedAt = DateTime.now();
       _records.insert(0, {
         'id': (_records.length + 1).toString(),
         'letters': letters,
@@ -908,7 +882,7 @@ class _SheekhaHomeScreenState extends State<SheekhaHomeScreen> {
             mainAxisSize: MainAxisSize.min,
             children: [
               Text(
-                isWantedSheet ? 'جاري قراءة ومعالجة ملف السيارات المطلوبة...' : 'جاري استيراد السجلات السابقة...',
+                isWantedSheet ? 'جاري بناء الفهرس السريع لملف المطلوبين...' : 'جاري استيراد السجلات السابقة...',
                 textAlign: TextAlign.center,
                 style: const TextStyle(color: Colors.white, fontSize: 13, fontWeight: FontWeight.bold),
               ),
@@ -961,7 +935,7 @@ class _SheekhaHomeScreenState extends State<SheekhaHomeScreen> {
         if (headerRow.length > 1) {
           String h0 = headerRow[0]?.value?.toString().trim() ?? '';
           String h1 = headerRow[1]?.value?.toString().trim() ?? '';
-          if (h0 == 'م' || h1.contains('اللوحة') || h1.contains('اللوحه') || h1.toLowerCase().contains('plate')) {
+          if (h0 == 'م' && (h1.contains('اللوحة') || h1.contains('اللوحه') || h1.toLowerCase().contains('plate'))) {
             plateColIdx = 1;
             isExportedRasedFormat = true;
           }
@@ -1033,9 +1007,15 @@ class _SheekhaHomeScreenState extends State<SheekhaHomeScreen> {
 
       setState(() {
         if (isWantedSheet) {
-          _wantedDatabase = extracted;
+          // 🚀 بناء الفهرس اللحظي عند رفع الشيت لضمان سرعة البحث الفائقة
+          _wantedDatabaseIndexed.clear();
+          _totalWantedCount = extracted.length;
+          for (var car in extracted) {
+            String d = SheekhaFullEngine.normalizeDigits(car['digits'] ?? '');
+            if (_wantedDatabaseIndexed[d] == null) _wantedDatabaseIndexed[d] = [];
+            _wantedDatabaseIndexed[d]!.add(car);
+          }
           _wantedFileName = '$fileName (${extracted.length})';
-          _rebuildWantedIndex(); // 🚀 بناء الفهرس فور رفع الملف
         } else {
           _records.addAll(extracted);
           _appendFileName = fileName;
@@ -1044,7 +1024,7 @@ class _SheekhaHomeScreenState extends State<SheekhaHomeScreen> {
       });
 
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(isWantedSheet ? 'تم استخراج ${extracted.length} سيارة مطلوبة بنجاح (100%)!' : 'تم استيراد ${extracted.length} سجل بنجاح ومتابعة الإكمال!', textDirection: TextDirection.rtl), backgroundColor: const Color(0xFF06D6A0), duration: const Duration(seconds: 4)));
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(isWantedSheet ? 'تم فهرسة واستخراج ${extracted.length} سيارة مطلوبة بنجاح!' : 'تم استيراد ${extracted.length} سجل بنجاح!', textDirection: TextDirection.rtl), backgroundColor: const Color(0xFF06D6A0), duration: const Duration(seconds: 4)));
       }
     } catch (e) {
       if (mounted) Navigator.pop(context);
@@ -1198,19 +1178,25 @@ class _SheekhaHomeScreenState extends State<SheekhaHomeScreen> {
     setState(() => _isManualSearching = true);
     String normalizedQuery = SheekhaFullEngine.normalizeFlexible(query);
     List<Map<String, String>> matched = [];
-    for (var car in _wantedDatabase) {
-      if (SheekhaFullEngine.normalizeFlexible('${car['letters']}${car['digits']} ${car['type']} ${car['owner']} ${car['shassis']}').contains(normalizedQuery)) {
-        matched.add({'id': 'مطلوبة', 'letters': car['letters'] ?? '', 'digits': car['digits'] ?? '', 'type': car['type'] ?? '-', 'district': 'شيت المطلوبين', 'street': car['owner'] ?? 'مطلوبة', 'coords': '', 'shassis': car['shassis'] ?? 'غير متوفر', 'note': '⚠️ مسجلة في شيت المطلوبين', 'status': 'مطلوبة', 'time': 'قاعدة البيانات'});
+    
+    // البحث اليدوي في الفهرس
+    _wantedDatabaseIndexed.values.forEach((list) {
+      for (var car in list) {
+        if (SheekhaFullEngine.normalizeFlexible('${car['letters']}${car['digits']} ${car['type']} ${car['owner']} ${car['shassis']}').contains(normalizedQuery)) {
+          matched.add({'id': 'مطلوبة', 'letters': car['letters'] ?? '', 'digits': car['digits'] ?? '', 'type': car['type'] ?? '-', 'district': 'شيت المطلوبين', 'street': car['owner'] ?? 'مطلوبة', 'coords': '', 'shassis': car['shassis'] ?? 'غير متوفر', 'note': '⚠️ مسجلة في شيت المطلوبين', 'status': 'مطلوبة', 'time': 'قاعدة البيانات'});
+        }
       }
-    }
+    });
+
     for (var car in _records) {
       if (SheekhaFullEngine.normalizeFlexible('${car['letters']}${car['digits']} ${car['type']}').contains(normalizedQuery)) {
         if (!matched.any((m) => m['digits'] == car['digits'] && m['letters'] == car['letters'])) matched.add(car);
       }
     }
+    
     String cleanDigitsOnly = SheekhaFullEngine.normalizeDigits(query.replaceAll(RegExp(r'[^\d]'), ''));
-    if (cleanDigitsOnly.length >= 3) {
-      var exactMatch = _wantedDatabase.firstWhere((w) => SheekhaFullEngine.normalizeDigits((w['digits'] ?? '').trim()) == cleanDigitsOnly && (normalizedQuery.isEmpty || normalizedQuery.contains(SheekhaFullEngine.normalizeFlexible(w['letters'] ?? ''))), orElse: () => {});
+    if (cleanDigitsOnly.length >= 3 && _wantedDatabaseIndexed.containsKey(cleanDigitsOnly)) {
+      var exactMatch = _wantedDatabaseIndexed[cleanDigitsOnly]!.firstWhere((w) => SheekhaFullEngine.normalizeDigits((w['digits'] ?? '').trim()) == cleanDigitsOnly && (normalizedQuery.isEmpty || normalizedQuery.contains(SheekhaFullEngine.normalizeFlexible(w['letters'] ?? ''))), orElse: () => {});
       if (exactMatch.isNotEmpty) _registerDetectedPlate(exactMatch['letters'] ?? '', exactMatch['digits'] ?? '', exactMatch['type'] ?? '-');
     }
     setState(() {
@@ -1250,12 +1236,19 @@ class _SheekhaHomeScreenState extends State<SheekhaHomeScreen> {
     final prefs = await SharedPreferences.getInstance();
     final String? savedRecords = prefs.getString('rased_historical_records');
     final String? savedDb = prefs.getString('rased_wanted_db');
-    if (savedRecords != null) _records = List<Map<String, String>>.from(json.decode(savedRecords).map((x) => Map<String, String>.from(x)));
-    if (savedDb != null) {
-      _wantedDatabase = List<Map<String, String>>.from(json.decode(savedDb).map((x) => Map<String, String>.from(x)));
-      _rebuildWantedIndex();
-    }
+    
     setState(() {
+      if (savedRecords != null) _records = List<Map<String, String>>.from(json.decode(savedRecords).map((x) => Map<String, String>.from(x)));
+      if (savedDb != null) {
+        List<Map<String, String>> flatDb = List<Map<String, String>>.from(json.decode(savedDb).map((x) => Map<String, String>.from(x)));
+        _wantedDatabaseIndexed.clear();
+        _totalWantedCount = flatDb.length;
+        for (var car in flatDb) {
+          String d = SheekhaFullEngine.normalizeDigits(car['digits'] ?? '');
+          if (_wantedDatabaseIndexed[d] == null) _wantedDatabaseIndexed[d] = [];
+          _wantedDatabaseIndexed[d]!.add(car);
+        }
+      }
       _savedWhatsAppPhone = prefs.getString('rased_wa_phone') ?? _savedWhatsAppPhone;
       _wantedFileName = prefs.getString('rased_wanted_name') ?? _wantedFileName;
       _isGpsEnabled = prefs.getBool('rased_gps_enabled') ?? _isGpsEnabled;
@@ -1265,7 +1258,11 @@ class _SheekhaHomeScreenState extends State<SheekhaHomeScreen> {
   Future<void> _saveData() async {
     final prefs = await SharedPreferences.getInstance();
     prefs.setString('rased_historical_records', json.encode(_records));
-    prefs.setString('rased_wanted_db', json.encode(_wantedDatabase));
+    
+    List<Map<String, String>> flatDb = [];
+    _wantedDatabaseIndexed.values.forEach((list) => flatDb.addAll(list));
+    prefs.setString('rased_wanted_db', json.encode(flatDb));
+    
     prefs.setString('rased_wa_phone', _savedWhatsAppPhone);
     prefs.setString('rased_wanted_name', _wantedFileName);
     prefs.setBool('rased_gps_enabled', _isGpsEnabled);
