@@ -14,7 +14,6 @@ import 'package:url_launcher/url_launcher.dart';
 
 void main() => runApp(const MyApp());
 
-// نظام حماية التراخيص والتحكم عن بُعد
 class RasedLicenseManager {
   static const String _secretSalt = "RASED_PRO_2026_SECRET_KEY";
   
@@ -82,7 +81,6 @@ class RasedLicenseManager {
   static Future<String?> _fetchControlJson() async {
     HttpClient client = HttpClient();
     client.connectionTimeout = const Duration(seconds: 7);
-
     try {
       Uri apiUri = Uri.parse("$githubApiUrl?t=${DateTime.now().millisecondsSinceEpoch}");
       HttpClientRequest req = await client.getUrl(apiUri);
@@ -90,25 +88,16 @@ class RasedLicenseManager {
       req.headers.set(HttpHeaders.acceptHeader, 'application/vnd.github.v3.raw');
       req.headers.set(HttpHeaders.cacheControlHeader, 'no-cache, no-store, must-revalidate');
       HttpClientResponse res = await req.close();
-
-      if (res.statusCode == 200) {
-        return await res.transform(utf8.decoder).join();
-      }
+      if (res.statusCode == 200) return await res.transform(utf8.decoder).join();
     } catch (_) {}
-
     try {
       Uri rawUri = Uri.parse("$remoteControlJsonUrl?t=${DateTime.now().millisecondsSinceEpoch}");
       HttpClientRequest req = await client.getUrl(rawUri);
       req.headers.set(HttpHeaders.userAgentHeader, 'RasedClientApp/2.0');
       req.headers.set(HttpHeaders.cacheControlHeader, 'no-cache, no-store, must-revalidate');
       HttpClientResponse res = await req.close();
-
       int redirects = 0;
-      while ((res.statusCode == HttpStatus.movedPermanently ||
-              res.statusCode == HttpStatus.movedTemporarily ||
-              res.statusCode == HttpStatus.seeOther ||
-              res.statusCode == HttpStatus.temporaryRedirect ||
-              res.statusCode == 308) && redirects < 5) {
+      while ((res.statusCode == HttpStatus.movedPermanently || res.statusCode == HttpStatus.movedTemporarily || res.statusCode == HttpStatus.seeOther || res.statusCode == HttpStatus.temporaryRedirect || res.statusCode == 308) && redirects < 5) {
         redirects++;
         String? loc = res.headers.value(HttpHeaders.locationHeader);
         if (loc == null) break;
@@ -119,44 +108,33 @@ class RasedLicenseManager {
         req.headers.set(HttpHeaders.cacheControlHeader, 'no-cache');
         res = await req.close();
       }
-
-      if (res.statusCode == 200) {
-        return await res.transform(utf8.decoder).join();
-      }
+      if (res.statusCode == 200) return await res.transform(utf8.decoder).join();
     } catch (_) {}
-
     return null;
   }
 
   static Future<Map<String, dynamic>> checkRemoteStatus(String myDeviceId, String currentExpiryIso) async {
     final prefs = await SharedPreferences.getInstance();
     bool remoteCheckSuccessful = false;
-
     try {
       if (!remoteControlJsonUrl.contains("YOUR_USERNAME")) {
         String? body = await _fetchControlJson();
-
         if (body != null && body.trim().isNotEmpty) {
           remoteCheckSuccessful = true;
           List<dynamic> list = json.decode(body);
-          
           for (var item in list) {
             if (item['deviceId'].toString().trim().toUpperCase() == myDeviceId.trim().toUpperCase()) {
               bool active = item['isActive'] == true;
-              
               if (!active) {
                 await prefs.setBool('rased_perm_ban_$myDeviceId', true);
                 return {'allowed': false, 'reason': 'تم إيقاف اشتراكك من قِبل الإدارة'};
               } else {
                 await prefs.setBool('rased_perm_ban_$myDeviceId', false);
               }
-
               if (item['expiry'] != null) {
                 DateTime remoteExp = DateTime.parse("${item['expiry']}T23:59:59");
                 await prefs.setString('rased_license_expiry', remoteExp.toIso8601String());
-                if (DateTime.now().isAfter(remoteExp)) {
-                  return {'allowed': false, 'reason': 'انتهت فترة اشتراكك، يرجى التجديد'};
-                }
+                if (DateTime.now().isAfter(remoteExp)) return {'allowed': false, 'reason': 'انتهت فترة اشتراكك، يرجى التجديد'};
                 return {'allowed': true, 'expiry': remoteExp.toIso8601String()};
               }
             }
@@ -166,50 +144,39 @@ class RasedLicenseManager {
     } catch (_) {
       remoteCheckSuccessful = false;
     }
-
     if (!remoteCheckSuccessful) {
       bool isPermanentlyBanned = prefs.getBool('rased_perm_ban_$myDeviceId') ?? false;
-      if (isPermanentlyBanned) {
-        return {'allowed': false, 'reason': 'تم إيقاف اشتراكك من قِبل الإدارة'};
-      }
+      if (isPermanentlyBanned) return {'allowed': false, 'reason': 'تم إيقاف اشتراكك من قِبل الإدارة'};
     }
-
     DateTime exp = DateTime.parse(currentExpiryIso);
-    if (DateTime.now().isAfter(exp)) {
-      return {'allowed': false, 'reason': 'انتهت فترة اشتراكك، يرجى التواصل للتجديد'};
-    }
+    if (DateTime.now().isAfter(exp)) return {'allowed': false, 'reason': 'انتهت فترة اشتراكك، يرجى التواصل للتجديد'};
     return {'allowed': true, 'expiry': currentExpiryIso};
   }
 }
 
 class AppStrings {
   static bool isAr = true;
-
   static String get appName => 'RASED';
   static String get checkingTab => isAr ? 'التشييك' : 'Check';
   static String get registrationTab => isAr ? 'التسجيل' : 'Register';
   static String get wantedTab => isAr ? 'المرصودة' : 'Wanted';
   static String get manualSearchTab => isAr ? 'فحص يدوي' : 'Manual';
   static String get settingsTab => isAr ? 'الإعدادات' : 'Settings';
-
   static String get listeningNow => isAr ? 'يستمع الآن...' : 'Listening now...';
   static String get stopped => isAr ? 'متوقف' : 'Stopped';
   static String get recordsCount => isAr ? 'السجلات:' : 'Records:';
   static String get editPlateHint => isAr ? 'اضغط على اللوحة أو النوع لتعديلهما' : 'Tap plate or type to edit';
   static String get noRecords => isAr ? 'لا توجد سجلات حالياً...' : 'No records yet...';
-
   static String get notes => isAr ? 'ملاحظات' : 'Notes';
   static String get street => isAr ? 'الشارع' : 'Street';
   static String get district => isAr ? 'الحي' : 'District';
   static String get exportExcel => isAr ? 'تصدير إكسيل (باسم الحي)' : 'Export Excel';
   static String get appendExcel => isAr ? 'استيراد وإكمال شيت' : 'Append Sheet';
-
   static String get sendWhatsApp => isAr ? 'إرسال للواتساب' : 'Send WhatsApp';
   static String get sendNumber => isAr ? 'رقم الإرسال:' : 'Send Phone:';
   static String get searchBtn => isAr ? 'بحث' : 'Search';
   static String get searchHint => isAr ? 'اكتب حروف أو أرقام السيارة...' : 'Enter plate code or digits...';
   static String get searchEmptyHint => isAr ? 'اكتب كود أو رقم السيارة واضغط "بحث" للفحص الفوري في الشيت' : 'Enter plate and tap "Search" to check against sheet';
-
   static String get langSetting => isAr ? 'لغة التطبيق / Language' : 'App Language / اللغة';
   static String get gpsSetting => isAr ? 'تفعيل موقع GPS عند الرصد' : 'Enable GPS Tracking';
   static String get gpsSub => isAr ? 'التقاط الإحداثيات تلقائياً وتثبيتها في الشيت' : 'Auto-record coordinates in records & sheet';
@@ -219,21 +186,18 @@ class AppStrings {
 
 class MyApp extends StatefulWidget {
   const MyApp({super.key});
-
   @override
   State<MyApp> createState() => _MyAppState();
 }
 
 class _MyAppState extends State<MyApp> {
   Locale _locale = const Locale('ar');
-
   void setLocale(Locale loc) {
     setState(() {
       _locale = loc;
       AppStrings.isAr = loc.languageCode == 'ar';
     });
   }
-
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
@@ -251,7 +215,6 @@ class _MyAppState extends State<MyApp> {
 class SubscriptionGateScreen extends StatefulWidget {
   final Function(Locale) onLanguageChange;
   const SubscriptionGateScreen({super.key, required this.onLanguageChange});
-
   @override
   State<SubscriptionGateScreen> createState() => _SubscriptionGateScreenState();
 }
@@ -283,16 +246,13 @@ class _SubscriptionGateScreenState extends State<SubscriptionGateScreen> with Wi
 
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
-    if (state == AppLifecycleState.resumed) {
-      _silentBackgroundCheck();
-    }
+    if (state == AppLifecycleState.resumed) _silentBackgroundCheck();
   }
 
   Future<void> _silentBackgroundCheck() async {
     final prefs = await SharedPreferences.getInstance();
     String? savedExpiry = prefs.getString('rased_license_expiry');
     if (_deviceId.isEmpty || savedExpiry == null) return;
-
     var remoteCheck = await RasedLicenseManager.checkRemoteStatus(_deviceId, savedExpiry);
     if (mounted) {
       setState(() {
@@ -313,7 +273,6 @@ class _SubscriptionGateScreenState extends State<SubscriptionGateScreen> with Wi
     final prefs = await SharedPreferences.getInstance();
     String? savedCode = prefs.getString('rased_license_code');
     String? savedExpiry = prefs.getString('rased_license_expiry');
-
     if (savedCode != null && savedExpiry != null) {
       var localCheck = RasedLicenseManager.verifyActivationCode(savedCode, _deviceId);
       if (localCheck['valid'] == true) {
@@ -329,7 +288,6 @@ class _SubscriptionGateScreenState extends State<SubscriptionGateScreen> with Wi
         }
       }
     }
-
     setState(() {
       _isActivated = false;
       _isChecking = false;
@@ -339,7 +297,6 @@ class _SubscriptionGateScreenState extends State<SubscriptionGateScreen> with Wi
   Future<void> _submitActivationCode() async {
     String input = _codeCtrl.text.trim();
     var res = RasedLicenseManager.verifyActivationCode(input, _deviceId);
-
     if (res['valid'] == true) {
       final prefs = await SharedPreferences.getInstance();
       await prefs.setString('rased_license_code', input);
@@ -353,15 +310,8 @@ class _SubscriptionGateScreenState extends State<SubscriptionGateScreen> with Wi
 
   @override
   Widget build(BuildContext context) {
-    if (_isChecking) {
-      return const Scaffold(
-        body: Center(child: CircularProgressIndicator(color: Color(0xFF06D6A0))),
-      );
-    }
-
-    if (_isActivated) {
-      return SheekhaHomeScreen(onLanguageChange: widget.onLanguageChange);
-    }
+    if (_isChecking) return const Scaffold(body: Center(child: CircularProgressIndicator(color: Color(0xFF06D6A0))));
+    if (_isActivated) return SheekhaHomeScreen(onLanguageChange: widget.onLanguageChange);
 
     return Scaffold(
       body: Padding(
@@ -438,11 +388,8 @@ class _SubscriptionGateScreenState extends State<SubscriptionGateScreen> with Wi
                     onPressed: () async {
                       String msg = Uri.encodeComponent("مرحباً، أرغب في الاشتراك وتفعيل تطبيق RASED.\nمعرف جهازي هو: $_deviceId");
                       Uri wa = Uri.parse("whatsapp://send?phone=201155661920&text=$msg");
-                      if (await canLaunchUrl(wa)) {
-                        await launchUrl(wa, mode: LaunchMode.externalApplication);
-                      } else {
-                        await launchUrl(Uri.parse("https://wa.me/201155661920?text=$msg"), mode: LaunchMode.externalApplication);
-                      }
+                      if (await canLaunchUrl(wa)) await launchUrl(wa, mode: LaunchMode.externalApplication);
+                      else await launchUrl(Uri.parse("https://wa.me/201155661920?text=$msg"), mode: LaunchMode.externalApplication);
                     },
                     icon: const Icon(Icons.support_agent, color: Color(0xFF06D6A0)),
                     label: const Text('طلب كود تفعيل عبر واتساب', style: TextStyle(color: Color(0xFF06D6A0))),
@@ -457,253 +404,138 @@ class _SubscriptionGateScreenState extends State<SubscriptionGateScreen> with Wi
   }
 }
 
-// =========================================================================
-// محرك المعالجة الصوتي الاحترافي المطابق لتطبيق (SHEEKHA) بنسبة 100%
-// =========================================================================
 class SheekhaFullEngine {
   static Map<String, dynamic> userLearnedMap = {};
-  static Map<String, String> userWordMap = {};
 
   static Future<void> loadLearnedDictionary() async {
     try {
       final prefs = await SharedPreferences.getInstance();
-      final String? saved = prefs.getString('rased_user_learned_v6');
+      final String? saved = prefs.getString('rased_user_learned_v7');
       if (saved != null && saved.isNotEmpty) {
         userLearnedMap = json.decode(saved);
-      }
-      final String? savedWords = prefs.getString('rased_user_words_v6');
-      if (savedWords != null && savedWords.isNotEmpty) {
-        Map<String, dynamic> dec = json.decode(savedWords);
-        userWordMap = dec.map((k, v) => MapEntry(k.toString(), v.toString()));
       }
     } catch (_) {}
   }
 
-  static Future<void> saveLearnedMapping(
-    String rawSpoken,
-    String correctLetters,
-    String correctDigits,
-    String correctType, {
-    String? wrongSingleWord,
-    String? targetSingleFix,
-  }) async {
-    final prefs = await SharedPreferences.getInstance();
-
+  static Future<void> saveLearnedMapping(String rawSpoken, String correctLetters, String correctDigits, String correctType) async {
     String cleanSpoken = normalizeFlexible(rawSpoken);
-    if (cleanSpoken.isNotEmpty) {
-      userLearnedMap[cleanSpoken] = {
-        'letters': correctLetters.trim(),
-        'digits': correctDigits.trim(),
-        'type': correctType.trim(),
-      };
-      await prefs.setString('rased_user_learned_v6', json.encode(userLearnedMap));
-    }
-
-    if (wrongSingleWord != null &&
-        wrongSingleWord.trim().isNotEmpty &&
-        targetSingleFix != null &&
-        targetSingleFix.trim().isNotEmpty) {
-      userWordMap[wrongSingleWord.trim()] = targetSingleFix.trim();
-      await prefs.setString('rased_user_words_v6', json.encode(userWordMap));
-    }
+    if (cleanSpoken.isEmpty) return;
+    userLearnedMap[cleanSpoken] = {
+      'letters': correctLetters.trim(),
+      'digits': correctDigits.trim(),
+      'type': correctType.trim(),
+    };
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setString('rased_user_learned_v7', json.encode(userLearnedMap));
+    } catch (_) {}
   }
 
-  // 1. القاموس الصوتي الدقيق للحروف كما يخرجها محرك صوت جوجل في الفيديو
   static final Map<String, String> lettersMap = {
-    // الألف
-    'الف': 'أ', 'ألف': 'أ', 'إلف': 'أ', 'آلف': 'أ', 'الالف': 'أ', 'الألف': 'أ',
-    'ا': 'أ', 'أ': 'أ', 'إ': 'أ', 'آ': 'أ', 'ء': 'أ', 'اه': 'أ', 'أه': 'أ',
-    // الباء
-    'باء': 'ب', 'به': 'ب', 'بة': 'ب', 'با': 'ب', 'بي': 'ب', 'بى': 'ب', 'ب': 'ب', 'الباء': 'ب',
-    // التاء
-    'تاء': 'ت', 'ته': 'ت', 'تة': 'ت', 'تا': 'ت', 'تي': 'ت', 'ت': 'ت',
-    // الثاء
+    'الف': 'أ', 'ألف': 'أ', 'إلف': 'أ', 'ا': 'أ', 'أ': 'أ', 'إ': 'أ', 'آ': 'أ',
+    'باء': 'ب', 'به': 'ب', 'بة': 'ب', 'با': 'ب', 'بي': 'ب', 'ب': 'ب',
+    'تاء': 'ت', 'ته': 'ت', 'تا': 'ت', 'ت': 'ت',
     'ثاء': 'ث', 'ثه': 'ث', 'ثا': 'ث', 'ث': 'ث',
-    // الجيم
-    'جيم': 'ج', 'جه': 'ج', 'جا': 'ج', 'جي': 'ج', 'ج': 'ج',
-    // الحاء
-    'حاء': 'ح', 'حه': 'ح', 'حة': 'ح', 'حا': 'ح', 'حي': 'ح', 'حى': 'ح', 'ح': 'ح',
-    // الخاء
-    'خاء': 'خ', 'خه': 'خ', 'خا': 'خ', 'خي': 'خ', 'خ': 'خ',
-    // الدال
-    'دال': 'د', 'ده': 'د', 'دة': 'د', 'دا': 'د', 'دي': 'د', 'د': 'د', 'الدال': 'د',
-    // الذال
-    'ذال': 'ذ', 'ذه': 'ذ', 'ذا': 'ذ', 'زال': 'ذ', 'ذ': 'ذ',
-    // الراء
-    'راء': 'ر', 'ره': 'ر', 'رة': 'ر', 'را': 'ر', 'ري': 'ر', 'ر': 'ر', 'الراء': 'ر',
-    // الزين
+    'جيم': 'ج', 'جه': 'ج', 'جا': 'ج', 'ج': 'ج',
+    'حاء': 'ح', 'حه': 'ح', 'حة': 'ح', 'حا': 'ح', 'ح': 'ح',
+    'خاء': 'خ', 'خه': 'خ', 'خا': 'خ', 'خ': 'خ',
+    'دال': 'د', 'ده': 'د', 'دا': 'د', 'د': 'د',
+    'ذال': 'ذ', 'ذه': 'ذ', 'ذا': 'ذ', 'ذ': 'ذ',
+    'راء': 'ر', 'ره': 'ر', 'رة': 'ر', 'را': 'ر', 'ر': 'ر',
     'زين': 'ز', 'زه': 'ز', 'زا': 'ز', 'زاي': 'ز', 'ز': 'ز',
-    // السين
-    'سين': 'س', 'سه': 'س', 'سة': 'س', 'سا': 'س', 'سي': 'س', 'س': 'س', 'السين': 'س',
-    // الشين
-    'شين': 'ش', 'شه': 'ش', 'شا': 'ش', 'شي': 'ش', 'ش': 'ش',
-    // الصاد
-    'صاد': 'ص', 'صاه': 'ص', 'صه': 'ص', 'صة': 'ص', 'صا': 'ص', 'صي': 'ص', 'ص': 'ص', 'الصاد': 'ص',
-    // الضاد
-    'ضاد': 'ض', 'ضه': 'ض', 'ضا': 'ض', 'ضي': 'ض', 'ض': 'ض',
-    // الطاء
-    'طاء': 'ط', 'طه': 'ط', 'طة': 'ط', 'طا': 'ط', 'طي': 'ط', 'ط': 'ط', 'الطاء': 'ط',
-    // الظاء
+    'سين': 'س', 'سه': 'س', 'سا': 'س', 'س': 'س',
+    'شين': 'ش', 'شه': 'ش', 'شا': 'ش', 'ش': 'ش',
+    'صاد': 'ص', 'صاه': 'ص', 'صه': 'ص', 'صا': 'ص', 'ص': 'ص',
+    'ضاد': 'ض', 'ضه': 'ض', 'ضا': 'ض', 'ض': 'ض',
+    'طاء': 'ط', 'طه': 'ط', 'طا': 'ط', 'ط': 'ط',
     'ظاء': 'ظ', 'ظه': 'ظ', 'ظا': 'ظ', 'ظ': 'ظ',
-    // العين
-    'عين': 'ع', 'عه': 'ع', 'عة': 'ع', 'عا': 'ع', 'عي': 'ع', 'عن': 'ع', 'عاين': 'ع', 'ع': 'ع', 'العين': 'ع',
-    // الغين
+    'عين': 'ع', 'عه': 'ع', 'عا': 'ع', 'عن': 'ع', 'ع': 'ع',
     'غين': 'غ', 'غه': 'غ', 'غا': 'غ', 'غ': 'غ',
-    // الفاء
-    'فاء': 'ف', 'فه': 'ف', 'فة': 'ف', 'فا': 'ف', 'في': 'ف', 'ف': 'ف',
-    // القاف
-    'قاف': 'ق', 'قه': 'ق', 'قة': 'ق', 'قا': 'ق', 'قف': 'ق', 'قي': 'ق', 'ق': 'ق', 'القاف': 'ق',
-    // الكاف
-    'كاف': 'ك', 'كه': 'ك', 'كة': 'ك', 'كا': 'ك', 'كي': 'ك', 'كف': 'ك', 'ك': 'ك', 'الكاف': 'ك',
-    // اللام
-    'لام': 'ل', 'له': 'ل', 'لة': 'ل', 'لا': 'ل', 'لي': 'ل', 'لم': 'ل', 'ل': 'ل', 'اللام': 'ل',
-    // الميم
-    'ميم': 'م', 'مه': 'م', 'مة': 'م', 'ما': 'م', 'مي': 'م', 'مين': 'م', 'م': 'م', 'الميم': 'م',
-    // النون
-    'نون': 'ن', 'نه': 'ن', 'نة': 'ن', 'نا': 'ن', 'ني': 'ن', 'نور': 'ن', 'ن': 'ن', 'النون': 'ن',
-    // الهاء
-    'هاء': 'ه', 'هه': 'ه', 'هة': 'ه', 'ها': 'ه', 'هي': 'ه', 'هـ': 'ه', 'ه': 'ه', 'الهاء': 'ه',
-    // الواو
-    'واو': 'و', 'وه': 'و', 'وة': 'و', 'وا': 'و', 'وي': 'و', 'و': 'و', 'الواو': 'و',
-    // الياء
-    'ياء': 'ي', 'يه': 'ي', 'ية': 'ي', 'يا': 'ي', 'يي': 'ي', 'ى': 'ي', 'ي': 'ي', 'الياء': 'ي',
+    'فاء': 'ف', 'فه': 'ف', 'فة': 'ف', 'فا': 'ف', 'ف': 'ف',
+    'قاف': 'q', 'قه': 'q', 'قا': 'q', 'ق': 'q', 'كاف': 'ك', 'كه': 'ك', 'كا': 'ك', 'ك': 'ك',
+    'لام': 'ل', 'له': 'ل', 'لا': 'ل', 'ل': 'ل',
+    'ميم': 'م', 'مه': 'م', 'ما': 'م', 'م': 'م',
+    'نون': 'ن', 'نه': 'ن', 'نا': 'ن', 'ن': 'ن',
+    'هاء': 'ه', 'هه': 'ه', 'ها': 'ه', 'ه': 'ه',
+    'واو': 'و', 'وه': 'و', 'وا': 'و', 'و': 'و',
+    'ياء': 'ي', 'يه': 'ي', 'ية': 'ي', 'يا': 'ي', 'ى': 'ي', 'ي': 'ي',
   };
 
-  // 2. الكلمات المدمجة التي يدمجها محرك جوجل أثناء النطق السريع باللهجة المصرية
   static final Map<String, List<String>> compounds = {
     'واويه': ['و', 'ي'], 'واوية': ['و', 'ي'], 'واوياء': ['و', 'ي'],
-    'واودال': ['و', 'د'], 'واوقاف': ['و', 'ق'], 'أوقاف': ['و', 'ق'], 'اوقاف': ['و', 'ق'],
-    'واوساط': ['و', 'ص'], 'أوساط': ['و', 'ص'], 'اوساط': ['و', 'ص'],
-    'اوصاد': ['أ', 'و', 'ص'], 'أوصاد': ['أ', 'و', 'ص'], 'اوص': ['أ', 'و', 'ص'], 'أوص': ['أ', 'و', 'ص'],
+    'واودال': ['و', 'د'], 'واوقاف': ['و', 'q'], 'أوقاف': ['و', 'q'],
+    'اوصاد': ['أ', 'و', 'ص'], 'أوصاد': ['أ', 'و', 'ص'],
     'راهدال': ['ر', 'د'], 'رادال': ['ر', 'د'], 'رهدال': ['ر', 'د'],
-    'عينرا': ['ع', 'ر'], 'عينره': ['ع', 'ر'], 'عرب': ['ع', 'ر', 'ب'],
+    'عينرا': ['ع', 'ر'], 'عينره': ['ع', 'ر'],
     'الفنون': ['أ', 'ن'], 'ألفنون': ['أ', 'ن'],
-    'بهلام': ['ب', 'ل'], 'بالام': ['ب', 'ل'], 'بلام': ['ب', 'ل'], 'باءلام': ['ب', 'ل'],
+    'بهلام': ['ب', 'ل'], 'بالام': ['ب', 'ل'], 'بلام': ['ب', 'ل'],
     'نونواو': ['ن', 'و'], 'نونواوه': ['ن', 'و', 'ي'],
-    'يهبه': ['ي', 'ب'], 'يابه': ['ي', 'ب'], 'يهدال': ['ي', 'د'], 'ياءباء': ['ي', 'ب'],
-    'نوعين': ['ن', 'ع'], 'نهاء': ['ن', 'ه'], 'تقديم': ['ك', 'ه', 'ج'],
-    'خطف': ['خ', 'ط', 'ف'], 'افلام': ['ل', 'ق'], 'لمن': ['ل', 'م', 'ن'],
-    'منوعين': ['م', 'ن', 'ع'], 'وعج': ['و', 'ع', 'ج'], 'عقب': ['ع', 'ق', 'ب'],
+    'يهبه': ['ي', 'ب'], 'يهدال': ['ي', 'د'],
+    'نوعين': ['ن', 'ع'], 'نهاء': ['ن', 'ه'],
   };
 
-  // 3. قاموس الأرقام المنطوقة
   static final Map<String, String> digitsMap = {
-    'صفر': '0', 'صِفر': '0', 'زيرو': '0',
-    'واحد': '1', 'واحده': '1', 'واحدة': '1', 'وحد': '1',
+    'صفر': '0', 'صِفر': '0', 'زيرو': '0', 'واحد': '1', 'واحده': '1', 'واحدة': '1', 'وحد': '1',
     'اتنين': '2', 'اثنين': '2', 'إثنين': '2', 'تنين': '2', 'اثنان': '2', 'اتنان': '2',
     'تلاته': '3', 'ثلاثة': '3', 'تلات': '3', 'تلاتة': '3', 'ثلاثه': '3', 'ثلاث': '3',
     'اربعة': '4', 'اربعه': '4', 'أربعة': '4', 'أربعه': '4', 'اربع': '4', 'أربع': '4',
-    'خمسه': '5', 'خمسة': '5', 'خمس': '5', 'خامسه': '5',
-    'سته': '6', 'ستة': '6', 'ست': '6', 'سيتة': '6',
-    'سبعه': '7', 'سبعة': '7', 'سبع': '7', 'سابعه': '7',
-    'تمانيه': '8', 'ثمانية': '8', 'ثمانيه': '8', 'تمانية': '8', 'تمن': '8', 'ثمن': '8',
-    'تسعه': '9', 'تسعة': '9', 'تسع': '9', 'تيسعة': '9',
+    'خمسه': '5', 'خمسة': '5', 'خمس': '5',
+    'سته': '6', 'ستة': '6', 'ست': '6',
+    'سبعه': '7', 'سبعة': '7', 'سبع': '7',
+    'تمانيه': '8', 'ثمانية': '8', 'ثمانيه': '8', 'تمانية': '8', 'تمن': '8',
+    'تسعه': '9', 'تسعة': '9', 'تسع': '9',
   };
 
-  // 4. قاموس أنواع السيارات (الـ 27 ماركة + الأنواع الميدانية في الفيديو)
   static final Map<String, List<String>> vehicleTypesMap = {
-    'نقل عام': ['نقل عام', 'نقلي عام', 'نقل عمل', 'نقل عن'],
-    'جراند ماكس': ['جراند ماكس', 'قراند ماكس', 'جراند مكس', 'جراند', 'قراند'],
-    'تلاجه كبيره': ['تلاجة كبيرة', 'تلاجه كبيره', 'ثلاجة كبيرة', 'ثلاجه كبيره', 'تلاجه', 'ثلاجة', 'ثلاجه'],
-    'هاي اس': ['هاي اس', 'هايس', 'هاي آيس', 'هايسن', 'هاي ايس', 'هاي إس', 'هائس'],
-    'فان': ['فان', 'فن', 'بان', 'فام'],
-    'نقل': ['نقل', 'ناقل', 'نأل', 'نقلي'],
-    'بيك اب': ['بيك اب', 'بيك آب', 'بيكب', 'دباب'],
-    'اتوبيس': ['اتوبيس', 'أتوبيس', 'باص', 'ميكروباص'],
-    'تويوتا': ['تويوتا', 'تيوتا', 'تايوتا', 'توياتا'],
-    'نيسان': ['نيسان', 'نسان', 'نيسن'],
-    'مازدا': ['مازدا', 'مزدا', 'مازده'],
-    'هوندا': ['هوندا', 'هندا', 'هونده'],
-    'لكزس': ['لكزس', 'لكزيس', 'لكسز', 'لكسس'],
-    'سوزوكي': ['سوزوكي', 'سزوكي', 'سوزكي'],
-    'هيونداي': ['هيونداي', 'هونداي', 'هينداي'],
-    'كيا': ['كيا', 'كييا'],
-    'جينيسيس': ['جينيسيس', 'جنسس', 'جينسس'],
-    'فورد': ['فورد', 'فرود'],
-    'شيفروليه': ['شيفروليه', 'شفروليه', 'شفر', 'شيفر'],
-    'جي إم سي': ['جي إم سي', 'جي ام سي', 'جيمس', 'جمس'],
-    'كاديلاك': ['كاديلاك', 'كديلاك', 'كدلك'],
-    'رام': ['رام'],
-    'هافال': ['هافال', 'هفال'],
-    'شانجان': ['شانجان', 'شنجان', 'شانقان'],
-    'جيلي': ['جيلي', 'جلي'],
-    'جيتور': ['جيتور', 'جتور'],
-    'إم جي': ['إم جي', 'ام جي', 'امجي'],
-    'شيري': ['شيري', 'شري'],
-    'بي واي دي': ['بي واي دي', 'بي وايدي'],
-    'مرسيدس-بنز': ['مرسيدس بنز', 'مرسيدس-بنز', 'مرسيدس', 'بنز'],
-    'بي إم دبليو': ['بي إم دبليو', 'بي ام دبليو', 'بي ام'],
-    'أودي': ['أودي', 'اودي'],
-    'فولكس فاجن': ['فولكس فاجن', 'فولكس واجن', 'فولكس'],
-    'لاند روفر': ['لاند روفر', 'لاندروفر', 'رنج روفر', 'رانج روفر'],
-    'بورش': ['بورش', 'بورشه'],
-    'ملاكي': ['ملاكي', 'خصوصي', 'سيدان'],
+    'نقل عام': ['نقل عام', 'نقلي عام'], 'جراند ماكس': ['جراند ماكس', 'قراند ماكس', 'جراند مكس', 'جراند', 'قراند'],
+    'تلاجة كبيرة': ['تلاجة كبيرة', 'تلاجه كبيره', 'ثلاجة كبيرة', 'ثلاجه كبيره', 'تلاجه', 'ثلاجة'],
+    'هاي اس': ['هاي اس', 'هايس', 'هاي آيس', 'هايسن', 'هاي ايس', 'هاي إس'], 'فان': ['فان', 'فن', 'بان'],
+    'نقل': ['نقل', 'ناقل'], 'بيك اب': ['بيك اب', 'بيك آب', 'بيكب', 'دباب'],
+    'اتوبيس': ['اتوبيس', 'أتوبيس', 'باص', 'ميكروباص'], 'تويوتا': ['تويوتا', 'تيوتا', 'تايوتا'],
+    'نيسان': ['نيسان', 'نسان'], 'مازدا': ['مازدا', 'مزدا'], 'هوندا': ['هوندا', 'هندا'],
+    'لكزس': ['لكزس', 'لكزيس', 'لكسز'], 'سوزوكي': ['سوزوكي', 'سزوكي'],
+    'هيونداي': ['هيونداي', 'هونداي', 'هينداي'], 'كيا': ['كيا'], 'جينيسيس': ['جينيسيس', 'جنسس', 'جينسس'],
+    'فورد': ['فورد'], 'شيفروليه': ['شيفروليه', 'شفروليه', 'شفر'], 'جي إم سي': ['جي إم سي', 'جي ام سي', 'جيمس', 'جمس'],
+    'كاديلاك': ['كاديلاك', 'كديلاك'], 'رام': ['رام'], 'هافال': ['هافال'], 'شانجان': ['شانجان', 'شنجان'],
+    'جيلي': ['جيلي', 'جلي'], 'جيتور': ['جيتور'], 'إم جي': ['إم جي', 'ام جي', 'امجي'], 'شيري': ['شيري', 'شري'],
+    'بي واي دي': ['بي واي دي', 'بي وايدي'], 'مرسيدس-بنز': ['مرسيدس بنز', 'مرسيدس-بنز', 'مرسيدس', 'بنز'],
+    'بي إم دبليو': ['بي إم دبليو', 'بي ام دبليو', 'بي ام'], 'أودي': ['أودي', 'اودي'],
+    'فولكس فاجن': ['فولكس فاجن', 'فولكس واجن', 'فولكس'], 'لاند روفر': ['لاند روفر', 'لاندروفر', 'رنج روفر'],
+    'بورش': ['بورش', 'بورشه'], 'ملاكي': ['ملاكي', 'خصوصي'],
   };
 
-  // استخراج نوع السيارة من الجزء المنطوق حديثاً
   static String? extractVehicleType(String text) {
     String clean = text.trim();
     if (clean.isEmpty) return null;
-
-    // فحص الكلمات المتعلمة للأنواع
-    for (var entry in userWordMap.entries) {
-      if (vehicleTypesMap.containsKey(entry.value) && clean.contains(entry.key)) {
-        return entry.value;
-      }
-    }
-
-    // فحص الأنواع المركبة أولاً (مثل نقل عام، جراند ماكس، تلاجه كبيره)
     for (var entry in vehicleTypesMap.entries) {
       for (String synonym in entry.value) {
-        if (synonym.contains(' ') && clean.contains(synonym)) {
-          return entry.key;
-        }
-      }
-    }
-
-    // فحص الأنواع المفردة
-    List<String> words = clean.split(RegExp(r'\s+'));
-    for (int i = words.length - 1; i >= 0; i--) {
-      String cw = words[i].replaceAll(RegExp(r'[^\u0621-\u064A]'), '');
-      if (cw.isEmpty) continue;
-      for (var entry in vehicleTypesMap.entries) {
-        for (String synonym in entry.value) {
-          if (cw == synonym || (cw.length >= 4 && cw.startsWith('ال') && cw.substring(2) == synonym)) {
-            return entry.key;
-          }
-        }
+        if (clean.contains(synonym)) return entry.key;
       }
     }
     return null;
   }
 
-  // المحرك الدقيق لفحص المقطع الصوتي الجديد فقط واستخراج (3 حروف + 4 أرقام + النوع)
-  static Map<String, dynamic>? parsePlateAndType(String activeSegment, {bool isFinalResult = false}) {
-    if (activeSegment.trim().isEmpty) return null;
+  static Map<String, dynamic>? parsePlateAndType(String text) {
+    if (text.trim().isEmpty) return null;
 
-    String normalizedVoice = normalizeFlexible(activeSegment);
+    String normalizedVoice = normalizeFlexible(text);
     if (userLearnedMap.containsKey(normalizedVoice)) {
       var learned = userLearnedMap[normalizedVoice];
       return {
         'letters': learned['letters'],
         'digits': learned['digits'],
         'type': learned['type'] ?? '-',
-        'hasExplicitType': (learned['type'] ?? '-') != '-',
-        'startsWithAlefOrBaa': false,
       };
     }
 
-    String normalized = normalizeDigits(activeSegment);
+    String normalized = normalizeDigits(text);
     String? detectedType = extractVehicleType(normalized);
 
     String textForPlate = normalized;
     if (detectedType != null && vehicleTypesMap.containsKey(detectedType)) {
-      for (String syn in vehicleTypesMap[detectedType]!) {
-        textForPlate = textForPlate.replaceAll(syn, ' ');
-      }
+      for (String syn in vehicleTypesMap[detectedType]!) textForPlate = textForPlate.replaceAll(syn, ' ');
     }
 
-    // تفكيك الكلمات المتصلة المعروفة
     compounds.forEach((k, v) {
       textForPlate = textForPlate.replaceAll(k, ' ${v.join(' ')} ');
     });
@@ -715,85 +547,56 @@ class SheekhaFullEngine {
       String w = token.replaceAll(RegExp(r'[^\u0621-\u064A0-9]'), '');
       if (w.isEmpty) continue;
 
-      // فحص القاموس الشخصي للكلمات المفردة
-      if (userWordMap.containsKey(w)) {
-        String fixed = userWordMap[w]!;
-        if (RegExp(r'^\d+$').hasMatch(fixed)) {
-          for (int i = 0; i < fixed.length; i++) stream.add(fixed[i]);
-          continue;
-        } else if (lettersMap.containsKey(fixed)) {
-          stream.add(lettersMap[fixed]!);
-          continue;
-        } else if (fixed.length == 1) {
-          stream.add(fixed);
-          continue;
-        }
-      }
-
       if (digitsMap.containsKey(w)) {
         stream.add(digitsMap[w]!);
       } else if (RegExp(r'^\d+$').hasMatch(w)) {
         for (int i = 0; i < w.length; i++) stream.add(w[i]);
       } else if (lettersMap.containsKey(w)) {
         stream.add(lettersMap[w]!);
-      } else if (w.length == 1 && RegExp(r'[\u0621-\u064A]').hasMatch(w)) {
-        stream.add(w);
+      } else {
+        for (int i = 0; i < w.length; i++) {
+          String ch = w[i];
+          if (lettersMap.containsKey(ch)) stream.add(lettersMap[ch]!);
+        }
       }
-      // ملاحظة هامة: أي كلمة محادثة عادية (مثل: "خلينا"، "نمسح"، "اللهم"، "برحة") لا تدخل في الـ stream إطلاقاً!
     }
 
-    // البحث من نهاية التدفق عن لوحة مكتملة (3 حروف + 4 أرقام كما في الفيديو)
     for (int i = stream.length - 1; i >= 0; i--) {
       if (RegExp(r'^\d$').hasMatch(stream[i])) {
         int dEnd = i;
         int dStart = i;
-        while (dStart - 1 >= 0 && RegExp(r'^\d$').hasMatch(stream[dStart - 1])) {
-          dStart--;
-        }
-
+        while (dStart - 1 >= 0 && RegExp(r'^\d$').hasMatch(stream[dStart - 1])) dStart--;
+        
         int numDigits = dEnd - dStart + 1;
-        // في الاستماع اللحظي نلتقط فوراً عند اكتمال 4 أرقام (أو 3 أرقام فقط إذا توقف المتحدث وانتهت الجملة)
-        int minRequiredDigits = isFinalResult ? 3 : 4;
-
-        if (numDigits >= minRequiredDigits) {
-          String digitsStr = stream.sublist(dStart, dStart + (numDigits > 4 ? 4 : numDigits)).join('');
-
+        if (numDigits >= 3 && numDigits <= 4) {
           List<String> lettersFound = [];
           for (int j = dStart - 1; j >= 0 && lettersFound.length < 3; j--) {
-            if (RegExp(r'^[\u0621-\u064A]$').hasMatch(stream[j])) {
-              lettersFound.insert(0, stream[j]);
+            if (RegExp(r'^[a-zA-Z\u0621-\u064A]$').hasMatch(stream[j])) {
+              String l = stream[j];
+              lettersFound.insert(0, l == 'q' ? 'ق' : l);
             } else {
               break;
             }
           }
-
-          int minRequiredLetters = isFinalResult ? 2 : 3;
-          if (lettersFound.length >= minRequiredLetters) {
-            String firstL = lettersFound.first;
-            bool startsWithAorB = (firstL == 'أ' || firstL == 'ا' || firstL == 'إ' || firstL == 'ب');
-
+          if (lettersFound.length >= 2) {
+            String digitsStr = stream.sublist(dStart, dEnd + 1).join('');
             return {
               'letters': lettersFound.join(' '),
               'digits': digitsStr,
               'type': detectedType ?? '-',
-              'hasExplicitType': detectedType != null,
-              'startsWithAlefOrBaa': startsWithAorB,
             };
           }
         }
         i = dStart;
       }
     }
-
     return null;
   }
 
   static String normalizeDigits(String input) {
     const ar = ['٠', '١', '٢', '٣', '٤', '٥', '٦', '٧', '٨', '٩'];
     const en = ['0', '1', '2', '3', '4', '5', '6', '7', '8', '9'];
-    for (int i = 0; i < ar.length; i++) {
-      input = input.replaceAll(ar[i], en[i]);
-    }
+    for (int i = 0; i < ar.length; i++) input = input.replaceAll(ar[i], en[i]);
     return input;
   }
 
@@ -810,7 +613,6 @@ class SheekhaFullEngine {
 class SheekhaHomeScreen extends StatefulWidget {
   final Function(Locale) onLanguageChange;
   const SheekhaHomeScreen({super.key, required this.onLanguageChange});
-
   @override
   State<SheekhaHomeScreen> createState() => _SheekhaHomeScreenState();
 }
@@ -825,15 +627,7 @@ class _SheekhaHomeScreenState extends State<SheekhaHomeScreen> {
   final stt.SpeechToText _speech = stt.SpeechToText();
   bool _speechEnabled = false;
 
-  // مؤشر الكلمات المستهلكة لضمان عدم تداخل اللوحات في الاستماع المستمر
-  int _consumedWordCount = 0;
-  String _lastFullRecognized = '';
-
-  Timer? _pendingTimer;
-  Map<String, String>? _pendingPlate;
-  DateTime? _lastPlateInsertedAt;
-
-  final List<String> _districts = ['الروضة', 'السلام', 'المنيل', 'المعادي', 'النهضة'];
+  final List<String> _districts = ['الروضة', 'السلام', 'المنيل', 'المعادي'];
   String _currentDistrict = 'الروضة';
   String _currentStreet = 'ض 1';
   String _currentCoordinates = '';
@@ -845,7 +639,6 @@ class _SheekhaHomeScreenState extends State<SheekhaHomeScreen> {
 
   List<Map<String, String>> _records = [];
   List<Map<String, String>> _wantedDatabase = [];
-
   final Set<String> _selectedWantedIds = {};
 
   final TextEditingController _manualSearchCtrl = TextEditingController();
@@ -860,27 +653,16 @@ class _SheekhaHomeScreenState extends State<SheekhaHomeScreen> {
     _initEngine();
   }
 
-  @override
-  void dispose() {
-    _pendingTimer?.cancel();
-    super.dispose();
-  }
-
   Future<void> _initEngine() async {
     var micStatus = await Permission.microphone.request();
     if (!micStatus.isGranted) return;
-
     try {
       bool available = await _speech.initialize(
         onStatus: (status) {
-          if ((status == 'done' || status == 'notListening') && _isListening && mounted) {
-            _restartListeningSafely();
-          }
+          if ((status == 'done' || status == 'notListening') && _isListening && mounted) _restartListeningSafely();
         },
         onError: (error) {
-          if (_isListening && mounted) {
-            _restartListeningSafely();
-          }
+          if (_isListening && mounted) _restartListeningSafely();
         },
       );
       setState(() => _speechEnabled = available);
@@ -889,16 +671,13 @@ class _SheekhaHomeScreenState extends State<SheekhaHomeScreen> {
 
   void _restartListeningSafely() {
     if (!_isListening) return;
-    Future.delayed(const Duration(milliseconds: 80), () {
-      if (_isListening && mounted && !_speech.isListening) {
-        _startListeningSession();
-      }
+    Future.delayed(const Duration(milliseconds: 100), () {
+      if (_isListening && mounted && !_speech.isListening) _startListeningSession();
     });
   }
 
   void _toggleLiveListening() async {
     if (_isListening) {
-      _commitPendingPlate();
       setState(() {
         _isListening = false;
         _soundLevel = 0.0;
@@ -919,138 +698,45 @@ class _SheekhaHomeScreenState extends State<SheekhaHomeScreen> {
     }
   }
 
-  void _commitPendingPlate() {
-    _pendingTimer?.cancel();
-    _pendingTimer = null;
-    if (_pendingPlate != null) {
-      var p = _pendingPlate!;
-      _pendingPlate = null;
-      _registerDetectedPlate(p['letters']!, p['digits']!, p['type']!, rawSpoken: p['raw'] ?? '');
-    }
-  }
-
-  // جلسة الاستماع المستمرة مع عزل كل لوحة جديدة عن الكلام السابق (مطابقة لسرعة الفيديو)
   void _startListeningSession() async {
     if (!_isListening) return;
-    _consumedWordCount = 0;
-    _lastFullRecognized = '';
 
     await _speech.listen(
       listenMode: stt.ListenMode.dictation,
       partialResults: true,
       cancelOnError: false,
-      listenFor: const Duration(hours: 2),
-      pauseFor: const Duration(minutes: 5),
       onSoundLevelChange: (level) {
         if (mounted) setState(() => _soundLevel = level.clamp(0.0, 15.0));
       },
       onResult: (result) {
         if (!mounted) return;
-        String fullSpoken = result.recognizedWords.trim();
-        if (fullSpoken.isEmpty) return;
+        String spoken = result.recognizedWords.trim();
+        if (spoken.isEmpty) return;
 
-        List<String> allWords = fullSpoken.split(RegExp(r'\s+'));
-        // إذا بدأ محرك الصوت جملة جديدة أقصر من المؤشر السابق، نصفر المؤشر تلقائياً
-        if (allWords.length < _consumedWordCount || !fullSpoken.startsWith(_lastFullRecognized.split(' ').first)) {
-          _consumedWordCount = 0;
-        }
-        _lastFullRecognized = fullSpoken;
+        setState(() => _currentStatusText = spoken);
 
-        // نأخذ فقط الكلمات الجديدة التي لم يتم استهلاكها في لوحة سابقة!
-        List<String> activeWords = allWords.sublist(_consumedWordCount);
-        String activeSegment = activeWords.join(' ').trim();
-
-        // عرض أحدث الكلمات المنطوقة في الشريط العلوي كما في الفيديو
-        String displayBar = activeWords.length > 9
-            ? activeWords.sublist(activeWords.length - 9).join(' ')
-            : (activeSegment.isNotEmpty ? activeSegment : fullSpoken);
-        setState(() => _currentStatusText = displayBar);
-
-        if (activeSegment.isEmpty) return;
-
-        // 1. إذا كانت هناك لوحة تبدأ بـ (أ أو ب) تنتظر سماع النوع (نقل / فان / جراند ماكس...)
-        if (_pendingPlate != null) {
-          String? carType = SheekhaFullEngine.extractVehicleType(activeSegment);
-          if (carType != null) {
-            _pendingPlate!['type'] = carType;
-            _pendingPlate!['raw'] = '${_pendingPlate!['raw']} $activeSegment'.trim();
-            _consumedWordCount = allWords.length;
-            _commitPendingPlate();
-            return;
+        String? standaloneType = SheekhaFullEngine.extractVehicleType(spoken);
+        if (standaloneType != null && _records.isNotEmpty) {
+          if (_records[0]['type'] == 'ملاكي' || _records[0]['type'] == '-') {
+            setState(() {
+              _records[0]['type'] = standaloneType;
+              _saveData();
+            });
           }
         }
 
-        // 2. فحص واستخراج اللوحة من المقطع النشط
-        var plateData = SheekhaFullEngine.parsePlateAndType(
-          activeSegment,
-          isFinalResult: result.finalResult,
-        );
-
+        var plateData = SheekhaFullEngine.parsePlateAndType(spoken);
         if (plateData != null) {
           String letters = plateData['letters']!;
           String digits = plateData['digits']!;
           String carType = plateData['type']!;
-          bool hasExplicitType = plateData['hasExplicitType'] == true;
-          bool startsWithAlefOrBaa = plateData['startsWithAlefOrBaa'] == true;
           String key = '$letters-$digits';
 
-          // لو نفس اللوحة المعلقة نُطق معها النوع في نفس الجملة
-          if (_pendingPlate != null && _pendingPlate!['key'] == key) {
-            if (hasExplicitType) {
-              _pendingPlate!['type'] = carType;
-              _consumedWordCount = allWords.length;
-              _commitPendingPlate();
-            }
-            return;
-          }
-
-          // لو دخلت لوحة جديدة تماماً بينما توجد لوحة معلقة، نسجل المعلقة فوراً
-          if (_pendingPlate != null && _pendingPlate!['key'] != key) {
-            _commitPendingPlate();
-          }
-
           DateTime now = DateTime.now();
-          bool isRecent = _cooldowns.containsKey(key) &&
-              now.difference(_cooldowns[key]!).inMilliseconds < 3000;
-
-          if (!isRecent) {
+          if (!_cooldowns.containsKey(key) || now.difference(_cooldowns[key]!).inSeconds >= 2) {
             _cooldowns[key] = now;
-            // حرق الكلمات الحالية حتى لا تتكرر أو تتداخل مع اللوحة القادمة
-            _consumedWordCount = allWords.length;
-
-            // السر الثالث في الفيديو: اللوحة التي تبدأ بـ (أ) أو (ب) تنتظر النوع إذا لم يُقل معها
-            if (startsWithAlefOrBaa && !hasExplicitType) {
-              _pendingPlate = {
-                'key': key,
-                'letters': letters,
-                'digits': digits,
-                'type': '-',
-                'raw': activeSegment,
-              };
-              _pendingTimer?.cancel();
-              _pendingTimer = Timer(const Duration(milliseconds: 1600), () {
-                if (mounted) _commitPendingPlate();
-              });
-            } else {
-              // اللوحات التي لا تبدأ بـ أ أو ب (أو التي قيل نوعها معها) تنزل في الجدول في نفس اللحظة!
-              _registerDetectedPlate(letters, digits, carType, rawSpoken: activeSegment);
-            }
-          }
-        } else {
-          // 3. لو قال المستخدم نوع السيارة متأخراً بعد نزول اللوحة في الجدول (كما فعل في الدقيقة 1:13 لما قال "هاي اس")
-          if (_records.isNotEmpty && _lastPlateInsertedAt != null) {
-            if (DateTime.now().difference(_lastPlateInsertedAt!).inSeconds <= 8) {
-              String? standaloneType = SheekhaFullEngine.extractVehicleType(activeSegment);
-              if (standaloneType != null &&
-                  (_records[0]['type'] == '-' || _records[0]['type'] == 'ملاكي')) {
-                setState(() {
-                  _records[0]['type'] = standaloneType;
-                  _consumedWordCount = allWords.length;
-                  _lastPlateInsertedAt = null;
-                  _saveData();
-                });
-              }
-            }
+            _registerDetectedPlate(letters, digits, carType, rawSpoken: spoken);
+            _speech.stop();
           }
         }
       },
@@ -1071,10 +757,9 @@ class _SheekhaHomeScreenState extends State<SheekhaHomeScreen> {
     );
 
     bool isWanted = match.isNotEmpty;
-
-    String finalCarType = (spokenType.isNotEmpty && spokenType != '-' && spokenType != 'ملاكي')
-        ? spokenType
-        : (isWanted && (match['type'] ?? '').isNotEmpty ? match['type']! : '-');
+    String finalCarType = isWanted && (match['type'] ?? '').isNotEmpty && match['type'] != 'ملاكي'
+        ? match['type']!
+        : (spokenType != 'ملاكي' && spokenType != '-' ? spokenType : (match['type'] ?? 'ملاكي'));
 
     String currentCoords = _isGpsEnabled ? _currentCoordinates : '';
     if (_isGpsEnabled && currentCoords.isEmpty) {
@@ -1091,7 +776,6 @@ class _SheekhaHomeScreenState extends State<SheekhaHomeScreen> {
     }
 
     setState(() {
-      _lastPlateInsertedAt = DateTime.now();
       _records.insert(0, {
         'id': (_records.length + 1).toString(),
         'letters': letters,
@@ -1111,7 +795,6 @@ class _SheekhaHomeScreenState extends State<SheekhaHomeScreen> {
     });
 
     HapticFeedback.lightImpact();
-
     if (isWanted) {
       HapticFeedback.heavyImpact();
       SystemSound.play(SystemSoundType.alert);
@@ -1119,12 +802,7 @@ class _SheekhaHomeScreenState extends State<SheekhaHomeScreen> {
     }
   }
 
-  // معالجة ملفات الإكسيل (تم إصلاح قراءة الشيت المصدر من التطبيق نفسه أو أي شيت خارجي بدقة 100%)
-  Future<void> _processExcelWithProgress(
-    Uint8List bytes,
-    String fileName, {
-    required bool isWantedSheet,
-  }) async {
+  Future<void> _processExcelWithProgress(Uint8List bytes, String fileName, {required bool isWantedSheet}) async {
     ValueNotifier<double> progressNotifier = ValueNotifier<double>(0.0);
     ValueNotifier<int> processedNotifier = ValueNotifier<int>(0);
 
@@ -1140,9 +818,7 @@ class _SheekhaHomeScreenState extends State<SheekhaHomeScreen> {
             mainAxisSize: MainAxisSize.min,
             children: [
               Text(
-                isWantedSheet
-                    ? (AppStrings.isAr ? 'جاري قراءة ومعالجة ملف السيارات المطلوبة...' : 'Loading Wanted Cars File...')
-                    : (AppStrings.isAr ? 'جاري استيراد السجلات السابقة...' : 'Importing Records...'),
+                isWantedSheet ? 'جاري قراءة ومعالجة ملف السيارات المطلوبة...' : 'جاري استيراد السجلات السابقة...',
                 textAlign: TextAlign.center,
                 style: const TextStyle(color: Colors.white, fontSize: 13, fontWeight: FontWeight.bold),
               ),
@@ -1153,28 +829,13 @@ class _SheekhaHomeScreenState extends State<SheekhaHomeScreen> {
                   int percent = (val * 100).clamp(0, 100).toInt();
                   return Column(
                     children: [
-                      LinearProgressIndicator(
-                        value: val > 0 ? val : null,
-                        minHeight: 10,
-                        backgroundColor: const Color(0xFF0B132B),
-                        color: const Color(0xFF06D6A0),
-                        borderRadius: BorderRadius.circular(5),
-                      ),
+                      LinearProgressIndicator(value: val > 0 ? val : null, minHeight: 10, backgroundColor: const Color(0xFF0B132B), color: const Color(0xFF06D6A0), borderRadius: BorderRadius.circular(5)),
                       const SizedBox(height: 10),
                       Row(
                         mainAxisAlignment: MainAxisAlignment.spaceBetween,
                         children: [
-                          ValueListenableBuilder<int>(
-                            valueListenable: processedNotifier,
-                            builder: (context, count, _) => Text(
-                              '$count سيارة',
-                              style: const TextStyle(color: Colors.grey, fontSize: 11),
-                            ),
-                          ),
-                          Text(
-                            '$percent%',
-                            style: const TextStyle(color: Color(0xFF06D6A0), fontSize: 14, fontWeight: FontWeight.bold),
-                          ),
+                          ValueListenableBuilder<int>(valueListenable: processedNotifier, builder: (context, count, _) => Text('$count سيارة', style: const TextStyle(color: Colors.grey, fontSize: 11))),
+                          Text('$percent%', style: const TextStyle(color: Color(0xFF06D6A0), fontSize: 14, fontWeight: FontWeight.bold)),
                         ],
                       ),
                     ],
@@ -1188,29 +849,21 @@ class _SheekhaHomeScreenState extends State<SheekhaHomeScreen> {
     );
 
     await Future.delayed(const Duration(milliseconds: 50));
-
     try {
       var excel = ex.Excel.decodeBytes(bytes);
       List<Map<String, String>> extracted = [];
-
       List<String> targetSheets = excel.tables.keys.toList();
-      if (isWantedSheet && targetSheets.contains('بيانات')) {
-        targetSheets = ['بيانات'];
-      }
+      if (isWantedSheet && targetSheets.contains('بيانات')) targetSheets = ['بيانات'];
 
       int totalRowsCount = 0;
-      for (var t in targetSheets) {
-        totalRowsCount += (excel.tables[t]?.rows.length ?? 0);
-      }
+      for (var t in targetSheets) totalRowsCount += (excel.tables[t]?.rows.length ?? 0);
       if (totalRowsCount == 0) totalRowsCount = 1;
 
       int currentProcessed = 0;
-
       for (var tableName in targetSheets) {
         var sheet = excel.tables[tableName];
         if (sheet == null || sheet.rows.isEmpty) continue;
 
-        // اكتشاف ذكي لمواقع الأعمدة سواء كان الشيت مُصدّراً من تطبيق RASED أو شيت مطلوبين خارجي
         var headerRow = sheet.rows.first;
         int plateColIdx = 0;
         bool isExportedRasedFormat = false;
@@ -1218,7 +871,7 @@ class _SheekhaHomeScreenState extends State<SheekhaHomeScreen> {
         if (headerRow.length > 1) {
           String h0 = headerRow[0]?.value?.toString().trim() ?? '';
           String h1 = headerRow[1]?.value?.toString().trim() ?? '';
-          if (h0 == 'م' && (h1.contains('اللوحة') || h1.contains('اللوحه') || h1.toLowerCase().contains('plate'))) {
+          if (h0 == 'م' || h1.contains('اللوحة') || h1.contains('اللوحه') || h1.toLowerCase().contains('plate')) {
             plateColIdx = 1;
             isExportedRasedFormat = true;
           }
@@ -1233,14 +886,11 @@ class _SheekhaHomeScreenState extends State<SheekhaHomeScreen> {
           }
 
           if (row.isEmpty) continue;
+          String cellVal(int idx) => (idx < row.length && row[idx]?.value != null) ? row[idx]!.value.toString().trim() : '';
 
-          String cellVal(int idx) => (idx < row.length && row[idx]?.value != null)
-              ? row[idx]!.value.toString().trim()
-              : '';
-
-          // إذا لم يتم التعرف من الهيدر، نفحص هل العمود 0 مجرد رقم مسلسل والعمود 1 هو اللوحة
           bool rowUsesRasedCols = isExportedRasedFormat;
           String rawPlate = cellVal(plateColIdx);
+          
           if (!rowUsesRasedCols && RegExp(r'^\d{1,5}$').hasMatch(cellVal(0)) && cellVal(1).contains(RegExp(r'[\u0621-\u064A]'))) {
             String d1 = SheekhaFullEngine.normalizeDigits(cellVal(1)).replaceAll(RegExp(r'[^\d]'), '');
             if (d1.length >= 3) {
@@ -1254,47 +904,32 @@ class _SheekhaHomeScreenState extends State<SheekhaHomeScreen> {
           String normalizedPlate = SheekhaFullEngine.normalizeDigits(rawPlate);
           String digits = normalizedPlate.replaceAll(RegExp(r'[^\d]'), '');
           String letters = normalizedPlate.replaceAll(RegExp(r'[\d]'), '').trim();
-          if (letters.isNotEmpty && !letters.contains(' ') && letters.length <= 3) {
-            letters = letters.split('').join(' ');
-          }
+          if (letters.isNotEmpty && !letters.contains(' ') && letters.length <= 3) letters = letters.split('').join(' ');
 
           if (digits.length >= 3) {
             if (isWantedSheet) {
-              String typeVal = rowUsesRasedCols ? cellVal(3) : cellVal(1);
-              String ownerVal = rowUsesRasedCols ? cellVal(7) : cellVal(2);
-              String shassisVal = rowUsesRasedCols ? cellVal(6) : cellVal(3);
-
               extracted.add({
                 'letters': letters,
                 'digits': digits,
-                'type': typeVal.isNotEmpty ? typeVal : '-',
-                'owner': ownerVal.isNotEmpty ? ownerVal : 'غير متوفر',
-                'shassis': shassisVal.isNotEmpty ? shassisVal : 'غير متوفر',
+                'type': rowUsesRasedCols ? cellVal(3) : cellVal(1),
+                'owner': rowUsesRasedCols ? cellVal(7) : cellVal(2),
+                'shassis': rowUsesRasedCols ? cellVal(6) : cellVal(3),
                 'status': 'مطلوبة'
               });
             } else {
-              String statusVal = rowUsesRasedCols && cellVal(2).isNotEmpty ? cellVal(2) : 'مطابق';
-              String typeVal = rowUsesRasedCols ? cellVal(3) : cellVal(1);
-              String distVal = rowUsesRasedCols && cellVal(4).isNotEmpty ? cellVal(4) : _currentDistrict;
-              String streetVal = rowUsesRasedCols && cellVal(5).isNotEmpty ? cellVal(5) : _currentStreet;
-              String shassisVal = rowUsesRasedCols ? cellVal(6) : cellVal(3);
-              String ownerVal = rowUsesRasedCols ? cellVal(7) : cellVal(2);
-              String noteVal = rowUsesRasedCols && cellVal(9).isNotEmpty ? cellVal(9) : 'سجل سابق';
-              String timeVal = rowUsesRasedCols && cellVal(10).isNotEmpty ? cellVal(10) : 'سابق';
-
               extracted.add({
                 'id': (_records.length + extracted.length + 1).toString(),
                 'letters': letters,
                 'digits': digits,
-                'type': typeVal.isNotEmpty ? typeVal : '-',
-                'district': distVal,
-                'street': streetVal,
+                'type': rowUsesRasedCols ? cellVal(3) : cellVal(1),
+                'district': rowUsesRasedCols && cellVal(4).isNotEmpty ? cellVal(4) : _currentDistrict,
+                'street': rowUsesRasedCols && cellVal(5).isNotEmpty ? cellVal(5) : _currentStreet,
                 'coords': _isGpsEnabled ? _currentCoordinates : '',
-                'owner': ownerVal.isNotEmpty ? ownerVal : 'غير محدد',
-                'shassis': shassisVal.isNotEmpty ? shassisVal : 'غير متوفر',
-                'note': noteVal,
-                'status': statusVal,
-                'time': timeVal,
+                'owner': rowUsesRasedCols ? cellVal(7) : cellVal(2),
+                'shassis': rowUsesRasedCols ? cellVal(6) : cellVal(3),
+                'note': rowUsesRasedCols && cellVal(9).isNotEmpty ? cellVal(9) : 'سجل سابق',
+                'status': rowUsesRasedCols && cellVal(2).isNotEmpty ? cellVal(2) : 'مطابق',
+                'time': rowUsesRasedCols && cellVal(10).isNotEmpty ? cellVal(10) : 'سابق',
               });
             }
           }
@@ -1304,7 +939,6 @@ class _SheekhaHomeScreenState extends State<SheekhaHomeScreen> {
       progressNotifier.value = 1.0;
       processedNotifier.value = extracted.length;
       await Future.delayed(const Duration(milliseconds: 150));
-
       if (mounted) Navigator.pop(context);
 
       setState(() {
@@ -1319,35 +953,16 @@ class _SheekhaHomeScreenState extends State<SheekhaHomeScreen> {
       });
 
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(
-              isWantedSheet
-                  ? 'تم استخراج ${extracted.length} سيارة مطلوبة بنجاح (100%)!'
-                  : 'تم استيراد ${extracted.length} سجل بنجاح ومتابعة الإكمال!',
-              textDirection: AppStrings.isAr ? TextDirection.rtl : TextDirection.ltr,
-            ),
-            backgroundColor: const Color(0xFF06D6A0),
-            duration: const Duration(seconds: 4),
-          ),
-        );
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(isWantedSheet ? 'تم استخراج ${extracted.length} سيارة مطلوبة بنجاح (100%)!' : 'تم استيراد ${extracted.length} سجل بنجاح ومتابعة الإكمال!', textDirection: TextDirection.rtl), backgroundColor: const Color(0xFF06D6A0), duration: const Duration(seconds: 4)));
       }
     } catch (e) {
       if (mounted) Navigator.pop(context);
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Error: $e'), backgroundColor: Colors.redAccent),
-        );
-      }
+      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Error: $e'), backgroundColor: Colors.redAccent));
     }
   }
 
   Future<void> _pickAndParseWantedDatabaseFile() async {
-    FilePickerResult? result = await FilePicker.platform.pickFiles(
-      type: FileType.custom,
-      allowedExtensions: ['xlsx', 'xls', 'csv'],
-    );
-
+    FilePickerResult? result = await FilePicker.platform.pickFiles(type: FileType.custom, allowedExtensions: ['xlsx', 'xls', 'csv']);
     if (result != null && result.files.single.path != null) {
       var bytes = File(result.files.single.path!).readAsBytesSync();
       await _processExcelWithProgress(bytes, result.files.single.name, isWantedSheet: true);
@@ -1355,11 +970,7 @@ class _SheekhaHomeScreenState extends State<SheekhaHomeScreen> {
   }
 
   Future<void> _pickAndAppendExcelFile() async {
-    FilePickerResult? result = await FilePicker.platform.pickFiles(
-      type: FileType.custom,
-      allowedExtensions: ['xlsx', 'xls', 'csv'],
-    );
-
+    FilePickerResult? result = await FilePicker.platform.pickFiles(type: FileType.custom, allowedExtensions: ['xlsx', 'xls', 'csv']);
     if (result != null && result.files.single.path != null) {
       var bytes = File(result.files.single.path!).readAsBytesSync();
       await _processExcelWithProgress(bytes, result.files.single.name, isWantedSheet: false);
@@ -1372,92 +983,49 @@ class _SheekhaHomeScreenState extends State<SheekhaHomeScreen> {
       var excel = ex.Excel.createExcel();
       ex.Sheet sheet = excel['سجلات_الرصد'];
       excel.delete('Sheet1');
-
       sheet.appendRow([
-        ex.TextCellValue('م'),
-        ex.TextCellValue('اللوحة'),
-        ex.TextCellValue('الحالة'),
-        ex.TextCellValue('النوع'),
-        ex.TextCellValue('الحي'),
-        ex.TextCellValue('الشارع'),
-        ex.TextCellValue('رقم الشاص'),
-        ex.TextCellValue('البنك / الجهة'),
-        ex.TextCellValue('رابط الخريطة'),
-        ex.TextCellValue('ملاحظات'),
-        ex.TextCellValue('الوقت'),
+        ex.TextCellValue('م'), ex.TextCellValue('اللوحة'), ex.TextCellValue('الحالة'), ex.TextCellValue('النوع'),
+        ex.TextCellValue('الحي'), ex.TextCellValue('الشارع'), ex.TextCellValue('رقم الشاص'),
+        ex.TextCellValue('البنك / الجهة'), ex.TextCellValue('رابط الخريطة'), ex.TextCellValue('ملاحظات'), ex.TextCellValue('الوقت'),
       ]);
-
       for (var r in _records) {
         String coords = r['coords'] ?? '';
         String mapLink = coords.isNotEmpty ? 'https://maps.google.com/?q=$coords' : 'غير متوفر';
-
         sheet.appendRow([
-          ex.TextCellValue(r['id'] ?? ''),
-          ex.TextCellValue('${r['letters']} ${r['digits']}'),
-          ex.TextCellValue(r['status'] ?? ''),
-          ex.TextCellValue(r['type'] ?? ''),
-          ex.TextCellValue(r['district'] ?? ''),
-          ex.TextCellValue(r['street'] ?? ''),
-          ex.TextCellValue(r['shassis'] ?? 'غير متوفر'),
-          ex.TextCellValue(r['owner'] ?? 'غير متوفر'),
-          ex.TextCellValue(mapLink),
-          ex.TextCellValue(r['note'] ?? ''),
-          ex.TextCellValue(r['time'] ?? ''),
+          ex.TextCellValue(r['id'] ?? ''), ex.TextCellValue('${r['letters']} ${r['digits']}'),
+          ex.TextCellValue(r['status'] ?? ''), ex.TextCellValue(r['type'] ?? ''),
+          ex.TextCellValue(r['district'] ?? ''), ex.TextCellValue(r['street'] ?? ''),
+          ex.TextCellValue(r['shassis'] ?? 'غير متوفر'), ex.TextCellValue(r['owner'] ?? 'غير متوفر'),
+          ex.TextCellValue(mapLink), ex.TextCellValue(r['note'] ?? ''), ex.TextCellValue(r['time'] ?? ''),
         ]);
       }
-
       Directory downloadDir = Directory('/storage/emulated/0/Download');
-      if (!downloadDir.existsSync()) {
-        downloadDir = await Directory('/storage/emulated/0/Downloads').create(recursive: true);
-      }
-
+      if (!downloadDir.existsSync()) downloadDir = await Directory('/storage/emulated/0/Downloads').create(recursive: true);
       DateTime now = DateTime.now();
       String dateStr = '${now.year}-${now.month.toString().padLeft(2, '0')}-${now.day.toString().padLeft(2, '0')}_${now.hour}${now.minute}';
       String safeDistrict = _currentDistrict.replaceAll(RegExp(r'[^\w\s\u0621-\u064A]'), '_').trim();
       if (safeDistrict.isEmpty) safeDistrict = 'Rased';
       String fileName = 'Rased_${safeDistrict}_$dateStr.xlsx';
-
-      String filePath = '${downloadDir.path}/$fileName';
-      File file = File(filePath);
+      File file = File('${downloadDir.path}/$fileName');
       await file.writeAsBytes(excel.save()!);
-
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(
-              AppStrings.isAr ? 'تم حفظ شيت "$fileName" في مجلد Download بنجاح!' : 'Exported "$fileName" to Download!',
-              textDirection: AppStrings.isAr ? TextDirection.rtl : TextDirection.ltr,
-            ),
-            backgroundColor: const Color(0xFF06D6A0),
-            duration: const Duration(seconds: 4),
-          ),
-        );
-      }
+      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('تم حفظ شيت "$fileName" في مجلد Download بنجاح!', textDirection: TextDirection.rtl), backgroundColor: const Color(0xFF06D6A0), duration: const Duration(seconds: 4)));
     } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Error: $e'), backgroundColor: Colors.redAccent),
-        );
-      }
+      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Error: $e'), backgroundColor: Colors.redAccent));
     }
   }
 
   void _editRecordManually(int index) {
     var rec = _records[index];
-    String oldLettersStr = rec['letters'] ?? '';
-    String oldDigitsStr = rec['digits'] ?? '';
-    String oldTypeStr = rec['type'] ?? '';
+    TextEditingController letCtrl = TextEditingController(text: rec['letters'] ?? '');
+    TextEditingController digCtrl = TextEditingController(text: rec['digits'] ?? '');
+    TextEditingController typCtrl = TextEditingController(text: rec['type'] ?? '');
     String rawSpoken = rec['rawSpoken'] ?? '';
-
-    TextEditingController letCtrl = TextEditingController(text: oldLettersStr);
-    TextEditingController digCtrl = TextEditingController(text: oldDigitsStr);
-    TextEditingController typCtrl = TextEditingController(text: oldTypeStr);
 
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
         backgroundColor: const Color(0xFF1C2541),
-        title: Text(AppStrings.isAr ? 'تعديل السجل وتدريب الذكاء الصوتي' : 'Edit & Train AI', style: const TextStyle(color: Color(0xFF06D6A0), fontSize: 16), textAlign: TextAlign.center),
+        title: const Text('تعديل السجل وتدريب الذكاء الصوتي', style: TextStyle(color: Color(0xFF06D6A0), fontSize: 16), textAlign: TextAlign.center),
         content: SingleChildScrollView(
           child: Column(
             mainAxisSize: MainAxisSize.min,
@@ -1467,67 +1035,33 @@ class _SheekhaHomeScreenState extends State<SheekhaHomeScreen> {
                   padding: const EdgeInsets.all(8),
                   margin: const EdgeInsets.only(bottom: 10),
                   decoration: BoxDecoration(color: const Color(0xFF0B132B), borderRadius: BorderRadius.circular(8)),
-                  child: Text(
-                    'المنطوق الأصلي: "$rawSpoken"',
-                    style: const TextStyle(color: Colors.amber, fontSize: 12, fontWeight: FontWeight.bold),
-                    textAlign: TextAlign.center,
-                  ),
+                  child: Text('المنطوق الأصلي: "$rawSpoken"', style: const TextStyle(color: Colors.amber, fontSize: 12, fontWeight: FontWeight.bold), textAlign: TextAlign.center),
                 ),
-              TextField(
-                controller: letCtrl,
-                textAlign: TextAlign.center,
-                style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
-                decoration: InputDecoration(labelText: AppStrings.isAr ? 'الحروف الصحيحة (مثال: ن و ي)' : 'Letters', labelStyle: const TextStyle(color: Colors.grey)),
-              ),
+              TextField(controller: letCtrl, textAlign: TextAlign.center, style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold), decoration: const InputDecoration(labelText: 'الحروف الصحيحة (مثال: ن و ي)', labelStyle: TextStyle(color: Colors.grey))),
               const SizedBox(height: 6),
-              TextField(
-                controller: digCtrl,
-                keyboardType: TextInputType.number,
-                textAlign: TextAlign.center,
-                style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
-                decoration: InputDecoration(labelText: AppStrings.isAr ? 'الأرقام الصحيحة (مثال: 2517)' : 'Digits', labelStyle: const TextStyle(color: Colors.grey)),
-              ),
+              TextField(controller: digCtrl, keyboardType: TextInputType.number, textAlign: TextAlign.center, style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold), decoration: const InputDecoration(labelText: 'الأرقام الصحيحة (مثال: 715)', labelStyle: TextStyle(color: Colors.grey))),
               const SizedBox(height: 6),
-              TextField(
-                controller: typCtrl,
-                textAlign: TextAlign.center,
-                style: const TextStyle(color: Colors.white),
-                decoration: InputDecoration(labelText: AppStrings.isAr ? 'نوع السيارة (مثال: كيا / نقل)' : 'Car Type', labelStyle: const TextStyle(color: Colors.grey)),
-              ),
+              TextField(controller: typCtrl, textAlign: TextAlign.center, style: const TextStyle(color: Colors.white), decoration: const InputDecoration(labelText: 'نوع السيارة (مثال: كيا / نقل)', labelStyle: TextStyle(color: Colors.grey))),
             ],
           ),
         ),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(context), child: Text(AppStrings.isAr ? 'إلغاء' : 'Cancel')),
+          TextButton(onPressed: () => Navigator.pop(context), child: const Text('إلغاء')),
           ElevatedButton(
             style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFF06D6A0)),
             onPressed: () async {
               String newLettersStr = letCtrl.text.trim();
-              String newDigitsStr = digCtrl.text.trim();
-              String newTypeStr = typCtrl.text.trim();
-
-              if (newLettersStr.isNotEmpty && !newLettersStr.contains(' ') && newLettersStr.length <= 3) {
-                newLettersStr = newLettersStr.split('').join(' ');
-              }
-
-              if (rawSpoken.isNotEmpty) {
-                await SheekhaFullEngine.saveLearnedMapping(
-                  rawSpoken,
-                  newLettersStr,
-                  newDigitsStr,
-                  newTypeStr,
-                );
-              }
-
+              if (newLettersStr.isNotEmpty && !newLettersStr.contains(' ') && newLettersStr.length <= 3) newLettersStr = newLettersStr.split('').join(' ');
+              if (rawSpoken.isNotEmpty) await SheekhaFullEngine.saveLearnedMapping(rawSpoken, newLettersStr, digCtrl.text.trim(), typCtrl.text.trim());
               setState(() {
                 rec['letters'] = newLettersStr;
-                rec['digits'] = newDigitsStr;
-                rec['type'] = newTypeStr;
+                rec['digits'] = digCtrl.text.trim();
+                rec['type'] = typCtrl.text.trim();
               });
               _saveData();
               if (mounted) Navigator.pop(context);
             },
-            child: Text(AppStrings.isAr ? 'حفظ وتثبيت بالذاكرة' : 'Save & Learn', style: const TextStyle(color: Colors.black, fontWeight: FontWeight.bold)),
+            child: const Text('حفظ وتثبيت بالذاكرة', style: TextStyle(color: Colors.black, fontWeight: FontWeight.bold)),
           ),
         ],
       ),
@@ -1536,17 +1070,11 @@ class _SheekhaHomeScreenState extends State<SheekhaHomeScreen> {
 
   void _sendWantedToWhatsApp() async {
     List<Map<String, String>> toSend = _records.where((r) => r['status'] == 'مطلوبة' && _selectedWantedIds.contains(r['id'])).toList();
+    if (toSend.isEmpty) toSend = _records.where((r) => r['status'] == 'مطلوبة').toList();
     if (toSend.isEmpty) {
-      toSend = _records.where((r) => r['status'] == 'مطلوبة').toList();
-    }
-
-    if (toSend.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(AppStrings.isAr ? 'لا توجد سيارات مطلوبة لإرسالها' : 'No wanted cars to send')),
-      );
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('لا توجد سيارات مطلوبة لإرسالها')));
       return;
     }
-
     StringBuffer buffer = StringBuffer();
     buffer.writeln('🚨 *تقرير رصد سيارات مطلوبة - تطبيق RASED*');
     buffer.writeln('-----------------------------------');
@@ -1556,30 +1084,17 @@ class _SheekhaHomeScreenState extends State<SheekhaHomeScreen> {
       buffer.writeln('🔑 الشاص: ${car['shassis']}');
       buffer.writeln('🏦 البنك / الجهة: ${car['owner']}');
       buffer.writeln('📍 الموقع: ${car['district']} - ${car['street']}');
-      if ((car['coords'] ?? '').isNotEmpty) {
-        buffer.writeln('🗺 الخريطة: https://maps.google.com/?q=${car['coords']}');
-      }
+      if ((car['coords'] ?? '').isNotEmpty) buffer.writeln('🗺 الخريطة: https://maps.google.com/?q=${car['coords']}');
       buffer.writeln('⏱ الوقت: ${car['time']}');
       buffer.writeln('-----------------------------------');
     }
-
     String phone = _savedWhatsAppPhone.replaceAll(RegExp(r'[^\d]'), '');
     String encodedText = Uri.encodeComponent(buffer.toString());
-    Uri whatsappUri = Uri.parse('whatsapp://send?phone=$phone&text=$encodedText');
-
     try {
-      if (await canLaunchUrl(whatsappUri)) {
-        await launchUrl(whatsappUri, mode: LaunchMode.externalApplication);
-      } else {
-        Uri webUri = Uri.parse('https://api.whatsapp.com/send?phone=$phone&text=$encodedText');
-        await launchUrl(webUri, mode: LaunchMode.externalApplication);
-      }
+      if (await canLaunchUrl(Uri.parse('whatsapp://send?phone=$phone&text=$encodedText'))) await launchUrl(Uri.parse('whatsapp://send?phone=$phone&text=$encodedText'), mode: LaunchMode.externalApplication);
+      else await launchUrl(Uri.parse('https://api.whatsapp.com/send?phone=$phone&text=$encodedText'), mode: LaunchMode.externalApplication);
     } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Error: $e')),
-        );
-      }
+      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Error: $e')));
     }
   }
 
@@ -1589,60 +1104,24 @@ class _SheekhaHomeScreenState extends State<SheekhaHomeScreen> {
       setState(() => _manualSearchResults = []);
       return;
     }
-
     setState(() => _isManualSearching = true);
-
     String normalizedQuery = SheekhaFullEngine.normalizeFlexible(query);
     List<Map<String, String>> matched = [];
-
     for (var car in _wantedDatabase) {
-      String target = SheekhaFullEngine.normalizeFlexible('${car['letters']}${car['digits']} ${car['type']} ${car['owner']} ${car['shassis']}');
-      if (target.contains(normalizedQuery)) {
-        matched.add({
-          'id': 'مطلوبة',
-          'letters': car['letters'] ?? '',
-          'digits': car['digits'] ?? '',
-          'type': car['type'] ?? '-',
-          'district': 'شيت المطلوبين',
-          'street': car['owner'] ?? 'مطلوبة',
-          'coords': '',
-          'shassis': car['shassis'] ?? 'غير متوفر',
-          'note': '⚠️ مسجلة في شيت المطلوبين',
-          'status': 'مطلوبة',
-          'time': 'قاعدة البيانات',
-        });
+      if (SheekhaFullEngine.normalizeFlexible('${car['letters']}${car['digits']} ${car['type']} ${car['owner']} ${car['shassis']}').contains(normalizedQuery)) {
+        matched.add({'id': 'مطلوبة', 'letters': car['letters'] ?? '', 'digits': car['digits'] ?? '', 'type': car['type'] ?? '-', 'district': 'شيت المطلوبين', 'street': car['owner'] ?? 'مطلوبة', 'coords': '', 'shassis': car['shassis'] ?? 'غير متوفر', 'note': '⚠️ مسجلة في شيت المطلوبين', 'status': 'مطلوبة', 'time': 'قاعدة البيانات'});
       }
     }
-
     for (var car in _records) {
-      String target = SheekhaFullEngine.normalizeFlexible('${car['letters']}${car['digits']} ${car['type']}');
-      if (target.contains(normalizedQuery)) {
-        if (!matched.any((m) => m['digits'] == car['digits'] && m['letters'] == car['letters'])) {
-          matched.add(car);
-        }
+      if (SheekhaFullEngine.normalizeFlexible('${car['letters']}${car['digits']} ${car['type']}').contains(normalizedQuery)) {
+        if (!matched.any((m) => m['digits'] == car['digits'] && m['letters'] == car['letters'])) matched.add(car);
       }
     }
-
     String cleanDigitsOnly = SheekhaFullEngine.normalizeDigits(query.replaceAll(RegExp(r'[^\d]'), ''));
     if (cleanDigitsOnly.length >= 3) {
-      var exactMatch = _wantedDatabase.firstWhere(
-        (w) {
-          String wDigits = SheekhaFullEngine.normalizeDigits((w['digits'] ?? '').trim());
-          String wLetters = SheekhaFullEngine.normalizeFlexible(w['letters'] ?? '');
-          return wDigits == cleanDigitsOnly && (normalizedQuery.isEmpty || normalizedQuery.contains(wLetters));
-        },
-        orElse: () => {},
-      );
-
-      if (exactMatch.isNotEmpty) {
-        String lts = exactMatch['letters'] ?? '';
-        String dgs = exactMatch['digits'] ?? '';
-        String typ = exactMatch['type'] ?? '-';
-
-        _registerDetectedPlate(lts, dgs, typ);
-      }
+      var exactMatch = _wantedDatabase.firstWhere((w) => SheekhaFullEngine.normalizeDigits((w['digits'] ?? '').trim()) == cleanDigitsOnly && (normalizedQuery.isEmpty || normalizedQuery.contains(SheekhaFullEngine.normalizeFlexible(w['letters'] ?? ''))), orElse: () => {});
+      if (exactMatch.isNotEmpty) _registerDetectedPlate(exactMatch['letters'] ?? '', exactMatch['digits'] ?? '', exactMatch['type'] ?? '-');
     }
-
     setState(() {
       _manualSearchResults = matched;
       _isManualSearching = false;
@@ -1651,44 +1130,28 @@ class _SheekhaHomeScreenState extends State<SheekhaHomeScreen> {
 
   Future<void> _fetchGPSLocation() async {
     if (!_isGpsEnabled) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(AppStrings.isAr ? 'الـ GPS معطل من الإعدادات، يرجى تفعيله أولاً' : 'GPS is disabled in Settings')),
-      );
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('الـ GPS معطل من الإعدادات، يرجى تفعيله أولاً')));
       return;
     }
-
     bool serviceEnabled = await Geolocator.isLocationServiceEnabled();
     if (!serviceEnabled) return;
-
     LocationPermission permission = await Geolocator.checkPermission();
     if (permission == LocationPermission.denied) {
       permission = await Geolocator.requestPermission();
       if (permission == LocationPermission.denied) return;
     }
-
     Position pos = await Geolocator.getCurrentPosition(desiredAccuracy: LocationAccuracy.high);
-    setState(() {
-      _currentCoordinates = '${pos.latitude.toStringAsFixed(6)},${pos.longitude.toStringAsFixed(6)}';
-    });
-
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('GPS Signal Captured ✓'), backgroundColor: Color(0xFF06D6A0)),
-    );
+    setState(() => _currentCoordinates = '${pos.latitude.toStringAsFixed(6)},${pos.longitude.toStringAsFixed(6)}');
+    ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('GPS Signal Captured ✓'), backgroundColor: Color(0xFF06D6A0)));
   }
 
   void _openGoogleMaps(String coords) async {
     if (coords.isEmpty) return;
-    Uri geoUri = Uri.parse('geo:$coords?q=$coords');
-    Uri webUri = Uri.parse('https://maps.google.com/?q=$coords');
-
     try {
-      if (await canLaunchUrl(geoUri)) {
-        await launchUrl(geoUri, mode: LaunchMode.externalApplication);
-      } else {
-        await launchUrl(webUri, mode: LaunchMode.externalApplication);
-      }
+      if (await canLaunchUrl(Uri.parse('geo:$coords?q=$coords'))) await launchUrl(Uri.parse('geo:$coords?q=$coords'), mode: LaunchMode.externalApplication);
+      else await launchUrl(Uri.parse('https://maps.google.com/?q=$coords'), mode: LaunchMode.externalApplication);
     } catch (_) {
-      await launchUrl(webUri, mode: LaunchMode.externalApplication);
+      await launchUrl(Uri.parse('https://maps.google.com/?q=$coords'), mode: LaunchMode.externalApplication);
     }
   }
 
@@ -1696,29 +1159,12 @@ class _SheekhaHomeScreenState extends State<SheekhaHomeScreen> {
     final prefs = await SharedPreferences.getInstance();
     final String? savedRecords = prefs.getString('rased_historical_records');
     final String? savedDb = prefs.getString('rased_wanted_db');
-    final String? savedPhone = prefs.getString('rased_wa_phone');
-    final String? savedWantedName = prefs.getString('rased_wanted_name');
-    final String? savedDistricts = prefs.getString('rased_districts_list');
-    final bool? savedGps = prefs.getBool('rased_gps_enabled');
-
+    if (savedRecords != null) _records = List<Map<String, String>>.from(json.decode(savedRecords).map((x) => Map<String, String>.from(x)));
+    if (savedDb != null) _wantedDatabase = List<Map<String, String>>.from(json.decode(savedDb).map((x) => Map<String, String>.from(x)));
     setState(() {
-      if (savedRecords != null) {
-        _records = List<Map<String, String>>.from(
-            json.decode(savedRecords).map((x) => Map<String, String>.from(x)));
-      }
-      if (savedDb != null) {
-        _wantedDatabase = List<Map<String, String>>.from(
-            json.decode(savedDb).map((x) => Map<String, String>.from(x)));
-      }
-      if (savedPhone != null) _savedWhatsAppPhone = savedPhone;
-      if (savedWantedName != null) _wantedFileName = savedWantedName;
-      if (savedGps != null) _isGpsEnabled = savedGps;
-      if (savedDistricts != null) {
-        List<String> loadedDistricts = List<String>.from(json.decode(savedDistricts));
-        for (var d in loadedDistricts) {
-          if (!_districts.contains(d)) _districts.add(d);
-        }
-      }
+      _savedWhatsAppPhone = prefs.getString('rased_wa_phone') ?? _savedWhatsAppPhone;
+      _wantedFileName = prefs.getString('rased_wanted_name') ?? _wantedFileName;
+      _isGpsEnabled = prefs.getBool('rased_gps_enabled') ?? _isGpsEnabled;
     });
   }
 
@@ -1728,78 +1174,31 @@ class _SheekhaHomeScreenState extends State<SheekhaHomeScreen> {
     prefs.setString('rased_wanted_db', json.encode(_wantedDatabase));
     prefs.setString('rased_wa_phone', _savedWhatsAppPhone);
     prefs.setString('rased_wanted_name', _wantedFileName);
-    prefs.setString('rased_districts_list', json.encode(_districts));
     prefs.setBool('rased_gps_enabled', _isGpsEnabled);
   }
 
   void _showWantedAlertModal(Map<String, String> car, String letters, String digits) {
-    String carType = (car['type'] ?? '').isNotEmpty ? car['type']! : '-';
-    String bankOwner = (car['owner'] ?? '').isNotEmpty ? car['owner']! : 'غير متوفر';
-    String shassis = (car['shassis'] ?? '').isNotEmpty ? car['shassis']! : 'غير متوفر';
-
     showDialog(
       context: context,
       barrierDismissible: false,
       builder: (context) => AlertDialog(
         backgroundColor: Colors.white,
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20), side: const BorderSide(color: Colors.redAccent, width: 3)),
-        title: Text(
-          AppStrings.isAr ? '🚨 تم رصد سيارة مطلوبة!' : '🚨 Wanted Car Detected!',
-          style: const TextStyle(color: Colors.red, fontWeight: FontWeight.bold, fontSize: 18),
-          textAlign: TextAlign.center,
-        ),
+        title: const Text('🚨 تم رصد سيارة مطلوبة!', style: TextStyle(color: Colors.red, fontWeight: FontWeight.bold, fontSize: 18), textAlign: TextAlign.center),
         content: Column(
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            Container(
-              padding: const EdgeInsets.symmetric(vertical: 10),
-              decoration: BoxDecoration(color: Colors.red.shade50, borderRadius: BorderRadius.circular(12)),
-              child: Text(
-                '$letters $digits',
-                textAlign: TextAlign.center,
-                style: const TextStyle(fontSize: 28, fontWeight: FontWeight.bold, color: Colors.black87),
-              ),
-            ),
+            Container(padding: const EdgeInsets.symmetric(vertical: 10), decoration: BoxDecoration(color: Colors.red.shade50, borderRadius: BorderRadius.circular(12)), child: Text('$letters $digits', textAlign: TextAlign.center, style: const TextStyle(fontSize: 28, fontWeight: FontWeight.bold, color: Colors.black87))),
             const SizedBox(height: 14),
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                Expanded(child: Text(carType, textAlign: TextAlign.right, style: const TextStyle(color: Colors.black87, fontSize: 14, fontWeight: FontWeight.bold))),
-                Text(AppStrings.isAr ? 'النوع / الموديل: ' : 'Type: ', style: const TextStyle(color: Colors.grey, fontSize: 13)),
-              ],
-            ),
+            Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [Expanded(child: Text((car['type'] ?? '').isNotEmpty ? car['type']! : '-', textAlign: TextAlign.right, style: const TextStyle(color: Colors.black87, fontSize: 14, fontWeight: FontWeight.bold))), const Text('النوع / الموديل: ', style: TextStyle(color: Colors.grey, fontSize: 13))]),
             const Divider(),
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                Expanded(child: Text(bankOwner, textAlign: TextAlign.right, style: const TextStyle(color: Colors.indigo, fontSize: 13, fontWeight: FontWeight.bold))),
-                Text(AppStrings.isAr ? 'الجهة الطالبة / البنك: ' : 'Bank: ', style: const TextStyle(color: Colors.grey, fontSize: 13)),
-              ],
-            ),
+            Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [Expanded(child: Text((car['owner'] ?? '').isNotEmpty ? car['owner']! : 'غير متوفر', textAlign: TextAlign.right, style: const TextStyle(color: Colors.indigo, fontSize: 13, fontWeight: FontWeight.bold))), const Text('الجهة الطالبة / البنك: ', style: TextStyle(color: Colors.grey, fontSize: 13))]),
             const Divider(),
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                Expanded(child: Text(shassis, textAlign: TextAlign.right, style: const TextStyle(color: Colors.black87, fontSize: 12, fontWeight: FontWeight.bold))),
-                Text(AppStrings.isAr ? 'رقم الشاصي: ' : 'Chassis: ', style: const TextStyle(color: Colors.grey, fontSize: 13)),
-              ],
-            ),
+            Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [Expanded(child: Text((car['shassis'] ?? '').isNotEmpty ? car['shassis']! : 'غير متوفر', textAlign: TextAlign.right, style: const TextStyle(color: Colors.black87, fontSize: 12, fontWeight: FontWeight.bold))), const Text('رقم الشاصي: ', style: TextStyle(color: Colors.grey, fontSize: 13))]),
           ],
         ),
-        actions: [
-          SizedBox(
-            width: double.infinity,
-            child: ElevatedButton(
-              style: ElevatedButton.styleFrom(backgroundColor: Colors.red, padding: const EdgeInsets.symmetric(vertical: 12)),
-              onPressed: () => Navigator.pop(context),
-              child: Text(
-                AppStrings.isAr ? 'إغلاق ومتابعة الرصد' : 'Close',
-                style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
-              ),
-            ),
-          )
-        ],
+        actions: [SizedBox(width: double.infinity, child: ElevatedButton(style: ElevatedButton.styleFrom(backgroundColor: Colors.red, padding: const EdgeInsets.symmetric(vertical: 12)), onPressed: () => Navigator.pop(context), child: const Text('إغلاق ومتابعة الرصد', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold))))],
       ),
     );
   }
@@ -1810,26 +1209,10 @@ class _SheekhaHomeScreenState extends State<SheekhaHomeScreen> {
       appBar: AppBar(
         backgroundColor: Colors.transparent,
         elevation: 0,
-        leading: IconButton(
-          icon: const Icon(Icons.upload_file, color: Color(0xFF06D6A0), size: 28),
-          tooltip: 'Upload Wanted Sheet',
-          onPressed: _pickAndParseWantedDatabaseFile,
-        ),
-        title: Column(
-          crossAxisAlignment: CrossAxisAlignment.center,
-          children: [
-            Text(AppStrings.appName, style: const TextStyle(letterSpacing: 2, fontWeight: FontWeight.bold, color: Color(0xFF06D6A0), fontSize: 18)),
-            Text(
-              _wantedFileName,
-              style: const TextStyle(color: Colors.grey, fontSize: 10),
-              overflow: TextOverflow.ellipsis,
-            ),
-          ],
-        ),
+        leading: IconButton(icon: const Icon(Icons.upload_file, color: Color(0xFF06D6A0), size: 28), onPressed: _pickAndParseWantedDatabaseFile),
+        title: Column(crossAxisAlignment: CrossAxisAlignment.center, children: [const Text('RASED', style: TextStyle(letterSpacing: 2, fontWeight: FontWeight.bold, color: Color(0xFF06D6A0), fontSize: 18)), Text(_wantedFileName, style: const TextStyle(color: Colors.grey, fontSize: 10), overflow: TextOverflow.ellipsis)]),
         centerTitle: true,
-        actions: const [
-          SizedBox(width: 48),
-        ],
+        actions: const [SizedBox(width: 48)],
       ),
       body: _buildCurrentTabBody(),
       bottomNavigationBar: BottomNavigationBar(
@@ -1839,12 +1222,12 @@ class _SheekhaHomeScreenState extends State<SheekhaHomeScreen> {
         currentIndex: _currentIndex,
         type: BottomNavigationBarType.fixed,
         onTap: (index) => setState(() => _currentIndex = index),
-        items: [
-          BottomNavigationBarItem(icon: const Icon(Icons.settings), label: AppStrings.settingsTab),
-          BottomNavigationBarItem(icon: const Icon(Icons.search), label: AppStrings.manualSearchTab),
-          BottomNavigationBarItem(icon: const Icon(Icons.warning_amber_rounded), label: AppStrings.wantedTab),
-          BottomNavigationBarItem(icon: const Icon(Icons.app_registration), label: AppStrings.registrationTab),
-          BottomNavigationBarItem(icon: const Icon(Icons.mic), label: AppStrings.checkingTab),
+        items: const [
+          BottomNavigationBarItem(icon: Icon(Icons.settings), label: 'الإعدادات'),
+          BottomNavigationBarItem(icon: Icon(Icons.search), label: 'فحص يدوي'),
+          BottomNavigationBarItem(icon: Icon(Icons.warning_amber_rounded), label: 'المرصودة'),
+          BottomNavigationBarItem(icon: Icon(Icons.app_registration), label: 'التسجيل'),
+          BottomNavigationBarItem(icon: Icon(Icons.mic), label: 'التشييك'),
         ],
       ),
     );
@@ -1852,17 +1235,11 @@ class _SheekhaHomeScreenState extends State<SheekhaHomeScreen> {
 
   Widget _buildCurrentTabBody() {
     switch (_currentIndex) {
-      case 0:
-        return _buildSettingsTab();
-      case 1:
-        return _buildManualSearchTab();
-      case 2:
-        return _buildWantedRecordsTab();
-      case 3:
-        return _buildRegistrationTab();
-      case 4:
-      default:
-        return _buildCheckingTab();
+      case 0: return _buildSettingsTab();
+      case 1: return _buildManualSearchTab();
+      case 2: return _buildWantedRecordsTab();
+      case 3: return _buildRegistrationTab();
+      case 4: default: return _buildCheckingTab();
     }
   }
 
@@ -1871,15 +1248,30 @@ class _SheekhaHomeScreenState extends State<SheekhaHomeScreen> {
       padding: const EdgeInsets.all(12.0),
       child: Column(
         children: [
-          _buildLiveMicBox(),
-          const SizedBox(height: 12),
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              Text('${AppStrings.recordsCount} ${_records.length}', style: const TextStyle(color: Colors.grey, fontSize: 13)),
-              Text(AppStrings.editPlateHint, style: const TextStyle(color: Color(0xFF06D6A0), fontSize: 11)),
-            ],
+          Container(
+            padding: const EdgeInsets.all(14),
+            decoration: BoxDecoration(color: const Color(0xFF1C2541), borderRadius: BorderRadius.circular(20), border: Border.all(color: _isListening ? const Color(0xFF06D6A0) : Colors.transparent, width: 1.5)),
+            child: Column(
+              children: [
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Container(padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4), decoration: BoxDecoration(color: (_isListening ? const Color(0xFF06D6A0) : Colors.grey).withOpacity(0.2), borderRadius: BorderRadius.circular(12)), child: Text(_isListening ? 'يستمع الآن' : 'متوقف', style: TextStyle(color: _isListening ? const Color(0xFF06D6A0) : Colors.grey, fontSize: 12))),
+                    Expanded(child: Padding(padding: const EdgeInsets.symmetric(horizontal: 10), child: Text(_currentStatusText, textAlign: TextAlign.right, maxLines: 2, overflow: TextOverflow.ellipsis, style: const TextStyle(color: Colors.white, fontSize: 15, fontWeight: FontWeight.bold)))),
+                    GestureDetector(onTap: _toggleLiveListening, child: CircleAvatar(radius: 26, backgroundColor: _isListening ? const Color(0xFF06D6A0) : Colors.redAccent, child: Icon(_isListening ? Icons.mic : Icons.mic_off, color: Colors.black, size: 28))),
+                  ],
+                ),
+                const SizedBox(height: 12),
+                SizedBox(height: 35, child: Row(mainAxisAlignment: MainAxisAlignment.spaceEvenly, children: List.generate(30, (index) {
+                  double baseHeight = 6.0;
+                  double dynamicWave = _isListening ? baseHeight + (sin(index + _soundLevel) * _soundLevel * 2.2).abs() : baseHeight;
+                  return AnimatedContainer(duration: const Duration(milliseconds: 60), width: 3.5, height: dynamicWave.clamp(5.0, 35.0), decoration: BoxDecoration(color: _isListening ? const Color(0xFF06D6A0) : Colors.grey.shade700, borderRadius: BorderRadius.circular(2)));
+                }))),
+              ],
+            ),
           ),
+          const SizedBox(height: 12),
+          Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [Text('السجلات: ${_records.length}', style: const TextStyle(color: Colors.grey, fontSize: 13)), const Text('اضغط على اللوحة أو النوع لتعديلهما', style: TextStyle(color: Color(0xFF06D6A0), fontSize: 11))]),
           const SizedBox(height: 8),
           Expanded(child: _buildRecordsListView(_records)),
         ],
@@ -1889,7 +1281,6 @@ class _SheekhaHomeScreenState extends State<SheekhaHomeScreen> {
 
   Widget _buildRegistrationTab() {
     bool hasGPS = _isGpsEnabled && _currentCoordinates.isNotEmpty;
-
     return Padding(
       padding: const EdgeInsets.all(12.0),
       child: Column(
@@ -1901,7 +1292,7 @@ class _SheekhaHomeScreenState extends State<SheekhaHomeScreen> {
               children: [
                 Row(
                   children: [
-                    Expanded(child: _controlCard(AppStrings.notes, _selectedNote, Icons.edit, Colors.amber, _showNotesMenu)),
+                    Expanded(child: _controlCard('ملاحظات', _selectedNote, Icons.edit, Colors.amber, _showNotesMenu)),
                     const SizedBox(width: 6),
                     Expanded(
                       child: InkWell(
@@ -1916,31 +1307,19 @@ class _SheekhaHomeScreenState extends State<SheekhaHomeScreen> {
                                 children: [
                                   InkWell(
                                     onTap: () {
-                                      if (!_isGpsEnabled) {
-                                        ScaffoldMessenger.of(context).showSnackBar(
-                                          SnackBar(content: Text(AppStrings.isAr ? 'الـ GPS معطل من الإعدادات' : 'GPS is disabled in Settings')),
-                                        );
-                                      } else if (hasGPS) {
+                                      if (!_isGpsEnabled) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('الـ GPS معطل من الإعدادات')));
+                                      else if (hasGPS) {
                                         Clipboard.setData(ClipboardData(text: _currentCoordinates));
-                                        ScaffoldMessenger.of(context).showSnackBar(
-                                          SnackBar(content: Text('Copied GPS: $_currentCoordinates'), backgroundColor: const Color(0xFF06D6A0)),
-                                        );
-                                      } else {
-                                        _fetchGPSLocation();
-                                      }
+                                        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Copied GPS: $_currentCoordinates'), backgroundColor: const Color(0xFF06D6A0)));
+                                      } else _fetchGPSLocation();
                                     },
                                     child: Container(
                                       padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 1),
                                       decoration: BoxDecoration(color: hasGPS ? const Color(0xFF06D6A0) : Colors.transparent, borderRadius: BorderRadius.circular(4)),
-                                      child: Row(
-                                        children: [
-                                          Icon(Icons.my_location, color: hasGPS ? Colors.black : const Color(0xFF06D6A0), size: 12),
-                                          Text(hasGPS ? ' GPS ✓' : (_isGpsEnabled ? ' GPS' : ' GPS ✕'), style: TextStyle(color: hasGPS ? Colors.black : const Color(0xFF06D6A0), fontSize: 9, fontWeight: FontWeight.bold)),
-                                        ],
-                                      ),
+                                      child: Row(children: [Icon(Icons.my_location, color: hasGPS ? Colors.black : const Color(0xFF06D6A0), size: 12), Text(hasGPS ? ' GPS ✓' : (_isGpsEnabled ? ' GPS' : ' GPS ✕'), style: TextStyle(color: hasGPS ? Colors.black : const Color(0xFF06D6A0), fontSize: 9, fontWeight: FontWeight.bold))]),
                                     ),
                                   ),
-                                  Text(AppStrings.street, style: const TextStyle(color: Colors.grey, fontSize: 10)),
+                                  const Text('الشارع', style: TextStyle(color: Colors.grey, fontSize: 10)),
                                 ],
                               ),
                               const SizedBox(height: 2),
@@ -1951,29 +1330,15 @@ class _SheekhaHomeScreenState extends State<SheekhaHomeScreen> {
                       ),
                     ),
                     const SizedBox(width: 6),
-                    Expanded(child: _controlCard(AppStrings.district, _currentDistrict, Icons.folder, Colors.blueAccent, _showDistrictMenu)),
+                    Expanded(child: _controlCard('الحي', _currentDistrict, Icons.folder, Colors.blueAccent, _showDistrictMenu)),
                   ],
                 ),
                 const SizedBox(height: 12),
                 Row(
                   children: [
-                    Expanded(
-                      child: ElevatedButton.icon(
-                        style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFF06D6A0)),
-                        onPressed: _exportExcelDirectlyToDownloads,
-                        icon: const Icon(Icons.download, color: Colors.black, size: 18),
-                        label: Text(AppStrings.exportExcel, style: const TextStyle(color: Colors.black, fontSize: 11, fontWeight: FontWeight.bold)),
-                      ),
-                    ),
+                    Expanded(child: ElevatedButton.icon(style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFF06D6A0)), onPressed: _exportExcelDirectlyToDownloads, icon: const Icon(Icons.download, color: Colors.black, size: 18), label: const Text('تصدير إكسيل', style: TextStyle(color: Colors.black, fontSize: 11, fontWeight: FontWeight.bold)))),
                     const SizedBox(width: 8),
-                    Expanded(
-                      child: OutlinedButton.icon(
-                        style: OutlinedButton.styleFrom(side: const BorderSide(color: Color(0xFF06D6A0))),
-                        onPressed: _pickAndAppendExcelFile,
-                        icon: const Icon(Icons.add_to_photos, color: Color(0xFF06D6A0), size: 18),
-                        label: Text(AppStrings.appendExcel, style: const TextStyle(color: Color(0xFF06D6A0), fontSize: 11)),
-                      ),
-                    ),
+                    Expanded(child: OutlinedButton.icon(style: OutlinedButton.styleFrom(side: const BorderSide(color: Color(0xFF06D6A0))), onPressed: _pickAndAppendExcelFile, icon: const Icon(Icons.add_to_photos, color: Color(0xFF06D6A0), size: 18), label: const Text('استيراد شيت', style: TextStyle(color: Color(0xFF06D6A0), fontSize: 11)))),
                   ],
                 ),
               ],
@@ -1988,7 +1353,6 @@ class _SheekhaHomeScreenState extends State<SheekhaHomeScreen> {
 
   Widget _buildWantedRecordsTab() {
     List<Map<String, String>> wantedList = _records.where((r) => r['status'] == 'مطلوبة').toList();
-
     return Padding(
       padding: const EdgeInsets.all(12.0),
       child: Column(
@@ -2003,57 +1367,31 @@ class _SheekhaHomeScreenState extends State<SheekhaHomeScreen> {
                   onTap: _showSetWhatsAppPhoneDialog,
                   child: Container(
                     padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-                    decoration: BoxDecoration(
-                      color: const Color(0xFF0B132B),
-                      borderRadius: BorderRadius.circular(10),
-                      border: Border.all(color: Colors.white24),
-                    ),
+                    decoration: BoxDecoration(color: const Color(0xFF0B132B), borderRadius: BorderRadius.circular(10), border: Border.all(color: Colors.white24)),
                     child: Row(
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
                         const Icon(Icons.edit, color: Color(0xFF06D6A0), size: 16),
-                        Row(
-                          children: [
-                            Text(
-                              _savedWhatsAppPhone,
-                              style: const TextStyle(color: Colors.white, fontSize: 14, fontWeight: FontWeight.bold),
-                              textDirection: TextDirection.ltr,
-                            ),
-                            const SizedBox(width: 8),
-                            const Icon(Icons.phone, color: Color(0xFF06D6A0), size: 18),
-                            const SizedBox(width: 4),
-                            Text(AppStrings.sendNumber, style: const TextStyle(color: Colors.grey, fontSize: 12)),
-                          ],
-                        ),
+                        Row(children: [Text(_savedWhatsAppPhone, style: const TextStyle(color: Colors.white, fontSize: 14, fontWeight: FontWeight.bold), textDirection: TextDirection.ltr), const SizedBox(width: 8), const Icon(Icons.phone, color: Color(0xFF06D6A0), size: 18), const SizedBox(width: 4), const Text('رقم الإرسال:', style: TextStyle(color: Colors.grey, fontSize: 12))]),
                       ],
                     ),
                   ),
                 ),
                 const SizedBox(height: 12),
-                ElevatedButton.icon(
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: const Color(0xFF25D366),
-                    padding: const EdgeInsets.symmetric(vertical: 12),
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-                  ),
-                  onPressed: _sendWantedToWhatsApp,
-                  icon: const Icon(Icons.send, color: Colors.white, size: 20),
-                  label: Text(AppStrings.sendWhatsApp, style: const TextStyle(color: Colors.white, fontSize: 15, fontWeight: FontWeight.bold)),
-                ),
+                ElevatedButton.icon(style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFF25D366), padding: const EdgeInsets.symmetric(vertical: 12), shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10))), onPressed: _sendWantedToWhatsApp, icon: const Icon(Icons.send, color: Colors.white, size: 20), label: const Text('إرسال للواتساب', style: TextStyle(color: Colors.white, fontSize: 15, fontWeight: FontWeight.bold))),
               ],
             ),
           ),
           const SizedBox(height: 10),
           Expanded(
             child: wantedList.isEmpty
-                ? Center(child: Text(AppStrings.isAr ? 'لا توجد سيارات مطلوبة مرصودة حتى الآن' : 'No wanted cars detected yet', style: const TextStyle(color: Colors.grey)))
+                ? const Center(child: Text('لا توجد سيارات مطلوبة مرصودة حتى الآن', style: TextStyle(color: Colors.grey)))
                 : ListView.builder(
                     itemCount: wantedList.length,
                     itemBuilder: (context, index) {
                       final car = wantedList[index];
                       String id = car['id'] ?? '';
                       bool isSelected = _selectedWantedIds.contains(id);
-
                       return Container(
                         margin: const EdgeInsets.only(bottom: 8),
                         padding: const EdgeInsets.all(10),
@@ -2061,23 +1399,8 @@ class _SheekhaHomeScreenState extends State<SheekhaHomeScreen> {
                         child: Row(
                           mainAxisAlignment: MainAxisAlignment.spaceBetween,
                           children: [
-                            Checkbox(
-                              value: isSelected,
-                              activeColor: const Color(0xFF06D6A0),
-                              onChanged: (val) {
-                                setState(() {
-                                  if (val == true) {
-                                    _selectedWantedIds.add(id);
-                                  } else {
-                                    _selectedWantedIds.remove(id);
-                                  }
-                                });
-                              },
-                            ),
-                            InkWell(
-                              onTap: () => _openGoogleMaps(car['coords'] ?? ''),
-                              child: const Icon(Icons.map, color: Color(0xFF06D6A0), size: 24),
-                            ),
+                            Checkbox(value: isSelected, activeColor: const Color(0xFF06D6A0), onChanged: (val) => setState(() => val == true ? _selectedWantedIds.add(id) : _selectedWantedIds.remove(id))),
+                            InkWell(onTap: () => _openGoogleMaps(car['coords'] ?? ''), child: const Icon(Icons.map, color: Color(0xFF06D6A0), size: 24)),
                             Column(
                               crossAxisAlignment: CrossAxisAlignment.end,
                               children: [
@@ -2103,24 +1426,11 @@ class _SheekhaHomeScreenState extends State<SheekhaHomeScreen> {
       context: context,
       builder: (context) => AlertDialog(
         backgroundColor: const Color(0xFF1C2541),
-        title: Text(AppStrings.isAr ? 'تثبيت رقم الواتساب للتقارير' : 'Set WhatsApp Phone', style: const TextStyle(color: Color(0xFF06D6A0)), textAlign: TextAlign.center),
-        content: TextField(
-          controller: phoneCtrl,
-          keyboardType: TextInputType.phone,
-          style: const TextStyle(color: Colors.white),
-          decoration: const InputDecoration(hintText: '00201155661920'),
-        ),
+        title: const Text('تثبيت رقم الواتساب للتقارير', style: TextStyle(color: Color(0xFF06D6A0)), textAlign: TextAlign.center),
+        content: TextField(controller: phoneCtrl, keyboardType: TextInputType.phone, style: const TextStyle(color: Colors.white), decoration: const InputDecoration(hintText: '00201155661920')),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(context), child: Text(AppStrings.isAr ? 'إلغاء' : 'Cancel')),
-          ElevatedButton(
-            style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFF06D6A0)),
-            onPressed: () {
-              setState(() => _savedWhatsAppPhone = phoneCtrl.text.trim());
-              _saveData();
-              Navigator.pop(context);
-            },
-            child: Text(AppStrings.isAr ? 'تثبيت الرقم' : 'Save', style: const TextStyle(color: Colors.black)),
-          )
+          TextButton(onPressed: () => Navigator.pop(context), child: const Text('إلغاء')),
+          ElevatedButton(onPressed: () { setState(() => _savedWhatsAppPhone = phoneCtrl.text.trim()); _saveData(); Navigator.pop(context); }, style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFF06D6A0)), child: const Text('تثبيت الرقم', style: TextStyle(color: Colors.black))),
         ],
       ),
     );
@@ -2133,54 +1443,30 @@ class _SheekhaHomeScreenState extends State<SheekhaHomeScreen> {
         children: [
           Container(
             padding: const EdgeInsets.all(6),
-            decoration: BoxDecoration(
-              color: const Color(0xFF1C2541),
-              borderRadius: BorderRadius.circular(14),
-            ),
+            decoration: BoxDecoration(color: const Color(0xFF1C2541), borderRadius: BorderRadius.circular(14)),
             child: Row(
               children: [
                 ElevatedButton.icon(
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: const Color(0xFF06D6A0),
-                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-                  ),
+                  style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFF06D6A0), padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12), shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10))),
                   onPressed: _isManualSearching ? null : _executeManualSearchAction,
-                  icon: _isManualSearching
-                      ? const SizedBox(width: 14, height: 14, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.black))
-                      : const Icon(Icons.search, color: Colors.black, size: 18),
-                  label: Text(AppStrings.searchBtn, style: const TextStyle(color: Colors.black, fontWeight: FontWeight.bold, fontSize: 13)),
+                  icon: _isManualSearching ? const SizedBox(width: 14, height: 14, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.black)) : const Icon(Icons.search, color: Colors.black, size: 18),
+                  label: const Text('بحث', style: TextStyle(color: Colors.black, fontWeight: FontWeight.bold, fontSize: 13)),
                 ),
                 const SizedBox(width: 8),
                 Expanded(
                   child: TextField(
                     controller: _manualSearchCtrl,
-                    textDirection: AppStrings.isAr ? TextDirection.rtl : TextDirection.ltr,
+                    textDirection: TextDirection.rtl,
                     style: const TextStyle(color: Colors.white),
                     onSubmitted: (_) => _executeManualSearchAction(),
-                    decoration: InputDecoration(
-                      hintText: AppStrings.searchHint,
-                      hintStyle: const TextStyle(color: Colors.grey, fontSize: 12),
-                      border: InputBorder.none,
-                      contentPadding: const EdgeInsets.symmetric(horizontal: 8),
-                    ),
+                    decoration: const InputDecoration(hintText: 'اكتب حروف أو أرقام السيارة...', hintStyle: TextStyle(color: Colors.grey, fontSize: 12), border: InputBorder.none, contentPadding: EdgeInsets.symmetric(horizontal: 8)),
                   ),
                 ),
               ],
             ),
           ),
           const SizedBox(height: 12),
-          Expanded(
-            child: _manualSearchResults.isEmpty
-                ? Center(
-                    child: Text(
-                      AppStrings.searchEmptyHint,
-                      textAlign: TextAlign.center,
-                      style: const TextStyle(color: Colors.grey, fontSize: 13),
-                    ),
-                  )
-                : _buildRecordsListView(_manualSearchResults),
-          ),
+          Expanded(child: _manualSearchResults.isEmpty ? const Center(child: Text('اكتب كود أو رقم السيارة واضغط "بحث"', textAlign: TextAlign.center, style: TextStyle(color: Colors.grey, fontSize: 13))) : _buildRecordsListView(_manualSearchResults)),
         ],
       ),
     );
@@ -2190,55 +1476,17 @@ class _SheekhaHomeScreenState extends State<SheekhaHomeScreen> {
     return ListView(
       padding: const EdgeInsets.all(16),
       children: [
-        ListTile(
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-          tileColor: const Color(0xFF1C2541),
-          leading: const Icon(Icons.language, color: Color(0xFF06D6A0)),
-          title: Text(AppStrings.langSetting, style: const TextStyle(color: Colors.white)),
-          trailing: DropdownButton<String>(
-            dropdownColor: const Color(0xFF1C2541),
-            value: AppStrings.isAr ? 'العربية' : 'English',
-            underline: const SizedBox(),
-            items: const [
-              DropdownMenuItem(value: 'العربية', child: Text('العربية', style: TextStyle(color: Colors.white))),
-              DropdownMenuItem(value: 'English', child: Text('English', style: TextStyle(color: Colors.white))),
-            ],
-            onChanged: (val) {
-              if (val == 'English') {
-                widget.onLanguageChange(const Locale('en'));
-              } else {
-                widget.onLanguageChange(const Locale('ar'));
-              }
-            },
-          ),
-        ),
-        const SizedBox(height: 12),
         SwitchListTile(
           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
           tileColor: const Color(0xFF1C2541),
           activeColor: const Color(0xFF06D6A0),
           secondary: const Icon(Icons.location_on, color: Color(0xFF06D6A0)),
-          title: Text(AppStrings.gpsSetting, style: const TextStyle(color: Colors.white)),
-          subtitle: Text(AppStrings.gpsSub, style: const TextStyle(color: Colors.grey, fontSize: 11)),
+          title: const Text('تفعيل موقع GPS عند الرصد', style: TextStyle(color: Colors.white)),
+          subtitle: const Text('التقاط الإحداثيات تلقائياً وتثبيتها في الشيت', style: TextStyle(color: Colors.grey, fontSize: 11)),
           value: _isGpsEnabled,
           onChanged: (bool value) {
-            setState(() {
-              _isGpsEnabled = value;
-              if (!value) _currentCoordinates = '';
-            });
+            setState(() { _isGpsEnabled = value; if (!value) _currentCoordinates = ''; });
             _saveData();
-            ScaffoldMessenger.of(context).showSnackBar(
-              SnackBar(
-                content: Text(
-                  value
-                      ? (AppStrings.isAr ? 'تم تفعيل موقع GPS بنجاح' : 'GPS Tracking Enabled')
-                      : (AppStrings.isAr ? 'تم إيقاف تشغيل موقع GPS' : 'GPS Tracking Disabled'),
-                  textDirection: AppStrings.isAr ? TextDirection.rtl : TextDirection.ltr,
-                ),
-                backgroundColor: value ? const Color(0xFF06D6A0) : Colors.redAccent,
-                duration: const Duration(seconds: 2),
-              ),
-            );
           },
         ),
         const SizedBox(height: 12),
@@ -2246,94 +1494,28 @@ class _SheekhaHomeScreenState extends State<SheekhaHomeScreen> {
           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
           tileColor: const Color(0xFF1C2541),
           leading: const Icon(Icons.support_agent, color: Color(0xFF06D6A0)),
-          title: Text(AppStrings.supportSetting, style: const TextStyle(color: Colors.white)),
-          subtitle: Text(AppStrings.supportSub, style: const TextStyle(color: Colors.grey, fontSize: 11)),
+          title: const Text('التواصل مع الدعم الفني', style: TextStyle(color: Colors.white)),
+          subtitle: const Text('واتساب: 00201155661920', style: TextStyle(color: Colors.grey, fontSize: 11)),
           trailing: const Icon(Icons.arrow_forward_ios, color: Colors.grey, size: 16),
           onTap: () async {
-            const phone = '201155661920';
-            const text = 'مرحباً، أود الاستفسار وتجديد اشتراك تطبيق RASED';
-            String encodedText = Uri.encodeComponent(text);
-            Uri whatsappUri = Uri.parse('whatsapp://send?phone=$phone&text=$encodedText');
-
             try {
-              if (await canLaunchUrl(whatsappUri)) {
-                await launchUrl(whatsappUri, mode: LaunchMode.externalApplication);
-              } else {
-                Uri webUri = Uri.parse('https://wa.me/$phone?text=$encodedText');
-                await launchUrl(webUri, mode: LaunchMode.externalApplication);
-              }
-            } catch (e) {
-              if (mounted) {
-                ScaffoldMessenger.of(context).showSnackBar(
-                  SnackBar(content: Text('Error: $e')),
-                );
-              }
-            }
+              if (await canLaunchUrl(Uri.parse('whatsapp://send?phone=201155661920&text=مرحباً'))) await launchUrl(Uri.parse('whatsapp://send?phone=201155661920&text=مرحباً'), mode: LaunchMode.externalApplication);
+              else await launchUrl(Uri.parse('https://wa.me/201155661920?text=مرحباً'), mode: LaunchMode.externalApplication);
+            } catch (_) {}
           },
         ),
       ],
     );
   }
 
-  Widget _buildLiveMicBox() {
-    return Container(
-      padding: const EdgeInsets.all(14),
-      decoration: BoxDecoration(
-        color: const Color(0xFF1C2541),
-        borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: _isListening ? const Color(0xFF06D6A0) : Colors.transparent, width: 1.5),
-      ),
-      child: Column(
-        children: [
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                decoration: BoxDecoration(color: (_isListening ? const Color(0xFF06D6A0) : Colors.grey).withOpacity(0.2), borderRadius: BorderRadius.circular(12)),
-                child: Text(_isListening ? (AppStrings.isAr ? 'يستمع الآن' : 'Listening') : AppStrings.stopped, style: TextStyle(color: _isListening ? const Color(0xFF06D6A0) : Colors.grey, fontSize: 12)),
-              ),
-              Expanded(
-                child: Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 10),
-                  child: Text(_currentStatusText, textAlign: TextAlign.right, maxLines: 2, overflow: TextOverflow.ellipsis, style: const TextStyle(color: Colors.white, fontSize: 15, fontWeight: FontWeight.bold)),
-                ),
-              ),
-              GestureDetector(
-                onTap: _toggleLiveListening,
-                child: CircleAvatar(radius: 26, backgroundColor: _isListening ? const Color(0xFF06D6A0) : Colors.redAccent, child: Icon(_isListening ? Icons.mic : Icons.mic_off, color: Colors.black, size: 28)),
-              ),
-            ],
-          ),
-          const SizedBox(height: 12),
-          SizedBox(
-            height: 35,
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-              children: List.generate(30, (index) {
-                double baseHeight = 6.0;
-                double dynamicWave = _isListening ? baseHeight + (sin(index + _soundLevel) * _soundLevel * 2.2).abs() : baseHeight;
-                return AnimatedContainer(duration: const Duration(milliseconds: 60), width: 3.5, height: dynamicWave.clamp(5.0, 35.0), decoration: BoxDecoration(color: _isListening ? const Color(0xFF06D6A0) : Colors.grey.shade700, borderRadius: BorderRadius.circular(2)));
-              }),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
   Widget _buildRecordsListView(List<Map<String, String>> list) {
-    if (list.isEmpty) {
-      return Center(child: Text(AppStrings.noRecords, style: const TextStyle(color: Colors.grey)));
-    }
-
+    if (list.isEmpty) return const Center(child: Text('لا توجد سجلات حالياً...', style: TextStyle(color: Colors.grey)));
     return ListView.builder(
       itemCount: list.length,
       itemBuilder: (context, index) {
         final r = list[index];
         bool isWanted = r['status'] == 'مطلوبة';
         String coords = r['coords'] ?? '';
-
         return Container(
           margin: const EdgeInsets.only(bottom: 6),
           padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 10),
@@ -2349,14 +1531,8 @@ class _SheekhaHomeScreenState extends State<SheekhaHomeScreen> {
                 onTap: () => _editRecordManually(index),
                 child: Container(
                   padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                  decoration: BoxDecoration(
-                    color: isWanted ? Colors.redAccent.withOpacity(0.3) : const Color(0xFF06D6A0).withOpacity(0.15),
-                    borderRadius: BorderRadius.circular(6),
-                  ),
-                  child: Text(
-                    r['type'] ?? '-',
-                    style: TextStyle(color: isWanted ? Colors.white : const Color(0xFF06D6A0), fontSize: 12, fontWeight: FontWeight.bold),
-                  ),
+                  decoration: BoxDecoration(color: isWanted ? Colors.redAccent.withOpacity(0.3) : const Color(0xFF06D6A0).withOpacity(0.15), borderRadius: BorderRadius.circular(6)),
+                  child: Text(r['type'] ?? '-', style: TextStyle(color: isWanted ? Colors.white : const Color(0xFF06D6A0), fontSize: 12, fontWeight: FontWeight.bold)),
                 ),
               ),
               Icon(isWanted ? Icons.warning_amber_rounded : Icons.check_circle, color: isWanted ? Colors.redAccent : const Color(0xFF06D6A0), size: 18),
@@ -2402,23 +1578,9 @@ class _SheekhaHomeScreenState extends State<SheekhaHomeScreen> {
       builder: (context) => Column(
         mainAxisSize: MainAxisSize.min,
         children: [
-          ..._districts.map((d) => ListTile(
-            title: Text(d, style: const TextStyle(color: Colors.white), textDirection: AppStrings.isAr ? TextDirection.rtl : TextDirection.ltr),
-            trailing: Icon(_currentDistrict == d ? Icons.check_circle : Icons.circle_outlined, color: const Color(0xFF06D6A0), size: 18),
-            onTap: () {
-              setState(() => _currentDistrict = d);
-              Navigator.pop(context);
-            },
-          )),
+          ..._districts.map((d) => ListTile(title: Text(d, style: const TextStyle(color: Colors.white), textDirection: TextDirection.rtl), trailing: Icon(_currentDistrict == d ? Icons.check_circle : Icons.circle_outlined, color: const Color(0xFF06D6A0), size: 18), onTap: () { setState(() => _currentDistrict = d); Navigator.pop(context); })),
           const Divider(color: Colors.white24),
-          ListTile(
-            leading: const Icon(Icons.add, color: Color(0xFF06D6A0)),
-            title: Text(AppStrings.isAr ? 'إضافة حي +' : 'Add District +', style: const TextStyle(color: Color(0xFF06D6A0), fontWeight: FontWeight.bold), textDirection: AppStrings.isAr ? TextDirection.rtl : TextDirection.ltr),
-            onTap: () {
-              Navigator.pop(context);
-              _showAddDistrictDialog();
-            },
-          ),
+          ListTile(leading: const Icon(Icons.add, color: Color(0xFF06D6A0)), title: const Text('إضافة حي +', style: TextStyle(color: Color(0xFF06D6A0), fontWeight: FontWeight.bold), textDirection: TextDirection.rtl), onTap: () { Navigator.pop(context); _showAddDistrictDialog(); }),
         ],
       ),
     );
@@ -2430,31 +1592,11 @@ class _SheekhaHomeScreenState extends State<SheekhaHomeScreen> {
       context: context,
       builder: (context) => AlertDialog(
         backgroundColor: const Color(0xFF1C2541),
-        title: Text(AppStrings.isAr ? 'إضافة حي جديد' : 'New District', style: const TextStyle(color: Color(0xFF06D6A0)), textAlign: TextAlign.center),
-        content: TextField(
-          controller: districtCtrl,
-          autofocus: true,
-          textDirection: AppStrings.isAr ? TextDirection.rtl : TextDirection.ltr,
-          style: const TextStyle(color: Colors.white),
-          decoration: InputDecoration(hintText: AppStrings.isAr ? 'اكتب اسم الحي الجديد...' : 'District name...', hintStyle: const TextStyle(color: Colors.grey)),
-        ),
+        title: const Text('إضافة حي جديد', style: TextStyle(color: Color(0xFF06D6A0)), textAlign: TextAlign.center),
+        content: TextField(controller: districtCtrl, autofocus: true, textDirection: TextDirection.rtl, style: const TextStyle(color: Colors.white), decoration: const InputDecoration(hintText: 'اكتب اسم الحي الجديد...', hintStyle: TextStyle(color: Colors.grey))),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(context), child: Text(AppStrings.isAr ? 'إلغاء' : 'Cancel')),
-          ElevatedButton(
-            style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFF06D6A0)),
-            onPressed: () {
-              String newD = districtCtrl.text.trim();
-              if (newD.isNotEmpty) {
-                setState(() {
-                  if (!_districts.contains(newD)) _districts.add(newD);
-                  _currentDistrict = newD;
-                });
-                _saveData();
-              }
-              Navigator.pop(context);
-            },
-            child: Text(AppStrings.isAr ? 'إضافة وتحديد' : 'Add', style: const TextStyle(color: Colors.black, fontWeight: FontWeight.bold)),
-          ),
+          TextButton(onPressed: () => Navigator.pop(context), child: const Text('إلغاء')),
+          ElevatedButton(onPressed: () { String newD = districtCtrl.text.trim(); if (newD.isNotEmpty) { setState(() { if (!_districts.contains(newD)) _districts.add(newD); _currentDistrict = newD; }); _saveData(); } Navigator.pop(context); }, style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFF06D6A0)), child: const Text('إضافة وتحديد', style: TextStyle(color: Colors.black, fontWeight: FontWeight.bold))),
         ],
       ),
     );
@@ -2466,52 +1608,21 @@ class _SheekhaHomeScreenState extends State<SheekhaHomeScreen> {
       context: context,
       builder: (context) => AlertDialog(
         backgroundColor: const Color(0xFF1C2541),
-        title: Text(AppStrings.street, style: const TextStyle(color: Colors.white)),
-        content: TextField(controller: ctrl, textDirection: AppStrings.isAr ? TextDirection.rtl : TextDirection.ltr, style: const TextStyle(color: Colors.white)),
-        actions: [
-          ElevatedButton(
-            onPressed: () {
-              setState(() => _currentStreet = ctrl.text.trim());
-              Navigator.pop(context);
-            },
-            child: Text(AppStrings.isAr ? 'حفظ' : 'Save'),
-          )
-        ],
+        title: const Text('الشارع', style: TextStyle(color: Colors.white)),
+        content: TextField(controller: ctrl, textDirection: TextDirection.rtl, style: const TextStyle(color: Colors.white)),
+        actions: [ElevatedButton(onPressed: () { setState(() => _currentStreet = ctrl.text.trim()); Navigator.pop(context); }, child: const Text('حفظ'))],
       ),
     );
   }
 
   void _showNotesMenu() {
-    final notes = [
-      'بدون',
-      'برحة',
-      'برحة يمين',
-      'برحة يسار',
-      'برحة اخر الشارع',
-      'برحة نهاية الشارع',
-      'برحة منتصف الشارع',
-      'برحة وسط الشارع',
-      'برحة يمين اول الشارع',
-      'برحة يسار اول الشارع',
-      'وصلة يمين',
-      'وصلة يسار',
-      'وصلة يمين اول الشارع',
-      'وصلة يسار اول الشارع',
-      'برحة فندق',
-      'تحت تندة'
-    ];
+    final notes = ['بدون', 'برحة', 'برحة يمين', 'برحة يسار', 'تحت تندة'];
     showModalBottomSheet(
       context: context,
       backgroundColor: const Color(0xFF1C2541),
       builder: (context) => ListView(
         shrinkWrap: true,
-        children: notes.map((n) => ListTile(
-          title: Text(n, style: const TextStyle(color: Colors.white), textDirection: AppStrings.isAr ? TextDirection.rtl : TextDirection.ltr),
-          onTap: () {
-            setState(() => _selectedNote = n);
-            Navigator.pop(context);
-          },
-        )).toList(),
+        children: notes.map((n) => ListTile(title: Text(n, style: const TextStyle(color: Colors.white), textDirection: TextDirection.rtl), onTap: () { setState(() => _selectedNote = n); Navigator.pop(context); })).toList(),
       ),
     );
   }
