@@ -14,6 +14,7 @@ import 'package:url_launcher/url_launcher.dart';
 
 void main() => runApp(const MyApp());
 
+// نظام حماية التراخيص والتحكم عن بُعد
 class RasedLicenseManager {
   static const String _secretSalt = "RASED_PRO_2026_SECRET_KEY";
   
@@ -404,13 +405,16 @@ class _SubscriptionGateScreenState extends State<SubscriptionGateScreen> with Wi
   }
 }
 
+// =========================================================================
+// المحرك الصوتي الذكي (فائق السرعة) مع النافذة العكسية والتعلم الذاتي
+// =========================================================================
 class SheekhaFullEngine {
   static Map<String, dynamic> userLearnedMap = {};
 
   static Future<void> loadLearnedDictionary() async {
     try {
       final prefs = await SharedPreferences.getInstance();
-      final String? saved = prefs.getString('rased_user_learned_v7');
+      final String? saved = prefs.getString('rased_user_learned_v8');
       if (saved != null && saved.isNotEmpty) {
         userLearnedMap = json.decode(saved);
       }
@@ -427,7 +431,7 @@ class SheekhaFullEngine {
     };
     try {
       final prefs = await SharedPreferences.getInstance();
-      await prefs.setString('rased_user_learned_v7', json.encode(userLearnedMap));
+      await prefs.setString('rased_user_learned_v8', json.encode(userLearnedMap));
     } catch (_) {}
   }
 
@@ -452,7 +456,8 @@ class SheekhaFullEngine {
     'عين': 'ع', 'عه': 'ع', 'عا': 'ع', 'عن': 'ع', 'ع': 'ع',
     'غين': 'غ', 'غه': 'غ', 'غا': 'غ', 'غ': 'غ',
     'فاء': 'ف', 'فه': 'ف', 'فة': 'ف', 'فا': 'ف', 'ف': 'ف',
-    'قاف': 'q', 'قه': 'q', 'قا': 'q', 'ق': 'q', 'كاف': 'ك', 'كه': 'ك', 'كا': 'ك', 'ك': 'ك',
+    'قاف': 'ق', 'قه': 'ق', 'قا': 'ق', 'ق': 'ق',
+    'كاف': 'ك', 'كه': 'ك', 'كا': 'ك', 'ك': 'ك',
     'لام': 'ل', 'له': 'ل', 'لا': 'ل', 'ل': 'ل',
     'ميم': 'م', 'مه': 'م', 'ما': 'م', 'م': 'م',
     'نون': 'ن', 'نه': 'ن', 'نا': 'ن', 'ن': 'ن',
@@ -463,7 +468,7 @@ class SheekhaFullEngine {
 
   static final Map<String, List<String>> compounds = {
     'واويه': ['و', 'ي'], 'واوية': ['و', 'ي'], 'واوياء': ['و', 'ي'],
-    'واودال': ['و', 'د'], 'واوقاف': ['و', 'q'], 'أوقاف': ['و', 'q'],
+    'واودال': ['و', 'د'], 'واوقاف': ['و', 'ق'], 'أوقاف': ['و', 'ق'],
     'اوصاد': ['أ', 'و', 'ص'], 'أوصاد': ['أ', 'و', 'ص'],
     'راهدال': ['ر', 'د'], 'رادال': ['ر', 'د'], 'رهدال': ['ر', 'د'],
     'عينرا': ['ع', 'ر'], 'عينره': ['ع', 'ر'],
@@ -515,6 +520,7 @@ class SheekhaFullEngine {
     return null;
   }
 
+  // خوارزمية النافذة العكسية للرصد بدون توقف
   static Map<String, dynamic>? parsePlateAndType(String text) {
     if (text.trim().isEmpty) return null;
 
@@ -525,13 +531,15 @@ class SheekhaFullEngine {
         'letters': learned['letters'],
         'digits': learned['digits'],
         'type': learned['type'] ?? '-',
+        'hasExplicitType': (learned['type'] ?? '-') != '-',
+        'startsWithAlefOrBaa': false,
       };
     }
 
     String normalized = normalizeDigits(text);
     String? detectedType = extractVehicleType(normalized);
-
     String textForPlate = normalized;
+    
     if (detectedType != null && vehicleTypesMap.containsKey(detectedType)) {
       for (String syn in vehicleTypesMap[detectedType]!) textForPlate = textForPlate.replaceAll(syn, ' ');
     }
@@ -561,6 +569,7 @@ class SheekhaFullEngine {
       }
     }
 
+    // النافذة العكسية (تبحث عن الأرقام أولاً من الخلف، ثم الحروف التي تسبقها)
     for (int i = stream.length - 1; i >= 0; i--) {
       if (RegExp(r'^\d$').hasMatch(stream[i])) {
         int dEnd = i;
@@ -571,19 +580,22 @@ class SheekhaFullEngine {
         if (numDigits >= 3 && numDigits <= 4) {
           List<String> lettersFound = [];
           for (int j = dStart - 1; j >= 0 && lettersFound.length < 3; j--) {
-            if (RegExp(r'^[a-zA-Z\u0621-\u064A]$').hasMatch(stream[j])) {
-              String l = stream[j];
-              lettersFound.insert(0, l == 'q' ? 'ق' : l);
+            if (RegExp(r'^[\u0621-\u064A]$').hasMatch(stream[j])) {
+              lettersFound.insert(0, stream[j]);
             } else {
               break;
             }
           }
           if (lettersFound.length >= 2) {
             String digitsStr = stream.sublist(dStart, dEnd + 1).join('');
+            String firstL = lettersFound.first;
+            bool startsWithAorB = (firstL == 'أ' || firstL == 'ا' || firstL == 'إ' || firstL == 'ب');
             return {
               'letters': lettersFound.join(' '),
               'digits': digitsStr,
-              'type': detectedType ?? '-',
+              'type': detectedType ?? (startsWithAorB ? '-' : 'ملاكي'),
+              'hasExplicitType': detectedType != null,
+              'startsWithAlefOrBaa': startsWithAorB,
             };
           }
         }
@@ -627,6 +639,10 @@ class _SheekhaHomeScreenState extends State<SheekhaHomeScreen> {
   final stt.SpeechToText _speech = stt.SpeechToText();
   bool _speechEnabled = false;
 
+  Timer? _pendingTimer;
+  Map<String, String>? _pendingPlate;
+  DateTime? _lastPlateInsertedAt;
+
   final List<String> _districts = ['الروضة', 'السلام', 'المنيل', 'المعادي'];
   String _currentDistrict = 'الروضة';
   String _currentStreet = 'ض 1';
@@ -638,7 +654,11 @@ class _SheekhaHomeScreenState extends State<SheekhaHomeScreen> {
   bool _isGpsEnabled = true;
 
   List<Map<String, String>> _records = [];
-  List<Map<String, String>> _wantedDatabase = [];
+  List<Map<String, String>> _wantedDatabase = []; 
+  
+  // 🚀 الفهرسة اللحظية (Hash-Map O(1)) لسرعة البرق في المطابقة
+  Map<String, List<Map<String, String>>> _wantedDatabaseIndexed = {};
+
   final Set<String> _selectedWantedIds = {};
 
   final TextEditingController _manualSearchCtrl = TextEditingController();
@@ -651,6 +671,23 @@ class _SheekhaHomeScreenState extends State<SheekhaHomeScreen> {
     SheekhaFullEngine.loadLearnedDictionary();
     _loadData();
     _initEngine();
+  }
+
+  @override
+  void dispose() {
+    _pendingTimer?.cancel();
+    super.dispose();
+  }
+
+  void _rebuildWantedIndex() {
+    _wantedDatabaseIndexed.clear();
+    for (var car in _wantedDatabase) {
+      String d = SheekhaFullEngine.normalizeDigits(car['digits'] ?? '');
+      if (d.isNotEmpty) {
+        if (_wantedDatabaseIndexed[d] == null) _wantedDatabaseIndexed[d] = [];
+        _wantedDatabaseIndexed[d]!.add(car);
+      }
+    }
   }
 
   Future<void> _initEngine() async {
@@ -678,6 +715,7 @@ class _SheekhaHomeScreenState extends State<SheekhaHomeScreen> {
 
   void _toggleLiveListening() async {
     if (_isListening) {
+      _commitPendingPlate();
       setState(() {
         _isListening = false;
         _soundLevel = 0.0;
@@ -698,6 +736,16 @@ class _SheekhaHomeScreenState extends State<SheekhaHomeScreen> {
     }
   }
 
+  void _commitPendingPlate() {
+    _pendingTimer?.cancel();
+    _pendingTimer = null;
+    if (_pendingPlate != null) {
+      var p = _pendingPlate!;
+      _pendingPlate = null;
+      _registerDetectedPlate(p['letters']!, p['digits']!, p['type']!, rawSpoken: p['raw'] ?? '');
+    }
+  }
+
   void _startListeningSession() async {
     if (!_isListening) return;
 
@@ -715,13 +763,13 @@ class _SheekhaHomeScreenState extends State<SheekhaHomeScreen> {
 
         setState(() => _currentStatusText = spoken);
 
-        String? standaloneType = SheekhaFullEngine.extractVehicleType(spoken);
-        if (standaloneType != null && _records.isNotEmpty) {
-          if (_records[0]['type'] == 'ملاكي' || _records[0]['type'] == '-') {
-            setState(() {
-              _records[0]['type'] = standaloneType;
-              _saveData();
-            });
+        if (_pendingPlate != null) {
+          String? carType = SheekhaFullEngine.extractVehicleType(spoken);
+          if (carType != null) {
+            _pendingPlate!['type'] = carType;
+            _pendingPlate!['raw'] = spoken;
+            _commitPendingPlate();
+            return;
           }
         }
 
@@ -730,13 +778,49 @@ class _SheekhaHomeScreenState extends State<SheekhaHomeScreen> {
           String letters = plateData['letters']!;
           String digits = plateData['digits']!;
           String carType = plateData['type']!;
+          bool hasExplicitType = plateData['hasExplicitType'] == true;
+          bool startsWithAlefOrBaa = plateData['startsWithAlefOrBaa'] == true;
           String key = '$letters-$digits';
 
+          if (_pendingPlate != null && _pendingPlate!['key'] == key) {
+            if (hasExplicitType) {
+              _pendingPlate!['type'] = carType;
+              _commitPendingPlate();
+            }
+            return;
+          }
+
+          if (_pendingPlate != null && _pendingPlate!['key'] != key) {
+            _commitPendingPlate();
+          }
+
           DateTime now = DateTime.now();
-          if (!_cooldowns.containsKey(key) || now.difference(_cooldowns[key]!).inSeconds >= 2) {
+          bool isRecent = _cooldowns.containsKey(key) && now.difference(_cooldowns[key]!).inSeconds < 2;
+
+          if (!isRecent) {
             _cooldowns[key] = now;
-            _registerDetectedPlate(letters, digits, carType, rawSpoken: spoken);
-            _speech.stop();
+            
+            if (startsWithAlefOrBaa && !hasExplicitType) {
+              _pendingPlate = { 'key': key, 'letters': letters, 'digits': digits, 'type': 'ملاكي', 'raw': spoken };
+              _pendingTimer?.cancel();
+              _pendingTimer = Timer(const Duration(milliseconds: 1500), () {
+                if (mounted) _commitPendingPlate();
+              });
+            } else {
+              _registerDetectedPlate(letters, digits, carType, rawSpoken: spoken);
+            }
+          }
+        } else {
+          // تحديث نوع السيارة متأخراً لآخر لوحة
+          if (_records.isNotEmpty && _lastPlateInsertedAt != null && DateTime.now().difference(_lastPlateInsertedAt!).inSeconds <= 5) {
+            String? standaloneType = SheekhaFullEngine.extractVehicleType(spoken);
+            if (standaloneType != null && (_records[0]['type'] == 'ملاكي' || _records[0]['type'] == '-')) {
+              setState(() {
+                _records[0]['type'] = standaloneType;
+                _saveData();
+              });
+              _lastPlateInsertedAt = null;
+            }
           }
         }
       },
@@ -747,14 +831,19 @@ class _SheekhaHomeScreenState extends State<SheekhaHomeScreen> {
     String cleanDigits = SheekhaFullEngine.normalizeDigits(digits.trim());
     String normalizedSearchLetters = SheekhaFullEngine.normalizeFlexible(letters);
 
-    var match = _wantedDatabase.firstWhere(
-      (car) {
-        String dbDigits = SheekhaFullEngine.normalizeDigits((car['digits'] ?? '').trim());
+    Map<String, String> match = {};
+    
+    // 🚀 بحث O(1) باستخدام الفهرس اللحظي الخارق
+    if (_wantedDatabaseIndexed.containsKey(cleanDigits)) {
+      var possibleMatches = _wantedDatabaseIndexed[cleanDigits]!;
+      for (var car in possibleMatches) {
         String dbLetters = SheekhaFullEngine.normalizeFlexible(car['letters'] ?? '');
-        return dbDigits == cleanDigits && (dbLetters.isEmpty || dbLetters == normalizedSearchLetters);
-      },
-      orElse: () => {},
-    );
+        if (dbLetters.isEmpty || dbLetters == normalizedSearchLetters) {
+          match = car;
+          break;
+        }
+      }
+    }
 
     bool isWanted = match.isNotEmpty;
     String finalCarType = isWanted && (match['type'] ?? '').isNotEmpty && match['type'] != 'ملاكي'
@@ -776,6 +865,7 @@ class _SheekhaHomeScreenState extends State<SheekhaHomeScreen> {
     }
 
     setState(() {
+      _lastPlateInsertedAt = DateTime.now();
       _records.insert(0, {
         'id': (_records.length + 1).toString(),
         'letters': letters,
@@ -945,6 +1035,7 @@ class _SheekhaHomeScreenState extends State<SheekhaHomeScreen> {
         if (isWantedSheet) {
           _wantedDatabase = extracted;
           _wantedFileName = '$fileName (${extracted.length})';
+          _rebuildWantedIndex(); // 🚀 بناء الفهرس فور رفع الملف
         } else {
           _records.addAll(extracted);
           _appendFileName = fileName;
@@ -1160,7 +1251,10 @@ class _SheekhaHomeScreenState extends State<SheekhaHomeScreen> {
     final String? savedRecords = prefs.getString('rased_historical_records');
     final String? savedDb = prefs.getString('rased_wanted_db');
     if (savedRecords != null) _records = List<Map<String, String>>.from(json.decode(savedRecords).map((x) => Map<String, String>.from(x)));
-    if (savedDb != null) _wantedDatabase = List<Map<String, String>>.from(json.decode(savedDb).map((x) => Map<String, String>.from(x)));
+    if (savedDb != null) {
+      _wantedDatabase = List<Map<String, String>>.from(json.decode(savedDb).map((x) => Map<String, String>.from(x)));
+      _rebuildWantedIndex();
+    }
     setState(() {
       _savedWhatsAppPhone = prefs.getString('rased_wa_phone') ?? _savedWhatsAppPhone;
       _wantedFileName = prefs.getString('rased_wanted_name') ?? _wantedFileName;
